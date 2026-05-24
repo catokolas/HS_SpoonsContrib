@@ -1,6 +1,6 @@
 -- Hammerspoon configuration
 
---  require nativly created (Claude) ~/.hammerspoon/hs/_mylo/sloppyfocus/
+--  require nativly created (Claude) ~/.hammerspoon/hs/_ckol/sloppyfocus/
 hs.loadSpoon("FocusFollowsMouse")
 spoon.FocusFollowsMouse:configure({ delay = 0.05 })  -- 50ms instead of 100ms
 spoon.FocusFollowsMouse:start()

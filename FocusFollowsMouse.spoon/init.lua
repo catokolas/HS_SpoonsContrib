@@ -10,7 +10,7 @@
 --- never steals focus.
 ---
 --- Note: on macOS, focusing a window also raises it; there is no public system
---- primitive for focus-without-raise. If the optional `hs._mylo.sloppyfocus`
+--- primitive for focus-without-raise. If the optional `hs._ckol.sloppyfocus`
 --- native helper is installed, this spoon uses it instead to focus without
 --- raising; otherwise it falls back to `hs.window:focus()`.
 ---
@@ -87,10 +87,10 @@ function obj:windowUnderPoint(point)
 end
 
 -- Optional native module that focuses without raising. If it's installed
--- (~/.hammerspoon/hs/_mylo/sloppyfocus/) we use it; otherwise we fall back
+-- (~/.hammerspoon/hs/_ckol/sloppyfocus/) we use it; otherwise we fall back
 -- to win:focus(), which raises.
 local _sloppy = (function()
-  local ok, m = pcall(require, "hs._mylo.sloppyfocus")
+  local ok, m = pcall(require, "hs._ckol.sloppyfocus")
   return ok and m or nil
 end)()
 
