@@ -9,8 +9,15 @@
 --- Focus changes are suppressed while a mouse button is held, so dragging
 --- never steals focus.
 ---
---- Note: on macOS, focusing a window also raises it; there is no system
---- primitive for focus-without-raise.
+--- Note: on macOS, focusing a window also raises it; there is no public system
+--- primitive for focus-without-raise. If the optional `hs._mylo.sloppyfocus`
+--- native helper is installed, this spoon uses it instead to focus without
+--- raising; otherwise it falls back to `hs.window:focus()`.
+---
+--- Derived from the MouseFollowsFocus spoon by Jason Felice
+--- <jason.m.felice@gmail.com>; the event-tap and focus-management logic is a
+--- ground-up rewrite for the opposite direction (focus follows mouse rather
+--- than mouse follows focus).
 
 local obj={}
 obj.__index = obj
@@ -18,7 +25,8 @@ obj.__index = obj
 -- Metadata
 obj.name = "FocusFollowsMouse"
 obj.version = "0.1"
-obj.author = "Jason Felice <jason.m.felice@gmail.com>"
+obj.author = "Cato Kolås <cato.kolas@gmail.com>"
+obj.credits = "Inspired by MouseFollowsFocus by Jason Felice <jason.m.felice@gmail.com>"
 obj.homepage = "https://github.com/Hammerspoon/Spoons"
 obj.license = "MIT - https://opensource.org/licenses/MIT"
 
