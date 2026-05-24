@@ -1,0 +1,143 @@
+[
+  {
+    "Command": [],
+    "Constant": [],
+    "Constructor": [],
+    "Deprecated": [],
+    "Field": [],
+    "Function": [],
+    "Method": [
+      {
+        "def": "ClickThrough:configure(configuration)",
+        "desc": "Merges a table of configuration values into the spoon.",
+        "doc": "Merges a table of configuration values into the spoon. Accepts any of the public variables (clickDebounce, watchdogInterval, healthCheckInterval, logToFile, logFilePath, maxLogSize).",
+        "examples": [],
+        "file": "Source/ClickThrough.spoon//init.lua",
+        "lineno": "279",
+        "name": "configure",
+        "notes": [],
+        "parameters": [],
+        "returns": [],
+        "signature": "ClickThrough:configure(configuration)",
+        "stripped_doc": "",
+        "type": "Method"
+      },
+      {
+        "def": "ClickThrough:start()",
+        "desc": "Starts the click-through event tap (and watchdog / health-check timers if configured).",
+        "doc": "Starts the click-through event tap (and watchdog / health-check timers if configured).",
+        "examples": [],
+        "file": "Source/ClickThrough.spoon//init.lua",
+        "lineno": "289",
+        "name": "start",
+        "notes": [],
+        "parameters": [],
+        "returns": [],
+        "signature": "ClickThrough:start()",
+        "stripped_doc": "",
+        "type": "Method"
+      },
+      {
+        "def": "ClickThrough:stop()",
+        "desc": "Stops the event tap and any timers, and closes the file log if open.",
+        "doc": "Stops the event tap and any timers, and closes the file log if open.",
+        "examples": [],
+        "file": "Source/ClickThrough.spoon//init.lua",
+        "lineno": "321",
+        "name": "stop",
+        "notes": [],
+        "parameters": [],
+        "returns": [],
+        "signature": "ClickThrough:stop()",
+        "stripped_doc": "",
+        "type": "Method"
+      }
+    ],
+    "Variable": [
+      {
+        "def": "ClickThrough.logger",
+        "desc": "Logger object used within the Spoon. Set its log level to control verbosity.",
+        "doc": "Logger object used within the Spoon. Set its log level to control verbosity.",
+        "file": "Source/ClickThrough.spoon//init.lua",
+        "lineno": "29",
+        "name": "logger",
+        "signature": "ClickThrough.logger",
+        "stripped_doc": "",
+        "type": "Variable"
+      },
+      {
+        "def": "ClickThrough.clickDebounce",
+        "desc": "Seconds; clicks within this window of the previous one are ignored.",
+        "doc": "Seconds; clicks within this window of the previous one are ignored (double/triple clicks and OS auto-repeat). Default 0.05.",
+        "file": "Source/ClickThrough.spoon//init.lua",
+        "lineno": "34",
+        "name": "clickDebounce",
+        "signature": "ClickThrough.clickDebounce",
+        "stripped_doc": "",
+        "type": "Variable"
+      },
+      {
+        "def": "ClickThrough.watchdogInterval",
+        "desc": "Seconds between event-tap health checks; restarts the tap if macOS disabled it.",
+        "doc": "Seconds between event-tap health checks; if the tap was disabled by macOS it is restarted. Set to 0 to disable. Default 5.",
+        "file": "Source/ClickThrough.spoon//init.lua",
+        "lineno": "40",
+        "name": "watchdogInterval",
+        "signature": "ClickThrough.watchdogInterval",
+        "stripped_doc": "",
+        "type": "Variable"
+      },
+      {
+        "def": "ClickThrough.healthCheckInterval",
+        "desc": "Seconds between debug 'tap is alive' log entries. 0 disables.",
+        "doc": "Seconds between debug-level 'tap is alive' log entries. 0 disables. Default 0.",
+        "file": "Source/ClickThrough.spoon//init.lua",
+        "lineno": "46",
+        "name": "healthCheckInterval",
+        "signature": "ClickThrough.healthCheckInterval",
+        "stripped_doc": "",
+        "type": "Variable"
+      },
+      {
+        "def": "ClickThrough.logToFile",
+        "desc": "If true, also write a rotating file log in addition to hs.logger output.",
+        "doc": "If true, also write a rotating file log in addition to hs.logger output. Default false.",
+        "file": "Source/ClickThrough.spoon//init.lua",
+        "lineno": "52",
+        "name": "logToFile",
+        "signature": "ClickThrough.logToFile",
+        "stripped_doc": "",
+        "type": "Variable"
+      },
+      {
+        "def": "ClickThrough.logFilePath",
+        "desc": "Path for the optional file log.",
+        "doc": "Path for the optional file log. Default ~/hammerspoon_clickthrough.log.",
+        "file": "Source/ClickThrough.spoon//init.lua",
+        "lineno": "57",
+        "name": "logFilePath",
+        "signature": "ClickThrough.logFilePath",
+        "stripped_doc": "",
+        "type": "Variable"
+      },
+      {
+        "def": "ClickThrough.maxLogSize",
+        "desc": "Rotate the file log when it grows past this many bytes.",
+        "doc": "Rotate the file log when it grows past this many bytes. Default 5 MiB.",
+        "file": "Source/ClickThrough.spoon//init.lua",
+        "lineno": "62",
+        "name": "maxLogSize",
+        "signature": "ClickThrough.maxLogSize",
+        "stripped_doc": "",
+        "type": "Variable"
+      }
+    ],
+    "desc": "Click-through (focus-on-click) for macOS: one click both focuses and activates.",
+    "doc": "Click-through (focus-on-click) for macOS: a single click both focuses the window or accessibility element under the cursor *and* activates it, instead of requiring the usual two clicks for unfocused windows.\n\nDetects the click target with hs.window first, falling back to hs.axuielement.systemElementAtPosition for non-window UI (panels, popovers, toolbar items, status-bar widgets). Dialogs and menus are deliberately passed through untouched so they keep their normal interaction model.\n\nA watchdog restarts the event tap if macOS silently disables it, which happens when any single tap callback blocks for too long.",
+    "items": [],
+    "name": "ClickThrough",
+    "stripped_doc": "",
+    "submodules": [],
+    "type": "Module"
+  }
+]

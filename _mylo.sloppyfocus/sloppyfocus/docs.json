@@ -1,0 +1,40 @@
+[
+  {
+    "Command": [],
+    "Constant": [],
+    "Constructor": [],
+    "Deprecated": [],
+    "Field": [],
+    "Function": [
+      {
+        "def": "hs._mylo.sloppyfocus.focusWithoutRaise(win [, currentlyFocused]) -> boolean",
+        "desc": "Gives keyboard focus to `win` without changing its position in the Z-order.",
+        "doc": "Gives keyboard focus to `win` without changing its position in the Z-order.\n\nParameters:\n * win - an hs.window object to receive focus\n * currentlyFocused - optional hs.window currently holding focus. Required only when switching between windows of the same app (e.g. two iTerm windows), so the call can perform the extra deactivate/activate dance SkyLight needs in that case. If omitted, same-app focus changes may appear to no-op.\n\nReturns:\n * true on success, false if the call could not be made (missing window, SkyLight symbols unavailable, or SLPS returned an error)",
+        "examples": [],
+        "file": "init.lua",
+        "lineno": "10",
+        "name": "focusWithoutRaise",
+        "notes": [],
+        "parameters": [
+          " * win - an hs.window object to receive focus",
+          " * currentlyFocused - optional hs.window currently holding focus. Required only when switching between windows of the same app (e.g. two iTerm windows), so the call can perform the extra deactivate/activate dance SkyLight needs in that case. If omitted, same-app focus changes may appear to no-op."
+        ],
+        "returns": [
+          " * true on success, false if the call could not be made (missing window, SkyLight symbols unavailable, or SLPS returned an error)"
+        ],
+        "signature": "hs._mylo.sloppyfocus.focusWithoutRaise(win [, currentlyFocused]) -> boolean",
+        "stripped_doc": "",
+        "type": "Function"
+      }
+    ],
+    "Method": [],
+    "Variable": [],
+    "desc": "Focus a window without raising it (X11-style sloppy focus on macOS).",
+    "doc": "Focus a window without raising it (X11-style sloppy focus on macOS).\n\nUses SkyLight private APIs via the bundled native bridge. Works on Chromium PWAs, which AutoRaise mis-handles. The Z-order of windows is not changed; only the keyboard focus / \"key window\" assignment is updated.\n\nSee the bundled README.md for build instructions and the technical recipe.",
+    "items": [],
+    "name": "hs._mylo.sloppyfocus",
+    "stripped_doc": "",
+    "submodules": [],
+    "type": "Module"
+  }
+]

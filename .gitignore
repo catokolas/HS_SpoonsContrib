@@ -1,0 +1,10 @@
+# Compiled native module
+*.so
+*.dSYM/
+
+# Phase 1 diagnostic CLI binaries
+_mylo.sloppyfocus/phase1-diag/diag
+_mylo.sloppyfocus/phase1-diag/focus_test
+
+# macOS
+.DS_Store

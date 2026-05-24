@@ -1,0 +1,122 @@
+[
+  {
+    "Command": [],
+    "Constant": [],
+    "Constructor": [],
+    "Deprecated": [],
+    "Field": [],
+    "Function": [],
+    "Method": [
+      {
+        "def": "FocusFollowsMouse:configure(configuration)",
+        "desc": "Configures the spoon. Accepts any of the public variables (delay, excludedApps).",
+        "doc": "Configures the spoon. Accepts any of the public variables (delay, excludedApps).\n\nParameters:\n * configuration - a table of configuration values to merge into the spoon",
+        "examples": [],
+        "file": "Source/FocusFollowsMouse.spoon//init.lua",
+        "lineno": "45",
+        "name": "configure",
+        "notes": [],
+        "parameters": [
+          " * configuration - a table of configuration values to merge into the spoon"
+        ],
+        "returns": [],
+        "signature": "FocusFollowsMouse:configure(configuration)",
+        "stripped_doc": "",
+        "type": "Method"
+      },
+      {
+        "def": "FocusFollowsMouse:windowUnderPoint(point)",
+        "desc": "Returns the topmost standard window whose frame contains the given point, or nil.",
+        "doc": "Returns the topmost standard window whose frame contains the given point, or nil.\n\nParameters:\n * point - a table with x and y fields (e.g. from hs.mouse.absolutePosition())",
+        "examples": [],
+        "file": "Source/FocusFollowsMouse.spoon//init.lua",
+        "lineno": "66",
+        "name": "windowUnderPoint",
+        "notes": [],
+        "parameters": [
+          " * point - a table with x and y fields (e.g. from hs.mouse.absolutePosition())"
+        ],
+        "returns": [],
+        "signature": "FocusFollowsMouse:windowUnderPoint(point)",
+        "stripped_doc": "",
+        "type": "Method"
+      },
+      {
+        "def": "FocusFollowsMouse:start()",
+        "desc": "Starts focusing windows as the mouse moves over them.",
+        "doc": "Starts focusing windows as the mouse moves over them.\n\nParameters:\n * None",
+        "examples": [],
+        "file": "Source/FocusFollowsMouse.spoon//init.lua",
+        "lineno": "89",
+        "name": "start",
+        "notes": [],
+        "parameters": [
+          " * None"
+        ],
+        "returns": [],
+        "signature": "FocusFollowsMouse:start()",
+        "stripped_doc": "",
+        "type": "Method"
+      },
+      {
+        "def": "FocusFollowsMouse:stop()",
+        "desc": "Stops focusing windows as the mouse moves.",
+        "doc": "Stops focusing windows as the mouse moves.\n\nParameters:\n * None",
+        "examples": [],
+        "file": "Source/FocusFollowsMouse.spoon//init.lua",
+        "lineno": "104",
+        "name": "stop",
+        "notes": [],
+        "parameters": [
+          " * None"
+        ],
+        "returns": [],
+        "signature": "FocusFollowsMouse:stop()",
+        "stripped_doc": "",
+        "type": "Method"
+      }
+    ],
+    "Variable": [
+      {
+        "def": "FocusFollowsMouse.delay",
+        "desc": "Seconds the pointer must rest over a window before focus is changed. Defaults to 0.1.",
+        "doc": "Seconds the pointer must rest over a window before focus is changed. Defaults to 0.1.",
+        "file": "Source/FocusFollowsMouse.spoon//init.lua",
+        "lineno": "29",
+        "name": "delay",
+        "signature": "FocusFollowsMouse.delay",
+        "stripped_doc": "",
+        "type": "Variable"
+      },
+      {
+        "def": "FocusFollowsMouse.excludedApps",
+        "desc": "List of app names or bundle IDs whose windows should never be auto-focused.",
+        "doc": "List of app names or bundle IDs whose windows should never be auto-focused.",
+        "file": "Source/FocusFollowsMouse.spoon//init.lua",
+        "lineno": "34",
+        "name": "excludedApps",
+        "signature": "FocusFollowsMouse.excludedApps",
+        "stripped_doc": "",
+        "type": "Variable"
+      },
+      {
+        "def": "FocusFollowsMouse.logger",
+        "desc": "Logger object used within the Spoon. Can be accessed to set the default log level for the messages coming from the Spoon.",
+        "doc": "Logger object used within the Spoon. Can be accessed to set the default log level for the messages coming from the Spoon.",
+        "file": "Source/FocusFollowsMouse.spoon//init.lua",
+        "lineno": "39",
+        "name": "logger",
+        "signature": "FocusFollowsMouse.logger",
+        "stripped_doc": "",
+        "type": "Variable"
+      }
+    ],
+    "desc": "Focus the window under the mouse pointer (\"sloppy focus\" / X11-style focus-follows-mouse).",
+    "doc": "Focus the window under the mouse pointer (\"sloppy focus\" / X11-style focus-follows-mouse). When the pointer comes to rest over a window that isn't already focused, that window is focused.\n\nA short debounce delay means focus only changes once the cursor settles, so quickly sweeping the pointer across windows does not thrash focus. Focus changes are suppressed while a mouse button is held, so dragging never steals focus.\n\nNote: on macOS, focusing a window also raises it; there is no system primitive for focus-without-raise.",
+    "items": [],
+    "name": "FocusFollowsMouse",
+    "stripped_doc": "",
+    "submodules": [],
+    "type": "Module"
+  }
+]
