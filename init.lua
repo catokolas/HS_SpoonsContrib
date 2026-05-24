@@ -5,7 +5,7 @@ hs.loadSpoon("FocusFollowsMouse")
 spoon.FocusFollowsMouse:configure({ delay = 0.05 })  -- 50ms instead of 100ms
 spoon.FocusFollowsMouse:start()
 
-/*
+--[[
 spoon.FocusFollowsMouse:configure({
     delay = 0.05,                        -- 50 ms debounce
     excludedApps = {
@@ -17,8 +17,9 @@ spoon.FocusFollowsMouse:configure({
     },
 })
 spoon.FocusFollowsMouse:start()
-*/
-/*
+]]
+
+--[[
 Matching rules (from the spoon's isExcluded): each entry is compared against both the window's
 application():name() and application():bundleID(). Either match excludes that window from auto-focus.
 Order doesn't matter, case is exact.
@@ -37,8 +38,9 @@ end
 You can mix name and bundle ID in the same list — bundle ID is more robust against localization (an
 app named "Calculator" on English macOS becomes "Lommeregner" on Danish, but the bundle ID
 com.apple.calculator is stable).
-*/
-/*
+]]
+
+--[[
 -- debug
 hs.hotkey.bind({"ctrl","alt","cmd"}, "P", function()
     local w = hs.window.focusedWindow()
@@ -46,7 +48,7 @@ hs.hotkey.bind({"ctrl","alt","cmd"}, "P", function()
       w:pid(), w:application():name(), w:title()))
     hs.alert.show("pid=" .. w:pid())
 end)
-*/
+--]]
 
 hs.loadSpoon("ClickThrough")
 spoon.ClickThrough:configure({ logToFile = true, healthCheckInterval = 10 })
