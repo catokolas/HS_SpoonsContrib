@@ -17,10 +17,13 @@ focus.
 
 ## Installation
 
-Clone this repo and symlink (or copy) `FocusFollowsMouse.spoon` into
-`~/.hammerspoon/Spoons/`:
+Clone, then symlink into `~/.hammerspoon/Spoons`:
 
 ```bash
+git clone git@github.com:catokolas/HS_SpoonsContrib.git
+cd HS_SpoonsContrib
+
+mkdir -p ~/.hammerspoon/Spoons
 ln -s "$PWD/FocusFollowsMouse.spoon" ~/.hammerspoon/Spoons/FocusFollowsMouse.spoon
 ```
 
@@ -43,6 +46,8 @@ spoon.FocusFollowsMouse:start()
 `excludedApps` matches each entry against both `application():name()` and
 `application():bundleID()` — bundle IDs are more robust across localised
 macOS installs.
+
+Then reload Hammerspoon (menu bar → Reload Config).
 
 ## API
 
