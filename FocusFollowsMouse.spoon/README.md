@@ -11,7 +11,7 @@ focus.
 
 > **Note** — on macOS, focusing a window also raises it; there is no public
 > system primitive for focus-without-raise. If the optional
-> [`hs._ckol.sloppyfocus`](https://github.com/catokolas/HS_ModulesContrib) native
+> [`hs._ckol.sloppyfocus`](https://github.com/catokolas/HS_ModulesContrib-sloppyfocus) native
 > helper is installed, this spoon uses it to focus without raising; otherwise
 > it falls back to `hs.window:focus()`.
 
