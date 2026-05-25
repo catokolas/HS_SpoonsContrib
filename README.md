@@ -20,13 +20,13 @@ Personal [Hammerspoon](https://www.hammerspoon.org/) configuration and shareable
 
 ## Companion repos
 
-- **[`HS_ModulesContrib`](https://github.com/catokolas/HS_ModulesContrib)**
-  — native Hammerspoon modules. The `hs._ckol.sloppyfocus` module there
-  provides true focus-without-raise via macOS SkyLight private APIs, and
-  works on Chromium-based PWAs (which the standalone
-  [AutoRaise](https://github.com/sbmpost/AutoRaise) tool does not).
+- **[`HS_ModulesContrib-sloppyfocus`](https://github.com/catokolas/HS_ModulesContrib-sloppyfocus)**
+  — native Hammerspoon module for focus-without-raise via macOS SkyLight
+  private APIs. Works on Chromium-based PWAs, which the standalone
+  [AutoRaise](https://github.com/sbmpost/AutoRaise) tool does not.
   `FocusFollowsMouse.spoon` picks the module up automatically when it's
-  installed under `~/.hammerspoon/hs/_ckol/sloppyfocus/`.
+  installed under `~/.hammerspoon/hs/_ckol/sloppyfocus/`. Future native
+  modules will live in similarly-named sibling repos.
 
 ## Installation
 
