@@ -1,0 +1,114 @@
+[
+  {
+    "Command": [],
+    "Constant": [],
+    "Constructor": [],
+    "Deprecated": [],
+    "Field": [],
+    "Function": [],
+    "Method": [
+      {
+        "def": "MoveSpaces:bindHotkeys(mapping)",
+        "desc": "Binds (or rebinds) keyboard shortcuts for left/right window moves.",
+        "doc": "Binds (or rebinds) keyboard shortcuts. The mapping table accepts space_left and space_right keys, each a {mods, key} pair compatible with hs.hotkey.bindSpec. Either may be omitted to leave that direction unbound. Calling bindHotkeys again clears prior bindings first.\n\nParameters:\n * mapping - table like { space_left = {{\"shift\",\"ctrl\"}, \"left\"}, space_right = {{\"shift\",\"ctrl\"}, \"right\"} }\n\nReturns:\n * self",
+        "examples": [],
+        "file": "Source/MoveSpaces.spoon//init.lua",
+        "lineno": "147",
+        "name": "bindHotkeys",
+        "notes": [],
+        "parameters": [
+          " * mapping - table like { space_left = {{\"shift\",\"ctrl\"}, \"left\"}, space_right = {{\"shift\",\"ctrl\"}, \"right\"} }"
+        ],
+        "returns": [
+          " * self"
+        ],
+        "signature": "MoveSpaces:bindHotkeys(mapping)",
+        "stripped_doc": "",
+        "type": "Method"
+      },
+      {
+        "def": "MoveSpaces:moveFocusedWindowLeft()",
+        "desc": "Moves the focused window to the Space immediately to the left.",
+        "doc": "Moves the currently-focused window to the Space immediately to the left of the current Space, on the same screen.",
+        "examples": [],
+        "file": "Source/MoveSpaces.spoon//init.lua",
+        "lineno": "127",
+        "name": "moveFocusedWindowLeft",
+        "notes": [],
+        "parameters": [],
+        "returns": [],
+        "signature": "MoveSpaces:moveFocusedWindowLeft()",
+        "stripped_doc": "",
+        "type": "Method"
+      },
+      {
+        "def": "MoveSpaces:moveFocusedWindowRight()",
+        "desc": "Moves the focused window to the Space immediately to the right.",
+        "doc": "Moves the currently-focused window to the Space immediately to the right of the current Space, on the same screen.",
+        "examples": [],
+        "file": "Source/MoveSpaces.spoon//init.lua",
+        "lineno": "135",
+        "name": "moveFocusedWindowRight",
+        "notes": [],
+        "parameters": [],
+        "returns": [],
+        "signature": "MoveSpaces:moveFocusedWindowRight()",
+        "stripped_doc": "",
+        "type": "Method"
+      }
+    ],
+    "Variable": [
+      {
+        "def": "MoveSpaces.followWindow",
+        "desc": "If true, after moving the window also switch the viewer to the destination Space.",
+        "doc": "If true, after moving the window also switch the viewer to the destination Space (via hs.spaces.gotoSpace). Default false so the move is silent; enabling this causes one Mission Control transition per invocation.",
+        "file": "Source/MoveSpaces.spoon//init.lua",
+        "lineno": "33",
+        "name": "followWindow",
+        "signature": "MoveSpaces.followWindow",
+        "stripped_doc": "",
+        "type": "Variable"
+      },
+      {
+        "def": "MoveSpaces.wrap",
+        "desc": "If true, moving past the leftmost/rightmost Space wraps around.",
+        "doc": "If true, moving past the leftmost/rightmost Space wraps around to the opposite end of the same screen's Space list. Default false (silent no-op at edges).",
+        "file": "Source/MoveSpaces.spoon//init.lua",
+        "lineno": "40",
+        "name": "wrap",
+        "signature": "MoveSpaces.wrap",
+        "stripped_doc": "",
+        "type": "Variable"
+      },
+      {
+        "def": "MoveSpaces.skipFullScreenSpaces",
+        "desc": "If true, fullscreen-app Spaces are stepped over when finding the destination Space.",
+        "doc": "If true, fullscreen-app Spaces are stepped over when looking for the destination Space (a window can't be moved into a fullscreen Space anyway). Default true.",
+        "file": "Source/MoveSpaces.spoon//init.lua",
+        "lineno": "47",
+        "name": "skipFullScreenSpaces",
+        "signature": "MoveSpaces.skipFullScreenSpaces",
+        "stripped_doc": "",
+        "type": "Variable"
+      },
+      {
+        "def": "MoveSpaces.logger",
+        "desc": "Logger object used within the Spoon.",
+        "doc": "Logger object used within the Spoon. Set its level to control verbosity.",
+        "file": "Source/MoveSpaces.spoon//init.lua",
+        "lineno": "52",
+        "name": "logger",
+        "signature": "MoveSpaces.logger",
+        "stripped_doc": "",
+        "type": "Variable"
+      }
+    ],
+    "desc": "Move the focused window to the adjacent macOS Space, on the same screen.",
+    "doc": "Move the currently-focused window to the macOS Space immediately to the left or right of the current Space, on the same screen.\n\nUses Hammerspoon's official hs.spaces API. The window move itself is silent — no Mission Control flicker. Setting followWindow = true makes the viewer follow the window to its new Space (at the cost of one Mission Control transition).\n\nInspired by an earlier MoveSpaces.spoon by Tyler Thrailkill, itself based on code by Szymon Kaliski. That implementation simulated a title-bar drag against the now-deprecated hs._asm.undocumented.spaces; this is a clean rewrite against hs.spaces.",
+    "items": [],
+    "name": "MoveSpaces",
+    "stripped_doc": "",
+    "submodules": [],
+    "type": "Module"
+  }
+]

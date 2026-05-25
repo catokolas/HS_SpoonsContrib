@@ -13,6 +13,12 @@ Personal [Hammerspoon](https://www.hammerspoon.org/) configuration and shareable
   installed (see below) it focuses **without raising** the window; otherwise
   it falls back to `hs.window:focus()` (which raises).
 
+- **[`MoveSpaces.spoon/`](MoveSpaces.spoon/)** — keyboard shortcut to move
+  the currently-focused window to the macOS Space immediately to the left or
+  right of the current Space, on the same screen. Uses `hs.spaces` so the
+  move itself is silent (no Mission Control flicker); an optional
+  `followWindow` setting can make the viewer follow the window.
+
 ### Configuration
 
 - **`init.lua`** — the Hammerspoon entry point. Loads and configures the
