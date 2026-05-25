@@ -1,10 +1,5 @@
-# Compiled native module
-*.so
-*.dSYM/
-
-# Phase 1 diagnostic CLI binaries
-_ckol.sloppyfocus/phase1-diag/diag
-_ckol.sloppyfocus/phase1-diag/focus_test
-
 # macOS
 .DS_Store
+
+# untracked. symlinked from ~/.hammerspoon/init.lua but lives here
+init.lua
