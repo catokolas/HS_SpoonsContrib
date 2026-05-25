@@ -1,5 +1,7 @@
 # macOS
 .DS_Store
 
-# untracked. symlinked from ~/.hammerspoon/init.lua but lives here
-init.lua
+# untracked. symlinked from ~/.hammerspoon/init.lua but lives here.
+# Leading slash anchors to repo root only so spoon init.lua files are not
+# accidentally ignored.
+/init.lua
