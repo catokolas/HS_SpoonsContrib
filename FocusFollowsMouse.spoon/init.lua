@@ -98,13 +98,51 @@ local _sloppy = (function()
   return ok and m or nil
 end)()
 
+-- AXRoles of open menus. When the cursor is over one of these, focusing
+-- the window behind would dismiss the menu, so we bail.
+local MENU_ROLES = {
+  AXMenu        = true,
+  AXMenuItem    = true,
+  AXMenuBar     = true,
+  AXMenuBarItem = true,
+  AXMenuButton  = true,
+}
+
+-- When the focused window is itself a modal sheet whose parent is the
+-- candidate window, focusing the candidate bounces off WindowServer
+-- back to the sheet — visible as a chrome flicker on each cursor
+-- settle. Sheets are typically not enumerable via orderedWindows() but
+-- ARE returned by focusedWindow(); their frame sits inside the parent's
+-- frame in the same process.
+local function focusedIsSheetOf(focused, candidate)
+  if not focused or not candidate then return false end
+  local fa, ca = focused:application(), candidate:application()
+  if not fa or not ca or fa:pid() ~= ca:pid() then return false end
+  local ff, cf = focused:frame(), candidate:frame()
+  local slop = 4
+  return ff.x >= cf.x - slop and ff.x + ff.w <= cf.x + cf.w + slop
+     and ff.y >= cf.y - slop and ff.y + ff.h <= cf.y + cf.h + slop
+end
+
 function obj:_maybeFocus()
   if #hs.mouse.getButtons() ~= 0 then return end
-  local win = self:windowUnderPoint(hs.mouse.absolutePosition())
+  local point = hs.mouse.absolutePosition()
+  -- Skip focus shifts while an open menu is under the cursor; otherwise
+  -- the focus call dismisses it.
+  local axOk, ax = pcall(require, "hs.axuielement")
+  if axOk and ax then
+    local el = ax.systemElementAtPosition(point.x, point.y)
+    if el then
+      local role = el:attributeValue("AXRole")
+      if MENU_ROLES[role] then return end
+    end
+  end
+  local win = self:windowUnderPoint(point)
   if not win then return end
   if isExcluded(self, win) then return end
   local focused = hs.window.focusedWindow()
   if focused and focused:id() == win:id() then return end
+  if focusedIsSheetOf(focused, win) then return end
   if _sloppy and _sloppy.focusWithoutRaise(win, focused) then return end
   win:focus()
 end
