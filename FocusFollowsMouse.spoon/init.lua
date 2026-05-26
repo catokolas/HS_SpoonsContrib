@@ -75,11 +75,16 @@ end
 ---  * point - a table with x and y fields (e.g. from hs.mouse.absolutePosition())
 function obj:windowUnderPoint(point)
   for _, win in ipairs(hs.window.orderedWindows()) do
-    if win:isStandard() and win:isVisible() and not win:isMinimized() then
+    if win:isVisible() and not win:isMinimized() then
       local f = win:frame()
       if point.x >= f.x and point.x < f.x + f.w
          and point.y >= f.y and point.y < f.y + f.h then
-        return win
+        -- Topmost window at this point wins. If it is not a standard
+        -- window (e.g. an AXDialog/AXSheet), do not change focus —
+        -- focusing the parent behind it would steal focus while the
+        -- user is interacting with the dialog.
+        if win:isStandard() then return win end
+        return nil
       end
     end
   end
