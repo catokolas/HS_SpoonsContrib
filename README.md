@@ -34,6 +34,16 @@ Personal [Hammerspoon](https://www.hammerspoon.org/) configuration and shareable
   installed under `~/.hammerspoon/hs/_ckol/sloppyfocus/`. Future native
   modules will live in similarly-named sibling repos.
 
+- **[`HS_ModulesContrib-movetospace`](https://github.com/catokolas/HS_ModulesContrib-movetospace)**
+  — native Hammerspoon module for moving a window to a specific macOS
+  Space via SkyLight private APIs. Bypasses `hs.spaces.moveWindowToSpace`,
+  which silently no-ops on macOS 26+ for most windows. `MoveSpaces.spoon`
+  picks the module up automatically when installed under
+  `~/.hammerspoon/hs/_ckol/movetospace/`. On macOS 26.5 the helper still
+  only moves windows owned by the calling process (Hammerspoon itself);
+  cross-process Space moves are gated at the WindowServer level. See the
+  module README for details.
+
 ## Installation
 
 See [`FocusFollowsMouse.spoon/README.md`](FocusFollowsMouse.spoon/README.md)
