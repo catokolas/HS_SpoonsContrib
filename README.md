@@ -2,6 +2,8 @@
 
 Personal [Hammerspoon](https://www.hammerspoon.org/) configuration and shareable spoons.
 
+[Learn Hammerspoon](https://learnhammerspoon.com/chapters/02-setup-hammerspoon/) - installation instruction and nice learning course.
+
 ## What's here
 
 ### Spoons
