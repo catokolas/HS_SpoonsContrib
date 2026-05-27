@@ -13,12 +13,6 @@ Personal [Hammerspoon](https://www.hammerspoon.org/) configuration and shareable
   installed (see below) it focuses **without raising** the window; otherwise
   it falls back to `hs.window:focus()` (which raises).
 
-- **[`MoveSpaces.spoon/`](MoveSpaces.spoon/)** — keyboard shortcut to move
-  the currently-focused window to the macOS Space immediately to the left or
-  right of the current Space, on the same screen. Uses `hs.spaces` so the
-  move itself is silent (no Mission Control flicker); an optional
-  `followWindow` setting can make the viewer follow the window.
-
 - **[`MouseCopyPasteSelection.spoon/`](MouseCopyPasteSelection.spoon/)** —
   X11-style copy-on-select for macOS. Releasing the mouse after dragging
   across text, or double-clicking a word, captures the selection. By
@@ -27,13 +21,15 @@ Personal [Hammerspoon](https://www.hammerspoon.org/) configuration and shareable
   `useSeparateSelectionBuffer = false` for the legacy shared-clipboard
   model. Optional middle-click-to-paste at the cursor location
   (`enableMiddleClickPaste = true`) reads from whichever buffer is
-  active. A toggle hotkey shows an `hs.alert` banner for visual
+  active. A toggle on|off hotkey shows an `hs.alert` banner for visual
   feedback.
 
-### Configuration
-
-- **`init.lua`** — the Hammerspoon entry point. Loads and configures the
-  spoons above. Symlinked from `~/.hammerspoon/init.lua`.
+- **[`MoveSpaces.spoon/`](MoveSpaces.spoon/)** — 
+⚠️ macOS 26.5 status: limited. Keyboard shortcut to move
+  the currently-focused window to the macOS Space immediately to the left or
+  right of the current Space, on the same screen. Uses `hs.spaces` so the
+  move itself is silent (no Mission Control flicker); an optional
+  `followWindow` setting can make the viewer follow the window.
 
 ## Companion repos
 

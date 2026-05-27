@@ -25,7 +25,7 @@ workaround is macOS's own **Mission Control drag-and-drop** (`F3` or
 
 The spoon is published here because:
 - The implementation is correct and ready the day Apple loosens the
-  restriction.
+  restriction (?).
 - It still works for same-process (Hammerspoon) windows.
 - It demonstrates the limit clearly for anyone investigating the same
   problem.
@@ -99,8 +99,7 @@ Public methods callable directly — e.g. from your own hotkey, menu item, or
 ## Permissions
 
 Hammerspoon needs **Accessibility** (System Settings → Privacy & Security →
-Accessibility) and on macOS 26+ also **Screen Recording** (Privacy &
-Security → Screen Recording) for `hs.spaces` calls to succeed.
+Accessibility).
 
 ## Acknowledgments
 

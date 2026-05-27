@@ -84,6 +84,11 @@ Starts focusing windows as the mouse moves over them.
 
 Stops focusing windows as the mouse moves.
 
+## Permissions
+
+Hammerspoon needs **Accessibility** (System Settings → Privacy & Security →
+Accessibility).
+
 ## Acknowledgments
 
 Derived from the

@@ -7,7 +7,7 @@ analogue) so your real Cmd+C / Cmd+V clipboard is never disturbed; set
 `useSeparateSelectionBuffer = false` for the legacy shared-clipboard
 model. Optional middle-click-to-paste at the cursor location
 (`enableMiddleClickPaste = true`) reads from whichever buffer is
-active. A toggle hotkey shows an `hs.alert` banner for visual
+active. A toggle on|off hotkey shows an `hs.alert` banner for visual
 feedback.
 
 | User action | Buffer used (default mode) |
@@ -57,10 +57,12 @@ In `~/.hammerspoon/init.lua`:
 hs.loadSpoon("MouseCopyPasteSelection")
 spoon.MouseCopyPasteSelection:configure({
   enableMiddleClickPaste = true,   -- opt in to middle-click paste
+  useSeparateSelectionBuffer = false -- if you got used to using the clipboard
+})
 })
 spoon.MouseCopyPasteSelection:start()
 spoon.MouseCopyPasteSelection:bindHotkeys({
-  toggle = {{"cmd","alt"}, "p"},   -- optional kill-switch
+  toggle = {{"cmd","alt"}, "p"},   -- optional toggle kill-switch
 })
 ```
 
