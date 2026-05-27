@@ -50,8 +50,3 @@ Personal [Hammerspoon](https://www.hammerspoon.org/) configuration and shareable
   only moves windows owned by the calling process (Hammerspoon itself);
   cross-process Space moves are gated at the WindowServer level. See the
   module README for details.
-
-## Installation
-
-See [`FocusFollowsMouse.spoon/README.md`](FocusFollowsMouse.spoon/README.md)
-for installation and configuration instructions.
