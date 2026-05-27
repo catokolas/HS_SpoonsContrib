@@ -1,0 +1,213 @@
+[
+  {
+    "Command": [],
+    "Constant": [],
+    "Constructor": [],
+    "Deprecated": [],
+    "Field": [],
+    "Function": [],
+    "Method": [
+      {
+        "def": "MouseCopyPasteSelection:configure(configuration)",
+        "desc": "Configures the spoon. Accepts any of the public variables (doubleClickMs, enableMiddleClickPaste, useSeparateSelectionBuffer, dragThresholdPx, restoreDelayMs, pasteClickDelayUs, pasteTypeDelayUs).",
+        "doc": "Configures the spoon. Accepts any of the public variables (doubleClickMs, enableMiddleClickPaste, useSeparateSelectionBuffer, dragThresholdPx, restoreDelayMs, pasteClickDelayUs, pasteTypeDelayUs).\n\nParameters:\n * configuration - a table of configuration values to merge into the spoon\n\nReturns:\n * self",
+        "examples": [],
+        "file": "Source/MouseCopyPasteSelection.spoon//init.lua",
+        "lineno": "75",
+        "name": "configure",
+        "notes": [],
+        "parameters": [
+          " * configuration - a table of configuration values to merge into the spoon"
+        ],
+        "returns": [
+          " * self"
+        ],
+        "signature": "MouseCopyPasteSelection:configure(configuration)",
+        "stripped_doc": "",
+        "type": "Method"
+      },
+      {
+        "def": "MouseCopyPasteSelection:start()",
+        "desc": "Starts the event tap. Drag-to-select and double-click in text fields will now copy automatically.",
+        "doc": "Starts the event tap. Drag-to-select and double-click in text fields will now copy automatically. Middle-click paste is also active if `enableMiddleClickPaste` is true.\n\nErrors loudly if Hammerspoon doesn't have Accessibility permission, since `hs.eventtap` silently fails without it.\n\nReturns:\n * self",
+        "examples": [],
+        "file": "Source/MouseCopyPasteSelection.spoon//init.lua",
+        "lineno": "150",
+        "name": "start",
+        "notes": [],
+        "parameters": [],
+        "returns": [
+          " * self"
+        ],
+        "signature": "MouseCopyPasteSelection:start()",
+        "stripped_doc": "",
+        "type": "Method"
+      },
+      {
+        "def": "MouseCopyPasteSelection:stop()",
+        "desc": "Stops the event tap. Copy-on-select and middle-click-paste both stop.",
+        "doc": "Stops the event tap. Copy-on-select and middle-click-paste both stop.\n\nReturns:\n * self",
+        "examples": [],
+        "file": "Source/MouseCopyPasteSelection.spoon//init.lua",
+        "lineno": "175",
+        "name": "stop",
+        "notes": [],
+        "parameters": [],
+        "returns": [
+          " * self"
+        ],
+        "signature": "MouseCopyPasteSelection:stop()",
+        "stripped_doc": "",
+        "type": "Method"
+      },
+      {
+        "def": "MouseCopyPasteSelection:toggle()",
+        "desc": "Toggles the event tap on/off.",
+        "doc": "Toggles the event tap on/off. Useful as a hotkey binding when typing in apps where the middle-click paste or the copy-on-release would get in the way.",
+        "examples": [],
+        "file": "Source/MouseCopyPasteSelection.spoon//init.lua",
+        "lineno": "185",
+        "name": "toggle",
+        "notes": [],
+        "parameters": [],
+        "returns": [],
+        "signature": "MouseCopyPasteSelection:toggle()",
+        "stripped_doc": "",
+        "type": "Method"
+      },
+      {
+        "def": "MouseCopyPasteSelection:getSelection()",
+        "desc": "Returns the most recent copy-on-select text from the private selection buffer, or nil.",
+        "doc": "Returns the most recent copy-on-select text from the private selection buffer, or `nil` if the buffer is empty (no selection has happened yet, or `useSeparateSelectionBuffer` is `false`).\n\nReturns:\n * string or nil",
+        "examples": [],
+        "file": "Source/MouseCopyPasteSelection.spoon//init.lua",
+        "lineno": "240",
+        "name": "getSelection",
+        "notes": [],
+        "parameters": [],
+        "returns": [
+          " * string or nil"
+        ],
+        "signature": "MouseCopyPasteSelection:getSelection()",
+        "stripped_doc": "",
+        "type": "Method"
+      },
+      {
+        "def": "MouseCopyPasteSelection:bindHotkeys(mapping)",
+        "desc": "Binds (or rebinds) keyboard shortcuts. The mapping table accepts a `toggle` key.",
+        "doc": "Binds (or rebinds) keyboard shortcuts. The mapping table accepts a `toggle` key with a `{mods, key}` pair compatible with `hs.hotkey.bindSpec`. Calling `bindHotkeys` again clears prior bindings first.\n\nParameters:\n * mapping - table like `{ toggle = {{\"cmd\",\"alt\"}, \"p\"} }`\n\nReturns:\n * self",
+        "examples": [],
+        "file": "Source/MouseCopyPasteSelection.spoon//init.lua",
+        "lineno": "197",
+        "name": "bindHotkeys",
+        "notes": [],
+        "parameters": [
+          " * mapping - table like `{ toggle = {{\"cmd\",\"alt\"}, \"p\"} }`"
+        ],
+        "returns": [
+          " * self"
+        ],
+        "signature": "MouseCopyPasteSelection:bindHotkeys(mapping)",
+        "stripped_doc": "",
+        "type": "Method"
+      }
+    ],
+    "Variable": [
+      {
+        "def": "MouseCopyPasteSelection.doubleClickMs",
+        "desc": "Maximum milliseconds between two leftMouseDown events for the pair to count as a double-click. Defaults to 400.",
+        "doc": "Maximum milliseconds between two leftMouseDown events for the pair to count as a double-click. Defaults to 400, matching myPaste's `DOUBLE_CLICK_MILLIS`.",
+        "file": "Source/MouseCopyPasteSelection.spoon//init.lua",
+        "lineno": "34",
+        "name": "doubleClickMs",
+        "signature": "MouseCopyPasteSelection.doubleClickMs",
+        "stripped_doc": "",
+        "type": "Variable"
+      },
+      {
+        "def": "MouseCopyPasteSelection.enableMiddleClickPaste",
+        "desc": "If true, middle-clicking while the cursor is the I-beam pastes the clipboard at the click location. Default `false`.",
+        "doc": "If true, middle-clicking (mouse button 2) while the cursor is the I-beam pastes the clipboard at the click location. Default `false` (the synthesised left-click that focuses the field before pasting can trigger unintended actions in some apps).",
+        "file": "Source/MouseCopyPasteSelection.spoon//init.lua",
+        "lineno": "41",
+        "name": "enableMiddleClickPaste",
+        "signature": "MouseCopyPasteSelection.enableMiddleClickPaste",
+        "stripped_doc": "",
+        "type": "Variable"
+      },
+      {
+        "def": "MouseCopyPasteSelection.pasteClickDelayUs",
+        "desc": "Microseconds to wait after the synthesised focus-click before the paste keystroke. Defaults to 15000.",
+        "doc": "Microseconds to wait after the synthesised focus-click before the paste keystroke. Defaults to 15000 (15ms), matching myPaste's `usleep(15000)` after the click pair.",
+        "file": "Source/MouseCopyPasteSelection.spoon//init.lua",
+        "lineno": "48",
+        "name": "pasteClickDelayUs",
+        "signature": "MouseCopyPasteSelection.pasteClickDelayUs",
+        "stripped_doc": "",
+        "type": "Variable"
+      },
+      {
+        "def": "MouseCopyPasteSelection.pasteTypeDelayUs",
+        "desc": "Additional microseconds slept before the Cmd+V keystroke is issued. Defaults to 1000.",
+        "doc": "Additional microseconds slept before the Cmd+V keystroke is issued. Defaults to 1000 (1ms), matching myPaste's second `usleep(1000)`.",
+        "file": "Source/MouseCopyPasteSelection.spoon//init.lua",
+        "lineno": "55",
+        "name": "pasteTypeDelayUs",
+        "signature": "MouseCopyPasteSelection.pasteTypeDelayUs",
+        "stripped_doc": "",
+        "type": "Variable"
+      },
+      {
+        "def": "MouseCopyPasteSelection.useSeparateSelectionBuffer",
+        "desc": "When true (default), copy-on-select fills a private in-memory selection buffer instead of clobbering the system clipboard.",
+        "doc": "When `true` (default), copy-on-select fills a private in-memory selection buffer instead of clobbering the system clipboard — the X11 PRIMARY/CLIPBOARD model. The system clipboard is snapshot before the synthesised Cmd+C and restored afterward, so Cmd+V always pastes what the user explicitly Cmd+C'd. Middle-click paste reads from the private buffer.\n\nSet to `false` to use the legacy shared-clipboard model where copy-on-select writes directly to the system clipboard.",
+        "file": "Source/MouseCopyPasteSelection.spoon//init.lua",
+        "lineno": "62",
+        "name": "useSeparateSelectionBuffer",
+        "signature": "MouseCopyPasteSelection.useSeparateSelectionBuffer",
+        "stripped_doc": "",
+        "type": "Variable"
+      },
+      {
+        "def": "MouseCopyPasteSelection.dragThresholdPx",
+        "desc": "Minimum cursor movement in pixels before a drag arms the copy-on-release. Defaults to 5.",
+        "doc": "Minimum cursor movement (in pixels, max of |dx|/|dy|) before a drag arms the copy-on-release. Defaults to 5; prevents a tiny accidental 1-2px drag from triggering a copy. Adopted from lodestone/macpaste PR #7.",
+        "file": "Source/MouseCopyPasteSelection.spoon//init.lua",
+        "lineno": "75",
+        "name": "dragThresholdPx",
+        "signature": "MouseCopyPasteSelection.dragThresholdPx",
+        "stripped_doc": "",
+        "type": "Variable"
+      },
+      {
+        "def": "MouseCopyPasteSelection.restoreDelayMs",
+        "desc": "Milliseconds to wait after a synthesised Cmd+V before restoring the user's real clipboard. Defaults to 200.",
+        "doc": "Milliseconds to wait after a synthesised Cmd+V before restoring the user's \"real\" clipboard. The target app needs time to read the pasteboard during its paste handler; too short and the restore wins the race. Too long and Cmd+V the user types in this window would paste the selection. Defaults to 200. Only used when `useSeparateSelectionBuffer` is `true`.",
+        "file": "Source/MouseCopyPasteSelection.spoon//init.lua",
+        "lineno": "85",
+        "name": "restoreDelayMs",
+        "signature": "MouseCopyPasteSelection.restoreDelayMs",
+        "stripped_doc": "",
+        "type": "Variable"
+      },
+      {
+        "def": "MouseCopyPasteSelection.logger",
+        "desc": "Logger object used within the Spoon. Set its level to control verbosity.",
+        "doc": "Logger object used within the Spoon. Set its level to control verbosity.",
+        "file": "Source/MouseCopyPasteSelection.spoon//init.lua",
+        "lineno": "60",
+        "name": "logger",
+        "signature": "MouseCopyPasteSelection.logger",
+        "stripped_doc": "",
+        "type": "Variable"
+      }
+    ],
+    "desc": "X11-style copy-on-select for macOS with a separate selection buffer, plus optional middle-click paste.",
+    "doc": "X11-style copy-on-select for macOS: when you release the mouse after dragging across text, or double-click a word, the selection is captured into a private in-memory buffer (the X11 PRIMARY analogue). Cmd+V remains untouched — it still pastes whatever the user explicitly Cmd+C'd. Optionally, middle-clicking inside a text field pastes the selection buffer at the click point.\n\nThe \"is the cursor over text\" gate uses `hs.mouse.currentCursorType()`, which returns `\"IBeamCursor\"` (or `\"IBeamCursorForVerticalLayout\"`) when the system cursor is the text I-beam — the same NSCursor hot-spot check the original C implementation performs.\n\nSet `useSeparateSelectionBuffer = false` for legacy shared-clipboard behaviour.\n\nReimplemented from the standalone myPaste.app (Cato Kolås), itself derived from `lodestone/macpaste`; the separate-buffer design mirrors `lodestone/macpaste` PR #7.",
+    "items": [],
+    "name": "MouseCopyPasteSelection",
+    "stripped_doc": "",
+    "submodules": [],
+    "type": "Module"
+  }
+]

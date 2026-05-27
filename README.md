@@ -19,6 +19,17 @@ Personal [Hammerspoon](https://www.hammerspoon.org/) configuration and shareable
   move itself is silent (no Mission Control flicker); an optional
   `followWindow` setting can make the viewer follow the window.
 
+- **[`MouseCopyPasteSelection.spoon/`](MouseCopyPasteSelection.spoon/)** —
+  X11-style copy-on-select for macOS. Releasing the mouse after dragging
+  across text, or double-clicking a word, captures the selection. By
+  default it goes into a **private selection buffer** (the X11 PRIMARY
+  analogue) so your real Cmd+C / Cmd+V clipboard is never disturbed; set
+  `useSeparateSelectionBuffer = false` for the legacy shared-clipboard
+  model. Optional middle-click-to-paste at the cursor location
+  (`enableMiddleClickPaste = true`) reads from whichever buffer is
+  active. A toggle hotkey shows an `hs.alert` banner for visual
+  feedback.
+
 ### Configuration
 
 - **`init.lua`** — the Hammerspoon entry point. Loads and configures the
