@@ -45,8 +45,7 @@ git clone git@github.com:catokolas/HS_SpoonsContrib.git
 cd HS_SpoonsContrib
 
 mkdir -p ~/.hammerspoon/Spoons
-ln -s "$PWD/MouseCopyPasteSelection.spoon" \
-      ~/.hammerspoon/Spoons/MouseCopyPasteSelection.spoon
+ln -s "$PWD/MouseCopyPasteSelection.spoon" ~/.hammerspoon/Spoons/MouseCopyPasteSelection.spoon
 ```
 
 ## Usage
