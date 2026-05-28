@@ -58,7 +58,6 @@ spoon.MouseCopyPasteSelection:configure({
   enableMiddleClickPaste = true,   -- opt in to middle-click paste
   useSeparateSelectionBuffer = false -- if you got used to using the clipboard
 })
-})
 spoon.MouseCopyPasteSelection:start()
 spoon.MouseCopyPasteSelection:bindHotkeys({
   toggle = {{"cmd","alt"}, "p"},   -- optional toggle kill-switch
