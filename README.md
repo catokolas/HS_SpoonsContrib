@@ -11,9 +11,9 @@ Personal [Hammerspoon](https://www.hammerspoon.org/) configuration and shareable
 - **[`FocusFollowsMouse.spoon/`](FocusFollowsMouse.spoon/)** — X11-style
   sloppy focus for macOS. When the mouse comes to rest over a window that
   isn't already focused, that window is focused. Debounce, drag-suppression,
-  and per-app exclusions are configurable. If the companion native helper is
-  installed (see below) it focuses **without raising** the window; otherwise
-  it falls back to `hs.window:focus()` (which raises).
+  and per-app exclusions are configurable. If the companion native helper `HS_ModulesContrib-sloppyfocus` is installed (see below) it focuses 
+  **without raising** the window; otherwise it falls back to
+  `hs.window:focus()` (which raises).
 
 - **[`MouseCopyPasteSelection.spoon/`](MouseCopyPasteSelection.spoon/)** —
   X11-style copy-on-select for macOS. Releasing the mouse after dragging
@@ -44,7 +44,8 @@ Personal [Hammerspoon](https://www.hammerspoon.org/) configuration and shareable
   the currently-focused window to the macOS Space immediately to the left or
   right of the current Space, on the same screen. Uses `hs.spaces` so the
   move itself is silent (no Mission Control flicker); an optional
-  `followWindow` setting can make the viewer follow the window.
+  `followWindow` setting can make the viewer follow the window. Uses the companion
+  native helper `HS_ModulesContrib-movetospace` if available (see below).
 
 ## Companion repos
 
