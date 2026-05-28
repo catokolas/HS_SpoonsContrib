@@ -73,19 +73,48 @@ end
 ---
 --- Parameters:
 ---  * point - a table with x and y fields (e.g. from hs.mouse.absolutePosition())
+-- True iff the cursor `point` falls inside this window's frame and the
+-- window is currently a viable focus target.
+local function frameContains(win, point)
+  if not win or not win:isVisible() or win:isMinimized() then return false end
+  local f = win:frame()
+  return point.x >= f.x and point.x < f.x + f.w
+     and point.y >= f.y and point.y < f.y + f.h
+end
+
 function obj:windowUnderPoint(point)
-  -- Return the topmost visible window covering the point, including
-  -- dialogs/sheets. Iterating in z-order means we never walk past a
-  -- dialog to the parent window behind it (which would steal focus
-  -- while the user is interacting with the dialog).
-  for _, win in ipairs(hs.window.orderedWindows()) do
-    if win:isVisible() and not win:isMinimized() then
-      local f = win:frame()
-      if point.x >= f.x and point.x < f.x + f.w
-         and point.y >= f.y and point.y < f.y + f.h then
-        return win
+  -- Hammerspoon's own windows (Console, alerts) don't show up in
+  -- hs.window.orderedWindows() because of how AX enumeration works
+  -- inside the HS process itself. We can't just "always pick the HS
+  -- window when its frame contains the point" — that breaks the
+  -- reverse case where the Console is visually behind a front window
+  -- but its frame still spans across the overlap region.
+  --
+  -- Use hs.axuielement.systemElementAtPosition() to ask the system
+  -- which element is actually visually topmost. If that element
+  -- belongs to Hammerspoon, the matching HS window wins. Otherwise
+  -- fall through to the normal orderedWindows() iteration, which
+  -- handles the rest correctly.
+  local axOk, ax = pcall(require, "hs.axuielement")
+  if axOk and ax then
+    local el = ax.systemElementAtPosition(point.x, point.y)
+    if el then
+      local pid = el:pid()
+      local app = pid and hs.application.applicationForPID(pid)
+      if app and app:bundleID() == "org.hammerspoon.Hammerspoon" then
+        for _, win in ipairs(app:allWindows()) do
+          if frameContains(win, point) then return win end
+        end
       end
     end
+  end
+
+  -- Normal path: topmost visible window in z-order covering the point.
+  -- Iterating in z-order means we never walk past a dialog/sheet to the
+  -- parent window behind it (which would steal focus while the user is
+  -- interacting with the dialog).
+  for _, win in ipairs(hs.window.orderedWindows()) do
+    if frameContains(win, point) then return win end
   end
   return nil
 end
