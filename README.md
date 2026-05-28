@@ -26,6 +26,19 @@ Personal [Hammerspoon](https://www.hammerspoon.org/) configuration and shareable
   active. A toggle on|off hotkey shows an `hs.alert` banner for visual
   feedback.
 
+- **[`SpotifyPlayPause.spoon/`](SpotifyPlayPause.spoon/)** — auto play /
+  pause Spotify based on screen state and the connected audio output
+  device. Pauses on screen sleep / screensaver when a preferred audio
+  device (headphones, AirPods, USB DAC, …) is connected, and resumes on
+  wake — but only if this Spoon was the one that paused it, so
+  manually-paused tracks stay paused. With no preferred device present
+  at all, Spotify is paused regardless of screen state. Optionally
+  auto-switches the macOS default audio output to the first matching
+  preferred device, and offers a menubar "Pause Spotify for N hour(s)"
+  dropdown with automatic resume. Fully event-driven via
+  `hs.caffeinate.watcher`, `hs.audiodevice.watcher`, and
+  `hs.application.watcher`.
+
 - **[`MoveSpaces.spoon/`](MoveSpaces.spoon/)** — 
 ⚠️ macOS 26.5 status: limited. Keyboard shortcut to move
   the currently-focused window to the macOS Space immediately to the left or

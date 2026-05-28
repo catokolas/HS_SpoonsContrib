@@ -15,10 +15,7 @@ output device.
 - A menubar dropdown offers **"Pause Spotify for N hour(s)"** entries with
   an automatic resume timer.
 
-Replaces the AppleScript stay-open applet at
-[`catokolas/spotify-playpause`](https://github.com/catokolas/spotify-playpause):
-no 25 s polling loop, no `SwitchAudioSource` (brew) dependency — fully
-event-driven via `hs.caffeinate.watcher`, `hs.audiodevice.watcher`, and
+Fully event-driven via `hs.caffeinate.watcher`, `hs.audiodevice.watcher`, and
 `hs.application.watcher`.
 
 ## Installation
