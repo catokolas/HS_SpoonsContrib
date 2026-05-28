@@ -101,6 +101,40 @@ Public methods callable directly — e.g. from your own hotkey, menu item, or
 Hammerspoon needs **Accessibility** (System Settings → Privacy & Security →
 Accessibility).
 
+## Logging / debug output
+
+All messages go to the **Hammerspoon Console** (menu bar → Hammerspoon →
+Console). The Spoon uses `hs.logger`; default level is `warning`, so
+normal moves are silent and only outright failures show.
+
+The five `hs.logger` levels (least to most verbose):
+`error` < `warning` < `info` < `debug` < `verbose`. A given level
+shows messages at that level and everything above. Change at runtime
+in the Console:
+
+```lua
+spoon.MoveSpaces.logger.setLogLevel("info")
+```
+
+Or pin it from your `~/.hammerspoon/init.lua` (after `bindHotkeys()`):
+
+```lua
+spoon.MoveSpaces.logger.setLogLevel("info")
+```
+
+What each level emits in this Spoon:
+
+| Level | Sample messages |
+|---|---|
+| `warning` | `no spaces returned for screen <UUID>`, `active space not found in screen's space list`, `HID drag-sim did not move the window`, `no remaining path; this window appears unmovable on this macOS`, `zoomButtonRect returned nil; cannot drag-move` |
+| `info`    | The full decision trace: `_moveWindow called, direction=1`, `spacesForScreen returned: …`, `native move: window X -> space Y`, `followWindow: gotoSpace(…)`, `API move failed; trying HID-level drag-sim`, `drag-move: click at (x, y) target space=…`, `drag events posted; switching space`, `drag-move released (space switched)` |
+| `debug`   | The corners that aren't actionable: `no neighbor Space in that direction`, `only one eligible Space (the current one)`, `no non-fullscreen Spaces available in that direction`, `focused window has no screen` |
+
+`info` is the right level when diagnosing why a hotkey appears to have
+no effect on macOS 26+ — the trace shows whether the native move was
+attempted, whether it succeeded, and which code path ran. Reset to
+`warning` once you've confirmed behaviour; `info` is chatty per move.
+
 ## Acknowledgments
 
 Inspired by an earlier `MoveSpaces.spoon` by Tyler Thrailkill (Spoon

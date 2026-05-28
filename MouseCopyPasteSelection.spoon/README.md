@@ -113,6 +113,42 @@ the selection from elsewhere in your Hammerspoon config.
 Recognises one key: `toggle`. Example:
 `{ toggle = {{"cmd","alt"}, "p"} }`.
 
+## Logging / debug output
+
+All messages go to the **Hammerspoon Console** (menu bar → Hammerspoon →
+Console). The Spoon uses `hs.logger`, whose default level is `warning`
+— quiet during normal use; only the event-tap auto-recovery warning
+ever surfaces by default.
+
+The five `hs.logger` levels (least to most verbose):
+`error` < `warning` < `info` < `debug` < `verbose`. Setting a level
+shows messages from that level *and everything above it*. Change at
+runtime in the Console:
+
+```lua
+spoon.MouseCopyPasteSelection.logger.setLogLevel("debug")
+```
+
+Or pin it from your `~/.hammerspoon/init.lua` (after `:start()`):
+
+```lua
+spoon.MouseCopyPasteSelection:start()
+spoon.MouseCopyPasteSelection.logger.setLogLevel("debug")
+```
+
+What each level emits in this Spoon:
+
+| Level | Sample messages |
+|---|---|
+| `warning` | `eventtap was disabled; re-enabling` (the tap was dropped by macOS — auto-recovery fired) |
+| `info`    | `started; middleClickPaste=true`, `stopped`, `bindHotkeys: bound N hotkey(s)` |
+| `debug`   | `copy - doubleclick`, `copy - was dragging`, `start dragging`, `paste`, `synth Cmd+C: captured selection, restored clipboard`, `middle-click paste: restored real clipboard`, `middle-click paste: empty selection buffer; using system clipboard` |
+
+`debug` is the right level when diagnosing why a particular drag did or
+didn't copy, or why a Cmd+V seems to be pasting something stale. Reset
+to `warning` (or `nil`, which means default) once you're done — debug
+fires on every mousedown/up and gets noisy.
+
 ## Caveats
 
 - **Custom cursors that share the I-beam hot-spot** can false-positive.

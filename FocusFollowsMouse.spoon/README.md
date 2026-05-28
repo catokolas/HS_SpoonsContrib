@@ -89,6 +89,29 @@ Stops focusing windows as the mouse moves.
 Hammerspoon needs **Accessibility** (System Settings → Privacy & Security →
 Accessibility).
 
+## Logging / debug output
+
+The Spoon exposes `FocusFollowsMouse.logger` (an `hs.logger` instance)
+for consistency with the other Spoons in this repo, but the current
+implementation **does not emit any log calls of its own** — every
+focus decision is a tight inline check with no diagnostic output.
+Setting `setLogLevel("debug")` produces nothing extra today.
+
+If you need to see *why* focus didn't shift to the window under the
+cursor, inspect the relevant predicates manually in the Console
+instead:
+
+```lua
+local p = hs.mouse.absolutePosition()
+hs.inspect(hs.window.orderedWindows())                       -- z-order
+spoon.FocusFollowsMouse:windowUnderPoint(p)                  -- what we'd pick
+require("hs.axuielement").systemElementAtPosition(p.x, p.y):attributeValue("AXRole")  -- menu/sheet gate
+```
+
+Log calls may be added in a future version (e.g. tracing the
+excluded-app / menu / sheet branches at `debug` level); the variable
+is reserved for that.
+
 ## Acknowledgments
 
 Derived from the
