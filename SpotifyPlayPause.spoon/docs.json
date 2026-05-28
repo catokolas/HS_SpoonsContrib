@@ -1,0 +1,149 @@
+[
+  {
+    "Command": [],
+    "Constant": [],
+    "Constructor": [],
+    "Deprecated": [],
+    "Field": [],
+    "Function": [],
+    "Method": [
+      {
+        "def": "SpotifyPlayPause:configure(configuration)",
+        "desc": "Configures the spoon. Accepts any of the public variables (preferredDevices, autoSwitchOutput, respectManualPause, pauseHoursMenu, pauseHoursOptions, speak).",
+        "doc": "Configures the spoon. Accepts any of the public variables (preferredDevices, autoSwitchOutput, respectManualPause, pauseHoursMenu, pauseHoursOptions, speak).\n\nParameters:\n * configuration - a table of configuration values to merge into the spoon",
+        "examples": [],
+        "file": "Source/SpotifyPlayPause.spoon//init.lua",
+        "lineno": "118",
+        "name": "configure",
+        "notes": [],
+        "parameters": [
+          " * configuration - a table of configuration values to merge into the spoon"
+        ],
+        "returns": [],
+        "signature": "SpotifyPlayPause:configure(configuration)",
+        "stripped_doc": "",
+        "type": "Method"
+      },
+      {
+        "def": "SpotifyPlayPause:start()",
+        "desc": "Starts the watchers and shows the menubar dropdown (if enabled). Idempotent.",
+        "doc": "Starts the watchers and shows the menubar dropdown (if enabled). Idempotent.\n\nParameters:\n * None",
+        "examples": [],
+        "file": "Source/SpotifyPlayPause.spoon//init.lua",
+        "lineno": "285",
+        "name": "start",
+        "notes": [],
+        "parameters": [
+          " * None"
+        ],
+        "returns": [],
+        "signature": "SpotifyPlayPause:start()",
+        "stripped_doc": "",
+        "type": "Method"
+      },
+      {
+        "def": "SpotifyPlayPause:stop()",
+        "desc": "Stops the watchers, cancels any armed pause-hours timer, and removes the menubar dropdown.",
+        "doc": "Stops the watchers, cancels any armed pause-hours timer, and removes the menubar dropdown.\n\nParameters:\n * None",
+        "examples": [],
+        "file": "Source/SpotifyPlayPause.spoon//init.lua",
+        "lineno": "326",
+        "name": "stop",
+        "notes": [],
+        "parameters": [
+          " * None"
+        ],
+        "returns": [],
+        "signature": "SpotifyPlayPause:stop()",
+        "stripped_doc": "",
+        "type": "Method"
+      }
+    ],
+    "Variable": [
+      {
+        "def": "SpotifyPlayPause.preferredDevices",
+        "desc": "List of audio output device-name substrings (case-insensitive) treated as \"headphones\" for the play/pause logic and as candidates for autoSwitchOutput.",
+        "doc": "List of audio output device-name substrings (case-insensitive) treated as \"headphones\" for the play/pause logic and as candidates for autoSwitchOutput. Matched against the device's name(). Default: { \"usb audio\", \"airpods\", \"Headphone\", \"plantronics\", \"jabra\" }.",
+        "file": "Source/SpotifyPlayPause.spoon//init.lua",
+        "lineno": "32",
+        "name": "preferredDevices",
+        "signature": "SpotifyPlayPause.preferredDevices",
+        "stripped_doc": "",
+        "type": "Variable"
+      },
+      {
+        "def": "SpotifyPlayPause.autoSwitchOutput",
+        "desc": "If true (default), whenever the audio device list changes the spoon switches the default output to the first preferred device.",
+        "doc": "If true (default), whenever the audio device list changes the spoon looks for the first preferred device (in preferredDevices order) that is currently available, and makes it the default output - unless the current default already matches one of the preferred substrings.",
+        "file": "Source/SpotifyPlayPause.spoon//init.lua",
+        "lineno": "40",
+        "name": "autoSwitchOutput",
+        "signature": "SpotifyPlayPause.autoSwitchOutput",
+        "stripped_doc": "",
+        "type": "Variable"
+      },
+      {
+        "def": "SpotifyPlayPause.respectManualPause",
+        "desc": "If true (default), Spotify is only auto-resumed on screen wake if this spoon was the one that paused it.",
+        "doc": "If true (default), Spotify is only auto-resumed on screen wake if this spoon was the one that paused it (i.e. the user did not manually pause in the meantime). Set to false to mirror the original AppleScript behaviour of always resuming on wake when a preferred device is present.",
+        "file": "Source/SpotifyPlayPause.spoon//init.lua",
+        "lineno": "48",
+        "name": "respectManualPause",
+        "signature": "SpotifyPlayPause.respectManualPause",
+        "stripped_doc": "",
+        "type": "Variable"
+      },
+      {
+        "def": "SpotifyPlayPause.pauseHoursMenu",
+        "desc": "If true (default), a menubar dropdown is shown with \"Pause Spotify for N hour(s)\" entries.",
+        "doc": "If true (default), a menubar dropdown is shown with \"Pause Spotify for N hour(s)\" entries. Set to false to suppress the menubar entirely.",
+        "file": "Source/SpotifyPlayPause.spoon//init.lua",
+        "lineno": "57",
+        "name": "pauseHoursMenu",
+        "signature": "SpotifyPlayPause.pauseHoursMenu",
+        "stripped_doc": "",
+        "type": "Variable"
+      },
+      {
+        "def": "SpotifyPlayPause.pauseHoursOptions",
+        "desc": "List of integer hours offered in the menubar pause dropdown. Default { 1, 2, 3, 4 }.",
+        "doc": "List of integer hours offered in the menubar pause dropdown. Default { 1, 2, 3, 4 }.",
+        "file": "Source/SpotifyPlayPause.spoon//init.lua",
+        "lineno": "63",
+        "name": "pauseHoursOptions",
+        "signature": "SpotifyPlayPause.pauseHoursOptions",
+        "stripped_doc": "",
+        "type": "Variable"
+      },
+      {
+        "def": "SpotifyPlayPause.speak",
+        "desc": "If true, spoken feedback is produced via hs.speech on key transitions. Default false.",
+        "doc": "If true, spoken feedback is produced via hs.speech on key transitions (pause / resume / pause-hours arm / expire). Default false.",
+        "file": "Source/SpotifyPlayPause.spoon//init.lua",
+        "lineno": "69",
+        "name": "speak",
+        "signature": "SpotifyPlayPause.speak",
+        "stripped_doc": "",
+        "type": "Variable"
+      },
+      {
+        "def": "SpotifyPlayPause.logger",
+        "desc": "Logger object used within the Spoon. Can be accessed to set the default log level for the messages coming from the Spoon.",
+        "doc": "Logger object used within the Spoon. Can be accessed to set the default log level for the messages coming from the Spoon.",
+        "file": "Source/SpotifyPlayPause.spoon//init.lua",
+        "lineno": "75",
+        "name": "logger",
+        "signature": "SpotifyPlayPause.logger",
+        "stripped_doc": "",
+        "type": "Variable"
+      }
+    ],
+    "desc": "Auto play / pause Spotify based on screen state and audio output device.",
+    "doc": "Auto play / pause Spotify based on screen state and audio output device.\n\nWhen a preferred audio output device (e.g. headphones, AirPods) is connected and the screen goes to sleep - or the screensaver starts - Spotify is paused. When the screen wakes again, Spotify resumes (only if this spoon was the one that paused it).\n\nWhen no preferred audio device is present at all, Spotify is paused regardless of screen state.\n\nOptionally, the macOS default audio output is auto-switched to the first matching preferred device whenever the audio device list changes.\n\nA menubar dropdown offers \"Pause Spotify for N hour(s)\" entries with an automatic resume timer.",
+    "items": [],
+    "name": "SpotifyPlayPause",
+    "stripped_doc": "",
+    "submodules": [],
+    "type": "Module"
+  }
+]
