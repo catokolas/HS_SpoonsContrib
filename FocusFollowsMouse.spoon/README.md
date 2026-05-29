@@ -34,18 +34,27 @@ In `~/.hammerspoon/init.lua`:
 ```lua
 hs.loadSpoon("FocusFollowsMouse")
 spoon.FocusFollowsMouse:configure({
-  delay = 0.05,                            -- 50 ms debounce instead of default 100 ms
+  delay = 0.05,                  -- 50 ms debounce instead of default 100 ms
   excludedApps = {
-    "Notification Center",                 -- by app name
-    "com.apple.systempreferences",         -- or by bundle ID
+    "Notification Center",       -- by app name
+    "org.keepassxc.keepassxc",   -- or by bundle ID
   },
 })
 spoon.FocusFollowsMouse:start()
 ```
 
 `excludedApps` matches each entry against both `application():name()` and
-`application():bundleID()` — bundle IDs are more robust across localised
-macOS installs.
+`application():bundleID()` — bundle IDs are more robust across localised macOS installs.
+
+Optional add to `~/.hammerspoon/init.lua`:
+```lua
+-- print window/app info to Hammerspoon console window
+hs.hotkey.bind({"ctrl","alt","cmd"}, "P", function()
+    local w = hs.window.focusedWindow()
+    print(string.format("pid=%d app=%s title=%s bundleID=%s", w:pid(), w:application():name(), w:title(), w:application():bundleID()))
+    hs.alert.show("pid=" .. w:pid())
+end)
+```
 
 Then reload Hammerspoon (menu bar → Reload Config).
 
