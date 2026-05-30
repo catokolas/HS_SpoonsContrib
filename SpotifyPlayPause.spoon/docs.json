@@ -106,8 +106,8 @@
       },
       {
         "def": "SpotifyPlayPause.pauseHoursOptions",
-        "desc": "List of integer hours offered in the menubar pause dropdown. Default { 1, 2, 3, 4 }.",
-        "doc": "List of integer hours offered in the menubar pause dropdown. Default { 1, 2, 3, 4 }.",
+        "desc": "Number of hour entries offered in the menubar pause dropdown. Set to n to get entries for 1..n hours. Default 4 → 1, 2, 3, 4 hours.",
+        "doc": "Number of hour entries offered in the menubar pause dropdown. Set to n to get entries for 1..n hours. Default 4 → 1, 2, 3, 4 hours.",
         "file": "Source/SpotifyPlayPause.spoon//init.lua",
         "lineno": "63",
         "name": "pauseHoursOptions",

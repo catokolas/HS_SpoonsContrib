@@ -61,7 +61,7 @@ used by `autoSwitchOutput`.
 | `SpotifyPlayPause.autoSwitchOutput` | `true` | Switch the default output to the first preferred device available when the device list changes. |
 | `SpotifyPlayPause.respectManualPause` | `true` | Only auto-resume on wake if **this spoon** paused Spotify. |
 | `SpotifyPlayPause.pauseHoursMenu` | `true` | Show the "Pause Spotify for N hour(s)" menubar dropdown. |
-| `SpotifyPlayPause.pauseHoursOptions` | `{ 1, 2, 3, 4 }` | Hours offered in that dropdown. |
+| `SpotifyPlayPause.pauseHoursOptions` | `4` | Number of hour entries in the dropdown — set to `n` to get 1..n hours. |
 | `SpotifyPlayPause.speak` | `false` | Spoken feedback via `hs.speech` on key transitions. |
 | `SpotifyPlayPause.logger` | `hs.logger.new("SpotifyPlayPause")` | Logger; set its level to control verbosity. |
 

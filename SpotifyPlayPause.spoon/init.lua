@@ -62,9 +62,9 @@ obj.pauseHoursMenu = true
 
 --- SpotifyPlayPause.pauseHoursOptions
 --- Variable
---- List of integer hours offered in the menubar pause dropdown. Default
---- `{ 1, 2, 3, 4 }`.
-obj.pauseHoursOptions = { 1, 2, 3, 4 }
+--- Number of hour entries offered in the menubar pause dropdown. Set to
+--- `n` to get entries for 1..n hours. Default `4` → 1, 2, 3, 4 hours.
+obj.pauseHoursOptions = 4
 
 --- SpotifyPlayPause.speak
 --- Variable
@@ -263,7 +263,7 @@ end
 
 function obj:_buildMenu()
   local items = {}
-  for _, n in ipairs(self.pauseHoursOptions) do
+  for n = 1, self.pauseHoursOptions do
     items[#items + 1] = {
       title   = "Pause Spotify for " .. pluralHours(n),
       checked = (self._state.pauseHours == n),
