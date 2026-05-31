@@ -167,16 +167,19 @@ clone at `master` commit `fd5119c04` (16 November 2022) —
 `ScrollUtility.m`, and `App/Config/default_config.plist`. That tree
 was MIT-licensed (`Copyright (c) 2019 noah.n`).
 
-MMF has since been substantially **rewritten in Swift** — the scroll
-subsystem moved under `Helper/Core/Scroll/`, animation curves and
-config to `Helper/Core/Config/ScrollConfig.swift` — and the project
-**relicensed** under a custom "MMF License" (more restrictive than
-MIT — see
+The mainline of MMF (v3) was substantially **rewritten in Swift**
+earlier the same year — the scroll subsystem moved under
+`Helper/Core/Scroll/`, with new analytic animation curves
+(`DragCurve.swift`, `HybridCurves.swift`) added on **7-8 August 2022**
+(commits `853bd1773` and `50e1656ec`). MMF was also **relicensed** on
+**11 September 2022** (commit `0449cf1c9`) under a custom "MMF
+License" (more restrictive than MIT — see
 [`License`](https://github.com/noah-nuebling/mac-mouse-fix/blob/master/License)
-upstream). Both changes landed *after* the Nov 2022 snapshot we
-derived from, so they don't apply to the source we ported; this Spoon
-continues under MIT with the original MMF copyright notice preserved
-in this credit.
+upstream). **Neither change is in the ancestry of the v2-maintenance
+commit our snapshot sits on** — both happened on the v3 development
+line and were not merged back into v2-maintenance. So the source we
+ported is genuinely MIT-licensed and this Spoon continues under MIT
+with the original MMF copyright notice preserved in this credit.
 
 This Spoon is a Lua reimplementation on `hs.eventtap` / `hs.timer`;
 the per-grade curve, per-axis inversion, the cancel-on-focus / click
