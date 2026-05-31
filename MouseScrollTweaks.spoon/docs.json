@@ -1,0 +1,152 @@
+[
+  {
+    "Command": [],
+    "Constant": [],
+    "Constructor": [],
+    "Deprecated": [],
+    "Field": [],
+    "Function": [],
+    "Method": [
+      {
+        "def": "MouseScrollTweaks:configure(configuration)",
+        "desc": "Merges configuration values into the spoon. Accepts any of the public variables (invertVertical, invertHorizontal, smoothness).",
+        "doc": "Merges configuration values into the spoon. Accepts any of the public variables (invertVertical, invertHorizontal, smoothness). smoothness is clamped to [0, 10] and rounded to the nearest integer.\n\nParameters:\n * configuration - a table of configuration values to merge into the spoon\n\nReturns:\n * self",
+        "examples": [],
+        "file": "Source/MouseScrollTweaks.spoon//init.lua",
+        "lineno": "85",
+        "name": "configure",
+        "notes": [],
+        "parameters": [
+          " * configuration - a table of configuration values to merge into the spoon"
+        ],
+        "returns": [
+          " * self"
+        ],
+        "signature": "MouseScrollTweaks:configure(configuration)",
+        "stripped_doc": "",
+        "type": "Method"
+      },
+      {
+        "def": "MouseScrollTweaks:start()",
+        "desc": "Installs the scroll-event tap. Errors loudly if Hammerspoon does not have Accessibility permission.",
+        "doc": "Installs the scroll-event tap. Errors loudly if Hammerspoon does not have Accessibility permission, since hs.eventtap silently fails without it. Idempotent - calling start() again replaces the tap.\n\nReturns:\n * self",
+        "examples": [],
+        "file": "Source/MouseScrollTweaks.spoon//init.lua",
+        "lineno": "197",
+        "name": "start",
+        "notes": [],
+        "parameters": [],
+        "returns": [
+          " * self"
+        ],
+        "signature": "MouseScrollTweaks:start()",
+        "stripped_doc": "",
+        "type": "Method"
+      },
+      {
+        "def": "MouseScrollTweaks:stop()",
+        "desc": "Stops the event tap and cancels any in-flight smoothing animation.",
+        "doc": "Stops the event tap and cancels any in-flight smoothing animation.\n\nReturns:\n * self",
+        "examples": [],
+        "file": "Source/MouseScrollTweaks.spoon//init.lua",
+        "lineno": "228",
+        "name": "stop",
+        "notes": [],
+        "parameters": [],
+        "returns": [
+          " * self"
+        ],
+        "signature": "MouseScrollTweaks:stop()",
+        "stripped_doc": "",
+        "type": "Method"
+      },
+      {
+        "def": "MouseScrollTweaks:toggle()",
+        "desc": "Toggles the Spoon on/off and shows a brief hs.alert banner.",
+        "doc": "Toggles the Spoon on/off and shows a brief hs.alert banner so the user can tell which state they're in without checking the console. Useful as a hotkey binding for apps where wheel-direction inversion or smoothing would get in the way (games, drawing apps).",
+        "examples": [],
+        "file": "Source/MouseScrollTweaks.spoon//init.lua",
+        "lineno": "440",
+        "name": "toggle",
+        "notes": [],
+        "parameters": [],
+        "returns": [],
+        "signature": "MouseScrollTweaks:toggle()",
+        "stripped_doc": "",
+        "type": "Method"
+      },
+      {
+        "def": "MouseScrollTweaks:bindHotkeys(mapping)",
+        "desc": "Binds (or rebinds) keyboard shortcuts. The mapping table accepts a toggle key with a {mods, key} pair compatible with hs.hotkey.bindSpec.",
+        "doc": "Binds (or rebinds) keyboard shortcuts. The mapping table accepts a toggle key with a {mods, key} pair compatible with hs.hotkey.bindSpec. Calling bindHotkeys again clears prior bindings first.\n\nParameters:\n * mapping - table like { toggle = {{\"ctrl\",\"cmd\"}, \"m\"} }\n\nReturns:\n * self",
+        "examples": [],
+        "file": "Source/MouseScrollTweaks.spoon//init.lua",
+        "lineno": "462",
+        "name": "bindHotkeys",
+        "notes": [],
+        "parameters": [
+          " * mapping - table like { toggle = {{\"ctrl\",\"cmd\"}, \"m\"} }"
+        ],
+        "returns": [
+          " * self"
+        ],
+        "signature": "MouseScrollTweaks:bindHotkeys(mapping)",
+        "stripped_doc": "",
+        "type": "Method"
+      }
+    ],
+    "Variable": [
+      {
+        "def": "MouseScrollTweaks.invertVertical",
+        "desc": "If true (default), the vertical mouse-wheel direction is flipped.",
+        "doc": "If true (default), the vertical mouse-wheel direction is flipped. Affects only discrete (non-continuous) scroll events - trackpads and Magic Mouse are unaffected.",
+        "file": "Source/MouseScrollTweaks.spoon//init.lua",
+        "lineno": "29",
+        "name": "invertVertical",
+        "signature": "MouseScrollTweaks.invertVertical",
+        "stripped_doc": "",
+        "type": "Variable"
+      },
+      {
+        "def": "MouseScrollTweaks.invertHorizontal",
+        "desc": "If true (default), the horizontal (tilt-wheel) direction is flipped.",
+        "doc": "If true (default), the horizontal (tilt-wheel) direction is flipped. Affects only discrete scroll events.",
+        "file": "Source/MouseScrollTweaks.spoon//init.lua",
+        "lineno": "36",
+        "name": "invertHorizontal",
+        "signature": "MouseScrollTweaks.invertHorizontal",
+        "stripped_doc": "",
+        "type": "Variable"
+      },
+      {
+        "def": "MouseScrollTweaks.smoothness",
+        "desc": "Smoothing feel for discrete wheel ticks, integer in [0, 20]. 0 (default) means passthrough.",
+        "doc": "Smoothing feel for discrete wheel ticks, integer in [0, 20]. 0 (default) means passthrough - only inversion applies. Higher values primarily tune the momentum tail length and per-tick acceleration multiplier; the per-tick base buffer stays small, so single isolated clicks remain modest at any grade. Mid grades (5-10) feel subtle; 10-15 approximates MMF; 15-20 leans further into long glides. Magnitude on rapid scrolling comes from the MMF-style two-level acceleration (consecutive ticks within ~130 ms boost the buffer, and 3+ accumulated swipes engage a further fast-scroll multiplier). Read live at each tick, so it can be retuned via :configure({smoothness=N}) without restarting the spoon.",
+        "file": "Source/MouseScrollTweaks.spoon//init.lua",
+        "lineno": "42",
+        "name": "smoothness",
+        "signature": "MouseScrollTweaks.smoothness",
+        "stripped_doc": "",
+        "type": "Variable"
+      },
+      {
+        "def": "MouseScrollTweaks.logger",
+        "desc": "Logger object used within the Spoon. Set its level to control verbosity.",
+        "doc": "Logger object used within the Spoon. Set its level (e.g. spoon.MouseScrollTweaks.logger.setLogLevel(\"debug\")) to see the decision trace.",
+        "file": "Source/MouseScrollTweaks.spoon//init.lua",
+        "lineno": "52",
+        "name": "logger",
+        "signature": "MouseScrollTweaks.logger",
+        "stripped_doc": "",
+        "type": "Variable"
+      }
+    ],
+    "desc": "Tweaks for traditional mouse wheels on macOS, without touching the trackpad or Magic Mouse.",
+    "doc": "Tweaks for traditional mouse wheels on macOS, without touching the trackpad or Magic Mouse:\n\n1. Per-axis direction inversion - flip the vertical and/or horizontal wheel direction independently of the system \"Natural scrolling\" toggle (which on macOS ties trackpad and mouse-wheel direction together).\n2. Smoothness - interpolate each discrete wheel tick into a short sequence of small continuous pixel events, exposed as a grade from 0 (off / passthrough) to 10 (longest, smoothest glide).\n\nTrackpads and Magic Mouse produce continuous scroll events and are passed through untouched, distinguished via the scrollWheelEventIsContinuous property.",
+    "items": [],
+    "name": "MouseScrollTweaks",
+    "stripped_doc": "",
+    "submodules": [],
+    "type": "Module"
+  }
+]

@@ -26,6 +26,18 @@ Personal [Hammerspoon](https://www.hammerspoon.org/) configuration and shareable
   active. A toggle on|off hotkey shows an `hs.alert` banner for visual
   feedback.
 
+- **[`MouseScrollTweaks.spoon/`](MouseScrollTweaks.spoon/)** — tweaks for
+  traditional mouse wheels on macOS, leaving trackpad / Magic Mouse
+  alone. Per-axis direction inversion (vertical and horizontal
+  independently) lets you keep system "Natural scrolling" on for the
+  trackpad while the wheel feels normal — macOS ties those two together
+  by default. A `smoothness` grade 0 (off) … 20 (longest) interpolates
+  each discrete wheel tick into a short sequence of pixel-unit events
+  for a buttery glide; consecutive ticks fuse into one longer glide.
+  Trackpads and Magic Mouse are detected via the
+  `scrollWheelEventIsContinuous` property and passed through untouched.
+  Pure Lua via `hs.eventtap` — no native helper.
+
 - **[`SpotifyPlayPause.spoon/`](SpotifyPlayPause.spoon/)** — auto play /
   pause Spotify based on screen state and the connected audio output
   device. Pauses on screen sleep / screensaver when a preferred audio
