@@ -41,6 +41,9 @@ spoon.FocusFollowsMouse:configure({
   },
 })
 spoon.FocusFollowsMouse:start()
+spoon.FocusFollowsMouse:bindHotkeys({
+  toggle = {{"ctrl","cmd"}, "f"},  -- toggle on/off
+})
 ```
 
 `excludedApps` matches each entry against both `application():name()` and
@@ -92,6 +95,15 @@ Starts focusing windows as the mouse moves over them.
 #### `FocusFollowsMouse:stop()`
 
 Stops focusing windows as the mouse moves.
+
+#### `FocusFollowsMouse:toggle()`
+
+Toggles the Spoon on/off and shows a brief `hs.alert` banner.
+
+#### `FocusFollowsMouse:bindHotkeys(mapping)`
+
+Binds keyboard shortcuts. Accepts a `toggle` key with a `{mods, key}` pair
+compatible with `hs.hotkey.bindSpec`, e.g. `{ toggle = {{"ctrl","cmd"}, "f"} }`.
 
 ## Permissions
 

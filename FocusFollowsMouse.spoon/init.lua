@@ -137,6 +137,22 @@ local MENU_ROLES = {
   AXMenuButton  = true,
 }
 
+-- Walk an AX element's parent chain looking for a menu-role ancestor.
+-- Mozilla apps (Thunderbird/Firefox) nest the element directly under
+-- the cursor several levels below the actual AXMenu container, so a
+-- single-level role check at the hit point misses the open popup and
+-- FFM dismisses it by focusing the window behind.
+local function inMenuChain(el)
+  local depth = 0
+  while el and depth < 8 do
+    local role = el:attributeValue("AXRole")
+    if role and MENU_ROLES[role] then return true end
+    el = el:attributeValue("AXParent")
+    depth = depth + 1
+  end
+  return false
+end
+
 -- When the focused window is itself a modal sheet whose parent is the
 -- candidate window, focusing the candidate bounces off WindowServer
 -- back to the sheet — visible as a chrome flicker on each cursor
@@ -156,14 +172,23 @@ end
 function obj:_maybeFocus()
   if #hs.mouse.getButtons() ~= 0 then return end
   local point = hs.mouse.absolutePosition()
-  -- Skip focus shifts while an open menu is under the cursor; otherwise
-  -- the focus call dismisses it.
+  -- Skip focus shifts while an open menu is involved; otherwise the
+  -- focus call dismisses it. Two probes:
+  --   1. Element at cursor (catches most apps; menu may be a nested
+  --      child so we walk the parent chain).
+  --   2. Frontmost app's AXFocusedUIElement (catches popups that
+  --      `systemElementAtPosition` doesn't return — e.g. Thunderbird,
+  --      where the cursor's hit element is the window content behind
+  --      while the menu is the app's focused UI element).
   local axOk, ax = pcall(require, "hs.axuielement")
   if axOk and ax then
     local el = ax.systemElementAtPosition(point.x, point.y)
-    if el then
-      local role = el:attributeValue("AXRole")
-      if MENU_ROLES[role] then return end
+    if el and inMenuChain(el) then return end
+    local front = hs.application.frontmostApplication()
+    if front then
+      local appEl = ax.applicationElement(front)
+      local focusedEl = appEl and appEl:attributeValue("AXFocusedUIElement")
+      if focusedEl and inMenuChain(focusedEl) then return end
     end
   end
   local win = self:windowUnderPoint(point)
@@ -201,6 +226,49 @@ end
 function obj:stop()
   if self.eventtap then self.eventtap:stop(); self.eventtap = nil end
   if self.timer then self.timer:stop(); self.timer = nil end
+  return self
+end
+
+--- FocusFollowsMouse:toggle()
+--- Method
+--- Toggles the Spoon on/off and shows a brief `hs.alert` banner so the
+--- user can tell which state they're in without checking the console.
+--- Useful as a hotkey binding for apps where focus-follows-mouse would
+--- get in the way (full-screen video, games).
+function obj:toggle()
+  if self.eventtap and self.eventtap:isEnabled() then
+    self:stop()
+    hs.alert.show("FocusFollowsMouse: off")
+  else
+    self:start()
+    hs.alert.show("FocusFollowsMouse: on")
+  end
+end
+
+--- FocusFollowsMouse:bindHotkeys(mapping)
+--- Method
+--- Binds (or rebinds) keyboard shortcuts. The mapping table accepts a
+--- `toggle` key with a `{mods, key}` pair compatible with
+--- `hs.hotkey.bindSpec`. Calling `bindHotkeys` again clears prior
+--- bindings first.
+---
+--- Parameters:
+---  * mapping - table like `{ toggle = {{"ctrl","cmd"}, "f"} }`
+---
+--- Returns:
+---  * self
+function obj:bindHotkeys(mapping)
+  if self._hotkeys then
+    for _, hk in ipairs(self._hotkeys) do hk:delete() end
+  end
+  self._hotkeys = {}
+
+  if mapping and mapping.toggle then
+    table.insert(self._hotkeys, hs.hotkey.bindSpec(mapping.toggle, function()
+      self:toggle()
+    end))
+  end
+  self.logger.i("bindHotkeys: bound " .. #self._hotkeys .. " hotkey(s)")
   return self
 end
 
