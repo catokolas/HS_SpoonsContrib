@@ -153,6 +153,25 @@ local function inMenuChain(el)
   return false
 end
 
+-- Walk to the enclosing AXWindow and report whether it's a popup-like
+-- surface (autocomplete dropdown, tooltip, HUD, floating panel). Real
+-- focusable windows expose AXSubrole == "AXStandardWindow"; popups
+-- expose AXFloatingWindow / AXUnknown / etc. or no subrole at all.
+-- Used in addition to the menu-role check because popups often expose
+-- generic content roles (AXCell, AXStaticText) that we can't add to
+-- MENU_ROLES without breaking focus over ordinary tables and labels.
+local function inPopupWindow(el)
+  local depth = 0
+  while el and depth < 12 do
+    if el:attributeValue("AXRole") == "AXWindow" then
+      return el:attributeValue("AXSubrole") ~= "AXStandardWindow"
+    end
+    el = el:attributeValue("AXParent")
+    depth = depth + 1
+  end
+  return false
+end
+
 -- When the focused window is itself a modal sheet whose parent is the
 -- candidate window, focusing the candidate bounces off WindowServer
 -- back to the sheet — visible as a chrome flicker on each cursor
@@ -183,7 +202,7 @@ function obj:_maybeFocus()
   local axOk, ax = pcall(require, "hs.axuielement")
   if axOk and ax then
     local el = ax.systemElementAtPosition(point.x, point.y)
-    if el and inMenuChain(el) then return end
+    if el and (inMenuChain(el) or inPopupWindow(el)) then return end
     local front = hs.application.frontmostApplication()
     if front then
       local appEl = ax.applicationElement(front)

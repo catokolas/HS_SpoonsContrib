@@ -129,6 +129,42 @@ spoon.FocusFollowsMouse:windowUnderPoint(p)                  -- what we'd pick
 require("hs.axuielement").systemElementAtPosition(p.x, p.y):attributeValue("AXRole")  -- menu/sheet gate
 ```
 
+### Diagnosing a dismissed popup / menu / autocomplete
+
+If a popup (right-click menu, browser autofill dropdown, etc.) is
+dismissed when the cursor settles, FFM's menu-detection probes didn't
+recognise the popup's `AXRole` and treated the underlying window as a
+normal focus target. To learn which role the popup actually exposes:
+
+1. **Turn FFM off first** — via your `toggle` hotkey (default
+   `ctrl+cmd+f` in the usage example above) or
+   `spoon.FocusFollowsMouse:stop()` in the Console. Otherwise FFM
+   dismisses the popup before you can inspect it.
+2. Open the popup and rest the cursor over it.
+3. Bind the snippet below to a hotkey (e.g. `ctrl+alt+cmd+D`) ahead
+   of time so triggering it doesn't move the cursor, then press it
+   while the popup is showing:
+
+```lua
+hs.hotkey.bind({"ctrl","alt","cmd"}, "D", function()
+  local ax = require("hs.axuielement")
+  local p  = hs.mouse.absolutePosition()
+  local el = ax.systemElementAtPosition(p.x, p.y)
+  print("hit role:    ", el and el:attributeValue("AXRole"),
+                         el and el:attributeValue("AXSubrole"))
+  local front = hs.application.frontmostApplication()
+  local appEl = front and ax.applicationElement(front)
+  local fEl   = appEl and appEl:attributeValue("AXFocusedUIElement")
+  print("focused role:", fEl and fEl:attributeValue("AXRole"),
+                         fEl and fEl:attributeValue("AXSubrole"))
+end)
+```
+
+Report the printed role(s) — they tell us what to add to the
+menu-detection list in `init.lua` (the `MENU_ROLES` table). Browsers
+in particular often use `AXList` / `AXListItem` or `AXPopover` for
+autofill suggestions rather than `AXMenu`.
+
 Log calls may be added in a future version (e.g. tracing the
 excluded-app / menu / sheet branches at `debug` level); the variable
 is reserved for that.
