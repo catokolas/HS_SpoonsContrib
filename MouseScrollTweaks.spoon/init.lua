@@ -22,7 +22,7 @@ obj.__index = obj
 obj.name     = "MouseScrollTweaks"
 obj.version  = "0.1"
 obj.author   = "Cato Kolås <cato.kolas@gmail.com>"
-obj.credits  = "Smoothing ported from mac-mouse-fix SmoothScroll.m by Noah Nuebling (MIT)"
+obj.credits  = "Smoothing ported from mac-mouse-fix by Noah Nuebling (MIT)"
 obj.homepage = "https://github.com/catokolas/HS_SpoonsContrib"
 obj.license  = "MIT - https://opensource.org/licenses/MIT"
 
@@ -61,7 +61,26 @@ obj.smoothness = 0
 obj.logger = hs.logger.new("MouseScrollTweaks")
 
 -- Internal state — not part of the public API.
-obj._tap = nil
+obj._tap        = nil
+obj._engineImpl = nil   -- set at start(): either the inline default
+                        -- (linear-phase + friction-momentum) or the
+                        -- native bridge if `hs._ckol.smoothscroll` is
+                        -- installed. The dispatcher routes per-frame
+                        -- work through this, so the input / cancel /
+                        -- event-emission code below doesn't care which
+                        -- backend it is.
+
+-- Optional companion module `hs._ckol.smoothscroll` posts continuous-
+-- scroll CGEvents from a CVDisplayLink callback. If installed
+-- (~/.hammerspoon/hs/_ckol/smoothscroll/), we route output through it
+-- for the trackpad-like glide-to-stop feel; otherwise we use the
+-- inline default engine. See the HS_ModulesContrib-smoothscroll repo
+-- (https://github.com/catokolas/HS_ModulesContrib-smoothscroll) for
+-- build + install instructions.
+local _haveNativeSmoothScroll = (function()
+  local ok = pcall(require, "hs._ckol.smoothscroll")
+  return ok
+end)()
 
 -- Per-axis smoothing state (linear + momentum phases, MMF style).
 local function newAxisState()
@@ -97,6 +116,10 @@ obj._anim = {
                      -- MOUSE_CANCEL_PX (FFM-style sloppy-focus switches
                      -- change focus without a click, beating both the
                      -- leftMouseDown branch and the frontmost-pid check)
+  lastTickS   = 0,   -- abs-seconds of most recent forwarded tick;
+                     -- used by _nativeWatchdog to stop polling once
+                     -- the native module's gesture + momentum have
+                     -- had time to wind down
 }
 
 -- Cross-axis "burst" tracker — counts wheel ticks and "swipes" (bursts
@@ -352,6 +375,71 @@ local function drainLine(accum)
   return whole, accum - whole
 end
 
+-- Build the "default" engine impl: wraps the inline _enqueueAxis /
+-- _advanceAxis methods so the dispatcher can route through a uniform
+-- `{enqueueAxis, advanceAxis}` table regardless of engine choice.
+local function defaultEngineImpl(self)
+  return {
+    name = "default",
+    enqueueAxis = function(axis, dir) return self:_enqueueAxis(axis, dir) end,
+    advanceAxis = function(axis, dtMs) return self:_advanceAxis(axis, dtMs) end,
+  }
+end
+
+-- Pick the engine impl: native if `hs._ckol.smoothscroll` is installed,
+-- inline default otherwise. Called from start(). Any failure loading
+-- the native engine falls back to default with a logged warning.
+function obj:_loadEngine()
+  if not _haveNativeSmoothScroll then
+    self._engineImpl = defaultEngineImpl(self)
+    self.logger.d("engine: default (hs._ckol.smoothscroll not installed)")
+    return
+  end
+
+  local path = hs.spoons.resourcePath("engine_native.lua")
+  if not path then
+    self.logger.w("engine_native.lua not found in Spoon dir; using default")
+    self._engineImpl = defaultEngineImpl(self)
+    return
+  end
+
+  local okLoad, factory = pcall(dofile, path)
+  if not okLoad or type(factory) ~= "function" then
+    self.logger.w(string.format("engine_native.lua load failed (%s); using default",
+      tostring(factory)))
+    self._engineImpl = defaultEngineImpl(self)
+    return
+  end
+
+  -- Shared utilities the engine factory may want. `default*` lets the
+  -- native engine delegate per-axis work to the inline default if it
+  -- needs to (currently it doesn't — it owns its own frame loop).
+  local ctx = {
+    nowS               = nowS,
+    sign               = sign,
+    round              = round,
+    burst              = function() return self._burst end,
+    smoothness         = function() return self.smoothness end,
+    logger             = self.logger,
+    defaultEnqueueAxis = function(axis, dir)  return self:_enqueueAxis(axis, dir)  end,
+    defaultAdvanceAxis = function(axis, dtMs) return self:_advanceAxis(axis, dtMs) end,
+  }
+
+  local okFactory, impl = pcall(factory, ctx)
+  if not okFactory or type(impl) ~= "table"
+     or type(impl.enqueueAxis) ~= "function"
+     or type(impl.advanceAxis) ~= "function" then
+    self.logger.w(string.format("engine_native factory returned invalid impl (%s); using default",
+      tostring(impl)))
+    self._engineImpl = defaultEngineImpl(self)
+    return
+  end
+
+  impl.name = impl.name or "native"
+  self._engineImpl = impl
+  self.logger.d("engine: native (hs._ckol.smoothscroll detected)")
+end
+
 function obj:_frameTick()
   local a   = self._anim
 
@@ -386,18 +474,30 @@ function obj:_frameTick()
   local dtMs = (a.lastFrameS == 0) and (FRAME_S * 1000) or ((now - a.lastFrameS) * 1000)
   a.lastFrameS = now
 
-  local dx, rawDx = self:_advanceAxis(a.x, dtMs)
-  local dy, rawDy = self:_advanceAxis(a.y, dtMs)
+  -- Engines may return an optional third value: a scrollPhase marker
+  -- (1=began / 2=changed / 4=ended) used by gesture-style engines to
+  -- stamp `kCGScrollWheelEventScrollPhase` on the emitted event. The
+  -- default and spring engines return only (px, rawPx); the third
+  -- slot is `nil` and the property is left unset.
+  local dx, rawDx, phaseX = self._engineImpl.advanceAxis(a.x, dtMs)
+  local dy, rawDy, phaseY = self._engineImpl.advanceAxis(a.y, dtMs)
 
   -- Accumulate fractional lines proportional to the pixel delta this
   -- frame, then drain any whole-line amount that's accumulated. Total
-  -- lines per glide ≈ total_pixels / LINE_PX. Matching MMF: both line
-  -- and pixel delta are emitted on EVERY frame including the momentum
-  -- tail (MMF explicitly sets ScrollPhase / MomentumPhase to 0 — no
-  -- gesture/inertia signalling — and the dense per-frame delta stream
-  -- is what makes apps render smoothly).
-  a.y.lineAccum = a.y.lineAccum + dy / LINE_PX
-  a.x.lineAccum = a.x.lineAccum + dx / LINE_PX
+  -- lines per glide ≈ total_pixels / (LINE_PX × linePxScale). Matching
+  -- MMF: both line and pixel delta are emitted on EVERY frame including
+  -- the momentum tail (MMF explicitly sets ScrollPhase / MomentumPhase
+  -- to 0 — no gesture/inertia signalling — and the dense per-frame
+  -- delta stream is what makes apps render smoothly).
+  --
+  -- `linePxScale` is an opt-in per-engine multiplier on the divisor so
+  -- engines with substantially-different per-tick pixel budgets keep
+  -- iTerm line counts comparable. Default engine: ~50-100 px/tick →
+  -- scale 1 (≈ 1-2 lines/click). Spring engine: ~250 px/tick → scale
+  -- ~3 (≈ 2 lines/click). See per-engine impl tables.
+  local linePx = LINE_PX * (self._engineImpl.linePxScale or 1)
+  a.y.lineAccum = a.y.lineAccum + dy / linePx
+  a.x.lineAccum = a.x.lineAccum + dx / linePx
   local lineY; lineY, a.y.lineAccum = drainLine(a.y.lineAccum)
   local lineX; lineX, a.x.lineAccum = drainLine(a.x.lineAccum)
 
@@ -409,7 +509,8 @@ function obj:_frameTick()
   -- the integer delta would otherwise be 0 for several frames at a
   -- stretch.
   if dx ~= 0 or dy ~= 0 or lineX ~= 0 or lineY ~= 0
-     or rawDx ~= 0 or rawDy ~= 0 then
+     or rawDx ~= 0 or rawDy ~= 0
+     or phaseX ~= nil or phaseY ~= nil then
     local ev = hs.eventtap.event.newScrollEvent({ dx, dy }, {}, "pixel")
     local P  = hs.eventtap.event.properties
     ev:setProperty(P.scrollWheelEventDeltaAxis1, lineY)
@@ -418,6 +519,17 @@ function obj:_frameTick()
     -- sub-pixel resolution from this.
     ev:setProperty(P.scrollWheelEventFixedPtDeltaAxis1, rawDy)
     ev:setProperty(P.scrollWheelEventFixedPtDeltaAxis2, rawDx)
+    -- Gesture-style engines (engine_gesture.lua) set IsContinuous=1
+    -- on every event so receivers treat them as trackpad gestures,
+    -- and stamp a scrollPhase marker (began/changed/ended) read from
+    -- the engine's third return value above.
+    if self._engineImpl.isContinuous then
+      ev:setProperty(P.scrollWheelEventIsContinuous, 1)
+    end
+    local phase = phaseY or phaseX
+    if phase then
+      ev:setProperty(P.scrollWheelEventScrollPhase, phase)
+    end
     -- Stamp sentinel so our own tap skips this event on re-entry.
     ev:setProperty(P.eventSourceUserData, SENTINEL)
     ev:post()
@@ -435,20 +547,79 @@ end
 
 function obj:_enqueueSmooth(dirX, dirY)
   if dirX == 0 and dirY == 0 then return end
-  self:_enqueueAxis(self._anim.x, dirX)
-  self:_enqueueAxis(self._anim.y, dirY)
-  if not self._anim.frameTimer then
-    -- Snapshot the frontmost app pid at glide start so _frameTick can
-    -- bail out the moment focus moves elsewhere (Cmd-Tab, Spaces).
+
+  -- Snapshot front-most app pid + mouse position so the per-frame
+  -- (or watchdog) cancellation guards know what to compare against.
+  -- Captured here in both engine paths so the values stay current
+  -- across long, multi-burst glides.
+  local function snapshotGuardState()
     local front = hs.application.frontmostApplication()
-    self._anim.startPid   = front and front:pid() or 0
-    -- Snapshot mouse XY too — handles FFM / sloppy-focus, which
-    -- changes focus on mouse-rest without a click.
+    self._anim.startPid    = front and front:pid() or 0
     local pos = hs.mouse.absolutePosition()
     self._anim.startMouseX = pos and pos.x or 0
     self._anim.startMouseY = pos and pos.y or 0
+  end
+
+  -- Native-output engines own their own frame loop + CGEvent posting;
+  -- this side just forwards the tick and runs a lightweight watchdog
+  -- for cancellation guards (mouse motion, app switch).
+  if self._engineImpl.nativeOutput then
+    self._engineImpl.tickNative(dirX, dirY)
+    self._anim.lastTickS = nowS()
+    if not self._anim.frameTimer then
+      snapshotGuardState()
+      self._anim.frameTimer = hs.timer.doEvery(0.020, function() self:_nativeWatchdog() end)
+    end
+    return
+  end
+
+  self._engineImpl.enqueueAxis(self._anim.x, dirX)
+  self._engineImpl.enqueueAxis(self._anim.y, dirY)
+  if not self._anim.frameTimer then
+    snapshotGuardState()
     self._anim.lastFrameS  = 0
     self._anim.frameTimer  = hs.timer.doEvery(FRAME_S, function() self:_frameTick() end)
+  end
+end
+
+-- Cancellation-guard watchdog for native-output engines. Runs at ~50 Hz
+-- (cheap; only does the four guards from _frameTick, no per-frame math
+-- or CGEvent posting). Stops itself after `NATIVE_WATCHDOG_IDLE_S` of
+-- no tick activity — long enough to cover any momentum tail the native
+-- module is running.
+local NATIVE_WATCHDOG_IDLE_S = 3.0
+
+function obj:_nativeWatchdog()
+  local a = self._anim
+
+  -- Frontmost-pid guard.
+  if a.startPid > 0 then
+    local front = hs.application.frontmostApplication()
+    if front and front:pid() ~= a.startPid then
+      self:_cancelGlide()
+      return
+    end
+  end
+
+  -- Mouse-motion guard.
+  local pos = hs.mouse.absolutePosition()
+  if pos then
+    local dx = pos.x - a.startMouseX
+    local dy = pos.y - a.startMouseY
+    if (dx * dx + dy * dy) > (MOUSE_CANCEL_PX * MOUSE_CANCEL_PX) then
+      self:_cancelGlide()
+      return
+    end
+  end
+
+  -- Idle timeout — assume the native module's gesture + momentum have
+  -- finished and stop polling.
+  if a.lastTickS > 0 and (nowS() - a.lastTickS) > NATIVE_WATCHDOG_IDLE_S then
+    if a.frameTimer then a.frameTimer:stop(); a.frameTimer = nil end
+    a.lastTickS    = 0
+    a.startPid     = 0
+    a.startMouseX  = 0
+    a.startMouseY  = 0
   end
 end
 
@@ -456,6 +627,10 @@ end
 -- user clicks anywhere) so residual synthetic scroll doesn't follow into
 -- a new window.
 function obj:_cancelGlide()
+  if self._engineImpl and self._engineImpl.nativeOutput
+     and type(self._engineImpl.cancelNative) == "function" then
+    self._engineImpl.cancelNative()
+  end
   if self._anim.frameTimer then
     self._anim.frameTimer:stop()
     self._anim.frameTimer = nil
@@ -463,6 +638,7 @@ function obj:_cancelGlide()
   self._anim.x           = newAxisState()
   self._anim.y           = newAxisState()
   self._anim.lastFrameS  = 0
+  self._anim.lastTickS   = 0
   self._anim.startPid    = 0
   self._anim.startMouseX = 0
   self._anim.startMouseY = 0
@@ -572,6 +748,9 @@ function obj:start()
 
   self.smoothness = normaliseSmoothness(self.smoothness)
 
+  -- Auto-detect: use the smoothscroll module if installed, else default.
+  self:_loadEngine()
+
   if self._tap then self._tap:stop() end
   self._tap = hs.eventtap.new(
     { hs.eventtap.event.types.scrollWheel,
@@ -592,10 +771,11 @@ function obj:start()
   self._appWatcher:start()
 
   self.logger.i(string.format(
-    "started; invertV=%s invertH=%s smoothness=%d",
+    "started; invertV=%s invertH=%s smoothness=%d engine=%s",
     tostring(self.invertVertical),
     tostring(self.invertHorizontal),
-    self.smoothness))
+    self.smoothness,
+    (self._engineImpl and self._engineImpl.name) or "?"))
   return self
 end
 
@@ -609,9 +789,14 @@ function obj:stop()
   if self._tap then self._tap:stop(); self._tap = nil end
   if self._appWatcher then self._appWatcher:stop(); self._appWatcher = nil end
   if self._anim.frameTimer then self._anim.frameTimer:stop(); self._anim.frameTimer = nil end
+  if self._engineImpl and self._engineImpl.nativeOutput
+     and type(self._engineImpl.stopNative) == "function" then
+    self._engineImpl.stopNative()
+  end
   self._anim.x           = newAxisState()
   self._anim.y           = newAxisState()
   self._anim.lastFrameS  = 0
+  self._anim.lastTickS   = 0
   self._anim.startPid    = 0
   self._anim.startMouseX = 0
   self._anim.startMouseY = 0
@@ -619,6 +804,7 @@ function obj:stop()
   self._burst.swipeCount    = 0
   self._burst.lastTickS     = 0
   self._burst.lastSwipeEndS = 0
+  self._engineImpl = nil
   self.logger.i("stopped")
   return self
 end

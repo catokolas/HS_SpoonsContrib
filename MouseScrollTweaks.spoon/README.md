@@ -17,8 +17,11 @@ Trackpads and Magic Mouse produce continuous scroll events; they are
 detected via `scrollWheelEventIsContinuous` and **passed through
 untouched** at every grade.
 
-Implemented entirely in pure Lua on `hs.eventtap` — no native helper,
-no companion app.
+The Spoon's default engine is implemented entirely in pure Lua on
+`hs.eventtap` — no companion app, no external dependencies. An
+optional [smoothscroll module](#optional-install-the-smoothscroll-module-for-trackpad-like-feel)
+can be installed alongside to get a trackpad-style glide-to-stop feel;
+without it the Spoon works on its own.
 
 ## Installation
 
@@ -63,6 +66,32 @@ spoon.MouseScrollTweaks:configure({ smoothness = 8 })
 spoon.MouseScrollTweaks:configure({ invertHorizontal = false })
 ```
 
+### Optional: install the smoothscroll module for trackpad-like feel
+
+The Spoon's default engine is a self-contained Lua implementation of
+two-phase linear-glide + friction-momentum. If you also install the
+companion `hs._ckol.smoothscroll` module
+([HS_ModulesContrib-smoothscroll](https://github.com/catokolas/HS_ModulesContrib-smoothscroll)),
+the Spoon auto-detects it at `start()` and routes scroll output
+through it instead — giving the trackpad-style continuous-scroll feel:
+long smooth glide-to-stop tail, "1 line per click" in terminals,
+swipe-friendly behaviour in Finder / Thunderbird / browsers. No
+user-facing config change is needed either way.
+
+Build + install instructions live in the module's README. After
+installing, **quit + relaunch Hammerspoon** — the module is loaded at
+Hammerspoon startup, so a Spoon-only reload won't pick it up.
+
+The Spoon's `start()` log line shows which path activated:
+
+```
+started; invertV=true invertH=true smoothness=15 engine=native     -- smoothscroll module detected
+started; invertV=true invertH=true smoothness=15 engine=default    -- module not installed
+```
+
+`engine=native` is the internal name for the smoothscroll-backed
+path; see [`engine_native.lua`](engine_native.lua) for the bridge code.
+
 ## API
 
 ### Variables
@@ -71,7 +100,7 @@ spoon.MouseScrollTweaks:configure({ invertHorizontal = false })
 |---|---|---|
 | `MouseScrollTweaks.invertVertical` | `true` | Flip vertical wheel direction. Discrete events only. |
 | `MouseScrollTweaks.invertHorizontal` | `true` | Flip horizontal (tilt-wheel) direction. Discrete events only. |
-| `MouseScrollTweaks.smoothness` | `0` | Smoothing intensity, integer in `[0, 20]`. `0` = off / passthrough; `5–10` is subtle; `10–15` approximates MMF; `15–20` leans into long glides. Clamped + rounded in `configure`. |
+| `MouseScrollTweaks.smoothness` | `0` | Smoothing intensity, integer in `[0, 20]`. `0` = off / passthrough; `5–10` is subtle; `10–15` is a typical daily-driver setting; `15–20` leans into long glides. Clamped + rounded in `configure`. |
 | `MouseScrollTweaks.logger` | `hs.logger.new("MouseScrollTweaks")` | Logger; set its level to control verbosity. |
 
 ### Methods
@@ -115,12 +144,6 @@ first.
 
 Returns: `self`.
 
-## Behaviour, smoothing model, internals
-
-The full design — eventtap dispatch table, MMF-derived two-phase glide,
-per-tick / per-swipe acceleration, glide-cancellation layers, event
-composition, and caveats — is in [`INTERNALS.md`](INTERNALS.md).
-
 ## Logging / debug output
 
 All messages go to the **Hammerspoon Console** (menu bar → Hammerspoon
@@ -136,19 +159,26 @@ in the Console:
 spoon.MouseScrollTweaks.logger.setLogLevel("debug")
 ```
 
-Or pin it from your `~/.hammerspoon/init.lua` (after `start()`):
+Or pin it from your `~/.hammerspoon/init.lua`. Set the level **before**
+`start()` so the engine-init trace below is captured:
 
 ```lua
-spoon.MouseScrollTweaks.logger.setLogLevel("debug")
+hs.loadSpoon("MouseScrollTweaks")
+spoon.MouseScrollTweaks.logger.setLogLevel("debug")  -- before start()
+spoon.MouseScrollTweaks:configure({ smoothness = 10 }):start()
 ```
+
+Setting it *after* `start()` is fine if you only care about per-tick
+`smooth: enqueue …` lines on later scrolls, but the engine-detection
+trace from the most recent `start()` will already have been filtered.
 
 What each level emits in this Spoon:
 
 | Level | Sample messages |
 |---|---|
-| `warning` | `eventtap was disabled; re-enabling` (the tap auto-rearms after a timeout / user-input drop) |
-| `info`    | `started; invertV=true invertH=true smoothness=5`, `stopped` |
-| `debug`   | `smooth: enqueue dx=… dy=… grade=…` (per wheel tick when `smoothness > 0`) |
+| `warning` | `eventtap was disabled; re-enabling` (the tap auto-rearms after a timeout / user-input drop); `engine_native.lua not found / load failed / invalid impl; using default` |
+| `info`    | `started; invertV=true invertH=true smoothness=5 engine=native`, `stopped` |
+| `debug`   | `smooth: enqueue dx=… dy=… grade=…` (per wheel tick when `smoothness > 0`); engine-detection trace at `start()`: `engine: native (hs._ckol.smoothscroll detected)` or `engine: default (hs._ckol.smoothscroll not installed)` |
 
 `debug` is the right level when tuning the smoothness curve or
 verifying that a particular device is being treated as
