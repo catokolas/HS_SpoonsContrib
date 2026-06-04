@@ -185,7 +185,7 @@ local FAST_BASE         = 1.15    -- per-extra-swipe multiplier (MMF=1.1)
 -- handful per rapid burst). Browsers/VS Code use pixel delta in
 -- parallel, so the lower line emission density doesn't hurt them.
 local LINE_PX = 40
-local MOUSE_CANCEL_PX   = 60      -- per-frame mouse-motion threshold;
+local MOUSE_CANCEL_PX   = 400     -- per-frame mouse-motion threshold;
                                   -- beyond this we assume the user is
                                   -- targeting a different window and
                                   -- cancel the glide (handles FFM /
