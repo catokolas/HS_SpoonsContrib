@@ -160,9 +160,9 @@ local function paramsFor(grade)
   -- than MMF but still smooth.
   local extra = math.max(0, grade - 15)
   return {
-    pxStepSize    = 6 + grade * 2,           -- 8..46 px per tick
+    pxStepSize    = 4 + grade * 0.5,         -- 4..14 px per tick
     msPerStep     = 90,                      -- MMF default
-    acceleration  = 1.15 + grade * 0.04,     -- 1.19..1.95
+    acceleration  = 1.05 + grade * 0.01,     -- 1.05..1.25
     friction      = 2.3 - extra * 0.18,      -- 2.3 (grade 0–15) → 1.40 (grade 20)
     frictionDepth = 1.0,                     -- MMF default
     onePxLimit    = 2 + extra * 1,           -- 2 (grade 0–15) → 7 (grade 20)
@@ -178,8 +178,8 @@ local TICK_GAP_S       = 0.13     -- MMF consecutiveScrollTickMaxIntervall
 local SWIPE_GAP_S      = 0.35     -- MMF consecutiveScrollSwipeMaxIntervall
 local SWIPE_TICK_THRESH = 2       -- MMF scrollSwipeThreshold_inTicks
 local FAST_SWIPE_THRESH = 3       -- MMF fastScrollThreshold_inSwipes
-local FAST_FACTOR       = 1.2     -- base fast-scroll multiplier (MMF=1.1)
-local FAST_BASE         = 1.15    -- per-extra-swipe multiplier (MMF=1.1)
+local FAST_FACTOR       = 1.1     -- base fast-scroll multiplier (matches MMF)
+local FAST_BASE         = 1.1     -- per-extra-swipe multiplier (matches MMF)
 -- Pixels per line for synthetic line delta accumulation. ~40 keeps
 -- iTerm's per-click line count reasonable (1–2 lines per slow tick,
 -- handful per rapid burst). Browsers/VS Code use pixel delta in
@@ -284,18 +284,25 @@ function obj:_enqueueAxis(axis, dir)
     axis.pxAccum   = 0
   end
 
-  axis.buf = axis.buf + dir * p.pxStepSize
+  -- MMF-style: apply both acceleration multipliers to the *incoming*
+  -- tick only, then add it to the buffer. The earlier "multiply the
+  -- whole buffer" form compounded undrained remnants from previous
+  -- ticks and produced burst-by-burst amplitude growth that MMF
+  -- doesn't have.
+  local stepPx = dir * p.pxStepSize
 
   -- Level 1: per-tick boost on every tick after the first in a burst.
   if b.tickCount > 1 then
-    axis.buf = axis.buf * p.acceleration
+    stepPx = stepPx * p.acceleration
   end
 
   -- Level 2: fast-scroll boost once we're 3+ swipes deep.
   local fastDelta = b.swipeCount - FAST_SWIPE_THRESH
   if fastDelta >= 0 then
-    axis.buf = axis.buf * FAST_FACTOR * (FAST_BASE ^ fastDelta)
+    stepPx = stepPx * FAST_FACTOR * (FAST_BASE ^ fastDelta)
   end
+
+  axis.buf = axis.buf + stepPx
 
   axis.msLeft  = p.msPerStep
   axis.phase   = "linear"
@@ -474,13 +481,8 @@ function obj:_frameTick()
   local dtMs = (a.lastFrameS == 0) and (FRAME_S * 1000) or ((now - a.lastFrameS) * 1000)
   a.lastFrameS = now
 
-  -- Engines may return an optional third value: a scrollPhase marker
-  -- (1=began / 2=changed / 4=ended) used by gesture-style engines to
-  -- stamp `kCGScrollWheelEventScrollPhase` on the emitted event. The
-  -- default and spring engines return only (px, rawPx); the third
-  -- slot is `nil` and the property is left unset.
-  local dx, rawDx, phaseX = self._engineImpl.advanceAxis(a.x, dtMs)
-  local dy, rawDy, phaseY = self._engineImpl.advanceAxis(a.y, dtMs)
+  local dx, rawDx = self._engineImpl.advanceAxis(a.x, dtMs)
+  local dy, rawDy = self._engineImpl.advanceAxis(a.y, dtMs)
 
   -- Accumulate fractional lines proportional to the pixel delta this
   -- frame, then drain any whole-line amount that's accumulated. Total
@@ -509,8 +511,7 @@ function obj:_frameTick()
   -- the integer delta would otherwise be 0 for several frames at a
   -- stretch.
   if dx ~= 0 or dy ~= 0 or lineX ~= 0 or lineY ~= 0
-     or rawDx ~= 0 or rawDy ~= 0
-     or phaseX ~= nil or phaseY ~= nil then
+     or rawDx ~= 0 or rawDy ~= 0 then
     local ev = hs.eventtap.event.newScrollEvent({ dx, dy }, {}, "pixel")
     local P  = hs.eventtap.event.properties
     ev:setProperty(P.scrollWheelEventDeltaAxis1, lineY)
@@ -519,17 +520,6 @@ function obj:_frameTick()
     -- sub-pixel resolution from this.
     ev:setProperty(P.scrollWheelEventFixedPtDeltaAxis1, rawDy)
     ev:setProperty(P.scrollWheelEventFixedPtDeltaAxis2, rawDx)
-    -- Gesture-style engines (engine_gesture.lua) set IsContinuous=1
-    -- on every event so receivers treat them as trackpad gestures,
-    -- and stamp a scrollPhase marker (began/changed/ended) read from
-    -- the engine's third return value above.
-    if self._engineImpl.isContinuous then
-      ev:setProperty(P.scrollWheelEventIsContinuous, 1)
-    end
-    local phase = phaseY or phaseX
-    if phase then
-      ev:setProperty(P.scrollWheelEventScrollPhase, phase)
-    end
     -- Stamp sentinel so our own tap skips this event on re-entry.
     ev:setProperty(P.eventSourceUserData, SENTINEL)
     ev:post()
@@ -793,8 +783,8 @@ function obj:stop()
      and type(self._engineImpl.stopNative) == "function" then
     self._engineImpl.stopNative()
   end
-  self._anim.x           = newAxisState()
-  self._anim.y           = newAxisState()
+  self._anim.x              = newAxisState()
+  self._anim.y              = newAxisState()
   self._anim.lastFrameS  = 0
   self._anim.lastTickS   = 0
   self._anim.startPid    = 0
