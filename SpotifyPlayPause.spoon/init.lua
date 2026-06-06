@@ -180,9 +180,10 @@ function obj:_switchToPreferred()
   for _, p in ipairs(self.preferredDevices) do
     local pl = p:lower()
     for _, d in ipairs(hs.audiodevice.allOutputDevices()) do
-      if d:name():lower():find(pl, 1, true) then
+      local name = d:name()
+      if name and name:lower():find(pl, 1, true) then
         d:setDefaultOutputDevice()
-        self.logger.d("switched default output to " .. d:name())
+        self.logger.d("switched default output to " .. name)
         return
       end
     end
