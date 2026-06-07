@@ -30,8 +30,7 @@ cd HS_SpoonsContrib
 mkdir -p ~/.hammerspoon/Spoons
 ln -s "$PWD/MouseTrackpadTweaks.spoon" ~/.hammerspoon/Spoons/MouseTrackpadTweaks.spoon
 ```
-texttexttexttexttexttexttexttexttexttext
-texttexttexttexttexttexttexttexttexttext
+
 ## Usage
 
 In `~/.hammerspoon/init.lua`:

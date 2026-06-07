@@ -51,7 +51,10 @@ Personal [Hammerspoon](https://www.hammerspoon.org/) configuration and shareable
   scrolling" toggle, so you can keep the trackpad natural while the
   mouse scrolls traditionally. Inversion follows the whole gesture +
   momentum tail via scrollPhase / momentumPhase tracking, so there's no
-  "bounce" when the finger leaves the surface. **Middle-click
+  "bounce" when the finger leaves the surface. Deltas are flipped on the
+  original CGEvent in place, preserving the OS's gesture metadata
+  (source, timestamp, gesture id), so the momentum tail decays as
+  smoothly as a native scroll. **Middle-click
   synthesis** on either a 3+ finger tap/click or a 1-finger tap/click
   in a configurable top-center region of the device surface; each mode
   picks "tap", "click", or "either" independently. The top-center rule
