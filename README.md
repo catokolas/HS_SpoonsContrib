@@ -38,6 +38,23 @@ Personal [Hammerspoon](https://www.hammerspoon.org/) configuration and shareable
   `scrollWheelEventIsContinuous` property and passed through untouched.
   Pure Lua via `hs.eventtap` — no native helper.
 
+- **[`MouseTrackpadTweaks.spoon/`](MouseTrackpadTweaks.spoon/)** —
+  per-device input tweaks for the Magic Mouse and Trackpad that macOS
+  doesn't expose itself. **Magic-Mouse-only scroll inversion** (vertical
+  and optional horizontal) — independent of the system "Natural
+  scrolling" toggle, so you can keep the trackpad natural while the
+  mouse scrolls traditionally. Inversion follows the whole gesture +
+  momentum tail via scrollPhase / momentumPhase tracking, so there's no
+  "bounce" when the finger leaves the surface. **Middle-click
+  synthesis** on either a 3+ finger tap/click or a 1-finger tap/click
+  in a configurable top-center region of the device surface; each mode
+  picks "tap", "click", or "either" independently. The top-center rule
+  counts only touches *inside* the region, so Magic Mouse passive palm
+  contacts elsewhere don't disqualify an intentional finger. Uses the
+  companion native helper `HS_ModulesContrib-multitouch` to read
+  multitouch data (see below); without it the Spoon loads cleanly and
+  passes events through unmodified.
+
 - **[`SpotifyPlayPause.spoon/`](SpotifyPlayPause.spoon/)** — auto play /
   pause Spotify based on screen state and the connected audio output
   device. Pauses on screen sleep / screensaver when a preferred audio
@@ -78,3 +95,12 @@ Personal [Hammerspoon](https://www.hammerspoon.org/) configuration and shareable
   only moves windows owned by the calling process (Hammerspoon itself);
   cross-process Space moves are gated at the WindowServer level. See the
   module README for details.
+
+- **[`HS_ModulesContrib-multitouch`](https://github.com/catokolas/HS_ModulesContrib-multitouch)**
+  — native Hammerspoon module that streams per-touch events from the
+  Magic Mouse and Trackpad via Apple's private MultitouchSupport
+  framework. Exposes finger count, normalized per-finger surface
+  position, and touch phase (began / moved / ended) — none of which is
+  reachable from Hammerspoon's pure-Lua API. `MouseTrackpadTweaks.spoon`
+  picks the module up automatically when installed under
+  `~/.hammerspoon/hs/_ckol/multitouch/`.
