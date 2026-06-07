@@ -36,7 +36,13 @@ Personal [Hammerspoon](https://www.hammerspoon.org/) configuration and shareable
   for a buttery glide; consecutive ticks fuse into one longer glide.
   Trackpads and Magic Mouse are detected via the
   `scrollWheelEventIsContinuous` property and passed through untouched.
-  Pure Lua via `hs.eventtap` — no native helper.
+  Uses `hs.eventtap` for input and direction inversion. If the
+  companion native helper `HS_ModulesContrib-smoothscroll` is installed
+  (see below), the smoothing engine runs as `IsContinuous=1` CGEvents
+  posted from a `CVDisplayLink` callback — a trackpad-style continuous
+  scroll stream with proper momentum, which apps treat as one logical
+  gesture (one wheel click → one visible scroll step in every app);
+  otherwise falls back to an inline pure-Lua smoothing engine.
 
 - **[`MouseTrackpadTweaks.spoon/`](MouseTrackpadTweaks.spoon/)** —
   per-device input tweaks for the Magic Mouse and Trackpad that macOS
@@ -104,3 +110,16 @@ Personal [Hammerspoon](https://www.hammerspoon.org/) configuration and shareable
   reachable from Hammerspoon's pure-Lua API. `MouseTrackpadTweaks.spoon`
   picks the module up automatically when installed under
   `~/.hammerspoon/hs/_ckol/multitouch/`.
+
+- **[`HS_ModulesContrib-smoothscroll`](https://github.com/catokolas/HS_ModulesContrib-smoothscroll)**
+  — native Hammerspoon module that posts continuous-scroll CGEvents
+  (`NSEventTypeScrollWheel` with `IsContinuous=1`) from a `CVDisplayLink`
+  callback — the same event shape macOS trackpads emit during a
+  gesture, with smoothly decreasing per-frame deltas during the
+  momentum tail. Receiving apps treat the whole stream as one logical
+  scroll, so a single wheel click produces one visible scroll step with
+  the same magnitude in every app (instead of being defeated by macOS's
+  discrete-wheel coalescing). `MouseScrollTweaks.spoon` picks the
+  module up automatically when installed under
+  `~/.hammerspoon/hs/_ckol/smoothscroll/`; without it, the Spoon falls
+  back to an inline pure-Lua smoothing engine.
