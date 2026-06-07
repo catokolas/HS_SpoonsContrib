@@ -30,7 +30,8 @@ cd HS_SpoonsContrib
 mkdir -p ~/.hammerspoon/Spoons
 ln -s "$PWD/MouseTrackpadTweaks.spoon" ~/.hammerspoon/Spoons/MouseTrackpadTweaks.spoon
 ```
-
+texttexttexttexttexttexttexttexttexttext
+texttexttexttexttexttexttexttexttexttext
 ## Usage
 
 In `~/.hammerspoon/init.lua`:
@@ -47,7 +48,7 @@ spoon.MouseTrackpadTweaks:configure({
       trigger     = "either",
     },
     topCenter = {
-      xMin = 0.30, xMax = 0.70,    -- middle 40% of the device, top 30%
+      xMin = 0.40, xMax = 0.60,    -- middle 20% of the device, top 30%
       yMin = 0.00, yMax = 0.30,
       trigger = "tap",             -- only taps in the region trigger
                                    -- (clicks in the region stay normal)
@@ -89,6 +90,11 @@ middleClick = {
     enabled     = true,
     fingerCount = 3,                -- ≥ this many fingers triggers middle-click
     trigger     = "either",         -- "tap" | "click" | "either"
+    maxAgeMs    = 1500,             -- a finger only counts toward fingerCount
+                                    -- if it BEGAN this recently before the
+                                    -- click; filters Magic Mouse passive
+                                    -- hand/palm contacts from inflating the
+                                    -- finger count.
   },
 
   topCenter = {
@@ -97,11 +103,23 @@ middleClick = {
     trigger = "either",             -- "tap" | "click" | "either"
     xMin = 0.30, xMax = 0.70,       -- normalized fractions of the
     yMin = 0.00, yMax = 0.30,       -- device surface (0,0 = top-left)
+    maxAgeMs = 1500,                -- a touch only counts as a deliberate
+                                    -- top-center placement if it ENTERED the
+                                    -- region this recently (either began
+                                    -- inside or slid into it). Touches that
+                                    -- have been resting in the region for
+                                    -- longer don't fire on the next click.
   },
 
   tap = {                           -- shared tap-validity thresholds
-    maxDurationMs = 200,            -- touch-begin → all-touches-ended
-    maxTravelPx   = 12,             -- cursor travel during the touch
+    maxDurationMs    = 200,         -- touch-begin → all-touches-ended
+    maxTravelPx      = 12,          -- max cursor travel during the touch
+    maxSurfaceTravel = 0.05,        -- max normalized surface travel of any
+                                    -- touch in the session. Catches Magic
+                                    -- Mouse scrolls (the cursor doesn't move
+                                    -- while the finger slides across the
+                                    -- surface, so maxTravelPx doesn't catch
+                                    -- those on its own).
   },
 }
 ```
@@ -116,6 +134,16 @@ Region coordinates are **fractions of the device surface**, not screen
 pixels. `(0, 0)` is the top-left of the device's touch surface;
 `(1, 1)` is the bottom-right. This makes the same region setting
 sensible across the Magic Mouse and the built-in Trackpad.
+
+Tuning `maxAgeMs`:
+
+- Increase if you "miss" middle-clicks because you took an extra moment
+  to aim before clicking (the diagnostic log shows the actual
+  `entryAge` per touch at debug level).
+- Decrease for stricter "must be just-placed" semantics.
+
+Set `enabled = false` on either sub-table to disable that trigger
+without affecting the other.
 
 ### Methods
 

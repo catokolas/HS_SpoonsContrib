@@ -90,6 +90,12 @@ obj.middleClick = {
     enabled     = true,
     fingerCount = 3,
     trigger     = "either",
+    -- Only count touches that BEGAN this recently before the click.
+    -- Magic Mouse routinely reports 2-3 passive contacts (pointing
+    -- finger + hand-rest + thumb) just from how the user grips it; a
+    -- naive total-count check fires middle-click on any normal click.
+    -- An age gate filters those resting contacts out.
+    maxAgeMs    = 1500,
   },
 
   topCenter = {
@@ -98,6 +104,11 @@ obj.middleClick = {
     trigger = "either",
     xMin = 0.30, xMax = 0.70,
     yMin = 0.00, yMax = 0.30,
+    -- An in-region touch only counts as a deliberate middle-click
+    -- placement if it BEGAN this recently before the click. Naturally-
+    -- resting fingers (Magic Mouse grip) have been on the surface for
+    -- seconds and will be filtered out.
+    maxAgeMs = 1500,
   },
 
   tap = {
@@ -132,8 +143,37 @@ obj._scrollStreamIsMagicMouse = false  -- locked at scrollPhase=Began; cleared
 obj._hotkeys      = {}
 
 -- Sentinel stamped on synthetic events to prevent self re-entry on the
--- eventtap. Distinct from MouseScrollTweaks' 0xC0DE5C01.
-local SENTINEL = 0xC0DE5C02
+-- eventtap.
+--
+-- Convention shared across this Spoon family: every sibling Spoon that
+-- posts synthetic events stamps `eventSourceUserData` with a value in
+-- the range `0xC0DE5C00 .. 0xC0DE5CFF`. Low-byte assignments:
+--   0x01 = MouseScrollTweaks
+--   0x02 = MouseTrackpadTweaks (this Spoon)
+--   0x03 = MouseCopyPasteSelection
+-- isSiblingSyntheticEvent() below treats anything in that range as
+-- "already handled by another tap in the chain, pass through" — so we
+-- never double-process a wheel event MouseScrollTweaks already
+-- inverted, and the focus-click pair MouseCopyPasteSelection emits
+-- after a middle-click doesn't re-trigger our own conversion.
+-- New Spoons in this collection should pick an unused byte in the
+-- range and document it in every family member.
+local SENTINEL              = 0xC0DE5C02
+local SENTINEL_PREFIX_MASK  = 0xFFFFFF00
+local SENTINEL_PREFIX_VALUE = 0xC0DE5C00
+
+local function isSiblingSyntheticEvent(usd)
+  if not usd then return false end
+  return (usd & SENTINEL_PREFIX_MASK) == SENTINEL_PREFIX_VALUE
+end
+
+-- Belt-and-suspenders synchronous re-entry guard. The sibling-prefix
+-- gate on eventSourceUserData handles the common case (events we or a
+-- sibling Spoon synthesised), but if the OS were ever to deliver our
+-- own otherMouseDown back through this tap on the same call stack
+-- (e.g. as a leftMouseDown reclassification) the flag rejects it
+-- immediately. Set before emit, cleared after.
+local emittingMiddleClick = false
 
 -- Window during which a recently-ended touch still attributes incoming
 -- scroll events to its device. Tuned for the ~tens-of-ms gap between
@@ -212,14 +252,43 @@ local function bumpSurfaceTravel(session, t, nx, ny)
   if d2 > session.maxSurfaceSq then session.maxSurfaceSq = d2 end
 end
 
+local function pointInTopCenter(self, kind, nx, ny)
+  local r = self.middleClick.topCenter
+  if not r.enabled or not r.devices[kind] then return false end
+  return nx and ny
+     and nx >= r.xMin and nx <= r.xMax
+     and ny >= r.yMin and ny <= r.yMax
+end
+
+-- Update a touch's "is currently inside topCenter" and "last entered
+-- the region at" timestamps. Called from `began` (using initial pos)
+-- and `moved` (using current pos). The entry timestamp resets on each
+-- outside→inside transition, so sliding a long-resting finger into the
+-- region counts as a fresh placement.
+local function updateRegionTracking(self, kind, t, nx, ny, now)
+  if not t then return end
+  local nowIn = pointInTopCenter(self, kind, nx, ny)
+  if nowIn and not t.inRegion then
+    t.enteredRegionAtS = now
+  end
+  t.inRegion = nowIn
+end
+
 function obj:_onTouch(deviceId, deviceKind, touchId, phase, nx, ny, _ts)
   local d = getDeviceState(self, deviceId, deviceKind)
   local now = nowS()
 
   if phase == "began" then
     if not d.byId[touchId] then
-      d.byId[touchId] = { beganNx = nx, beganNy = ny, lastNx = nx, lastNy = ny }
+      d.byId[touchId] = {
+        beganNx = nx, beganNy = ny,
+        lastNx  = nx, lastNy  = ny,
+        beganAtS = now,
+        inRegion = false,           -- set by updateRegionTracking below
+        enteredRegionAtS = 0,
+      }
       d.count = d.count + 1
+      updateRegionTracking(self, deviceKind, d.byId[touchId], nx, ny, now)
     end
     if not d.session then
       startSession(d, now, nx, ny)
@@ -236,6 +305,7 @@ function obj:_onTouch(deviceId, deviceKind, touchId, phase, nx, ny, _ts)
     if t then
       t.lastNx, t.lastNy = nx, ny
       bumpSurfaceTravel(d.session, t, nx, ny)
+      updateRegionTracking(self, deviceKind, t, nx, ny, now)
     end
     self._lastTouch.kind, self._lastTouch.id, self._lastTouch.atS = deviceKind, deviceId, now
 
@@ -288,13 +358,49 @@ local function countInTopCenter(self, kind, touches)
   return c
 end
 
--- Live count of active touches inside topCenter, summed across every
--- device of `kind`. Used at click time.
+-- Live count of active touches that are CURRENTLY inside topCenter
+-- and entered the region recently (`topCenter.maxAgeMs`). Tracking
+-- entry time lets a long-resting touch that slides into the region
+-- count as a deliberate placement — vs. a touch that's been resting
+-- inside the region for seconds (Magic Mouse passive contacts), which
+-- has its entry timestamp far enough in the past to fail the gate.
 local function countActiveInTopCenter(self, kind)
+  local r = self.middleClick.topCenter
+  if not r.enabled or not r.devices[kind] then return 0 end
+  local maxAgeS = (r.maxAgeMs or 1500) / 1000
+  local now = nowS()
   local c = 0
   for _, d in pairs(self._touches) do
     if d.kind == kind then
-      c = c + countInTopCenter(self, kind, d.byId)
+      for _, t in pairs(d.byId) do
+        if t.inRegion
+           and t.enteredRegionAtS and t.enteredRegionAtS > 0
+           and (now - t.enteredRegionAtS) <= maxAgeS then
+          c = c + 1
+        end
+      end
+    end
+  end
+  return c
+end
+
+-- Live count of fresh active touches on a device of `kind`, regardless
+-- of position. Same freshness gate as countActiveInTopCenter — drops
+-- the passive hand-rest contacts the Magic Mouse always reports while
+-- the user is holding it. Used by the multiFinger click trigger.
+local function countActiveFreshTouches(self, kind)
+  local mf = self.middleClick.multiFinger
+  if not mf.enabled then return 0 end
+  local maxAgeS = (mf.maxAgeMs or 1500) / 1000
+  local now = nowS()
+  local c = 0
+  for _, d in pairs(self._touches) do
+    if d.kind == kind then
+      for _, t in pairs(d.byId) do
+        if t.beganAtS and (now - t.beganAtS) <= maxAgeS then
+          c = c + 1
+        end
+      end
     end
   end
   return c
@@ -321,9 +427,11 @@ local function emitMiddleUp(x, y)
 end
 
 local function emitMiddleClickPair(self, x, y)
+  emittingMiddleClick = true
   emitMiddleDown(x, y)
   emitMiddleUp(x, y)
-  self.logger.d(string.format("middle-click emitted at (%.0f,%.0f)", x, y))
+  emittingMiddleClick = false
+  self.logger.d(string.format("middle-click emitted via tap at (%.0f,%.0f)", x, y))
 end
 
 -- ============================================================
@@ -419,7 +527,9 @@ local MOMENTUM_PHASE_END     = 3
 
 function obj:_handleScroll(ev)
   local P = hs.eventtap.event.properties
-  if ev:getProperty(P.eventSourceUserData) == SENTINEL then return false end
+  if isSiblingSyntheticEvent(ev:getProperty(P.eventSourceUserData)) then
+    return false
+  end
   if ev:getProperty(P.scrollWheelEventIsContinuous) == 0 then return false end
   if not (self.invertVertical or self.invertHorizontal) then return false end
   if not self._mt then return false end
@@ -502,22 +612,60 @@ function obj:_handleScroll(ev)
 end
 
 function obj:_handleLeftDown(ev)
+  if emittingMiddleClick then return false end
   local P = hs.eventtap.event.properties
-  if ev:getProperty(P.eventSourceUserData) == SENTINEL then return false end
+  if isSiblingSyntheticEvent(ev:getProperty(P.eventSourceUserData)) then
+    return false
+  end
 
   local mc = self.middleClick
   if not mc.enabled then return false end
 
+  local clickState = ev:getProperty(P.mouseEventClickState) or 1
   local snap = activeTouchSnapshot(self)
-  self.logger.d(string.format(
-    "leftMouseDown: snap=%s count=%s kind=%s firstTouch=%s",
-    tostring(snap ~= nil),
-    snap and tostring(snap.count) or "-",
-    snap and tostring(snap.kind)  or "-",
-    snap and snap.firstTouch
-      and string.format("(%.2f,%.2f)",
-            snap.firstTouch.beganNx, snap.firstTouch.beganNy)
-      or "-"))
+  local activeInRegion = snap and countActiveInTopCenter(self, snap.kind) or 0
+  local freshTotal     = snap and countActiveFreshTouches(self, snap.kind) or 0
+
+  -- Debug-level dump: where each active touch is right now, whether
+  -- it's inside the configured topCenter rectangle, and how fresh its
+  -- region-entry is. Lets the user see at a glance why a click did or
+  -- didn't qualify as a middle-click. Bump the logger to "debug" via
+  --   spoon.MouseTrackpadTweaks.logger.setLogLevel("debug")
+  -- to see these lines.
+  if snap and self.logger.getLogLevel() >= 4 then  -- 4 == "debug"
+    local r = mc.topCenter
+    local now = nowS()
+    local maxAgeS = (r.maxAgeMs or 1500) / 1000
+    local parts = {}
+    for _, d in pairs(self._touches) do
+      if d.kind == snap.kind then
+        for tid, t in pairs(d.byId) do
+          local entryAge = (t.enteredRegionAtS and t.enteredRegionAtS > 0)
+            and (now - t.enteredRegionAtS) or nil
+          table.insert(parts, string.format(
+            "[id=%s nx=%.2f ny=%.2f inRegion=%s entryAge=%s]",
+            tostring(tid), t.lastNx or 0, t.lastNy or 0,
+            tostring(t.inRegion),
+            entryAge and string.format("%.2fs", entryAge) or "-"))
+        end
+      end
+    end
+    self.logger.d(string.format(
+      "leftMouseDown on %s: region=[x=%.2f..%.2f y=%.2f..%.2f maxAge=%.2fs] "
+      .. "clickState=%s count=%d freshTotal=%d inRegionFresh=%d touches=%s",
+      snap.kind,
+      r.xMin, r.xMax, r.yMin, r.yMax, maxAgeS,
+      tostring(clickState),
+      snap.count, freshTotal, activeInRegion,
+      (#parts > 0) and table.concat(parts, " ") or "(none)"))
+  end
+
+  -- Skip secondary clicks in a multi-click sequence so that
+  -- double-click-to-select-word and triple-click-to-select-line aren't
+  -- converted into double/triple middle-clicks → double/triple paste.
+  -- Only the first click in a rapid sequence has clickState == 1.
+  if clickState > 1 then return false end
+
   if not snap then return false end  -- no touches: normal click
 
   -- Mark the click on every device's open session so a trailing
@@ -530,7 +678,7 @@ function obj:_handleLeftDown(ev)
 
   local mf = mc.multiFinger
   if mf.enabled and triggerAllowsClick(mf.trigger)
-     and snap.count >= mf.fingerCount then
+     and freshTotal >= mf.fingerCount then
     shouldMiddle = true
   end
 
@@ -548,20 +696,41 @@ function obj:_handleLeftDown(ev)
   if not shouldMiddle then return false end
 
   local loc = ev:location()
+  -- Emit otherMouseDown + otherMouseUp back-to-back rather than waiting
+  -- for the physical leftMouseUp to fire the matching up. Holding the
+  -- synthetic middle button "down" across the physical press window
+  -- means any scroll events the Magic Mouse generates during that
+  -- window arrive while middle is held — iTerm (and other terminals
+  -- with mouse reporting features) interpret middle-held + scroll as
+  -- additional paste actions, producing the multi-paste symptom.
+  --
+  -- emittingMiddleClick prevents self re-entry: if :post() ends up
+  -- synchronously delivering an event back to this handler (the
+  -- sentinel on eventSourceUserData isn't reliably preserved across
+  -- the round-trip on some setups), the flag rejects it immediately.
+  emittingMiddleClick = true
   emitMiddleDown(loc.x, loc.y)
-  self._clickPending = true
-  self.logger.d(string.format("intercepted leftMouseDown → middle (count=%d kind=%s)",
-    snap.count, tostring(snap.kind)))
+  emitMiddleUp  (loc.x, loc.y)
+  emittingMiddleClick = false
+  self._clickPending = true   -- still set so handleLeftUp suppresses
+                              -- the matching physical release
+  self.logger.d(string.format(
+    "middle-click emitted via click (count=%d kind=%s at %.0f,%.0f)",
+    snap.count, tostring(snap.kind), loc.x, loc.y))
   return true, {}
 end
 
 function obj:_handleLeftUp(ev)
   local P = hs.eventtap.event.properties
-  if ev:getProperty(P.eventSourceUserData) == SENTINEL then return false end
+  if isSiblingSyntheticEvent(ev:getProperty(P.eventSourceUserData)) then
+    return false
+  end
   if not self._clickPending then return false end
+  -- We already emitted otherMouseUp back-to-back with the down in
+  -- _handleLeftDown; here we just need to swallow the orphaned
+  -- physical leftMouseUp so the app doesn't see a stray "left button
+  -- released" that it had no matching press for.
   self._clickPending = false
-  local loc = ev:location()
-  emitMiddleUp(loc.x, loc.y)
   return true, {}
 end
 

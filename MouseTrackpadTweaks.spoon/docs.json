@@ -1,0 +1,182 @@
+[
+  {
+    "Command": [],
+    "Constant": [],
+    "Constructor": [],
+    "Deprecated": [],
+    "Field": [],
+    "Function": [],
+    "Method": [
+      {
+        "def": "MouseTrackpadTweaks:configure(configuration)",
+        "desc": "Deep-merges configuration values into the spoon. Partial sub-tables merge recursively so partial overrides leave the rest of the defaults intact.",
+        "doc": "Deep-merges configuration values into the spoon. Accepts any of the public variables; nested sub-tables (e.g. middleClick.multiFinger.fingerCount) merge recursively, so partial overrides leave the rest of the defaults intact.\n\nParameters:\n * configuration - a table of configuration values to merge into the spoon\n\nReturns:\n * self",
+        "examples": [],
+        "file": "Source/MouseTrackpadTweaks.spoon//init.lua",
+        "lineno": "195",
+        "name": "configure",
+        "notes": [],
+        "parameters": [
+          " * configuration - a table of configuration values to merge into the spoon"
+        ],
+        "returns": [
+          " * self"
+        ],
+        "signature": "MouseTrackpadTweaks:configure(configuration)",
+        "stripped_doc": "",
+        "type": "Method"
+      },
+      {
+        "def": "MouseTrackpadTweaks:start()",
+        "desc": "Installs the eventtap and (if the native module is available) starts the multitouch callback.",
+        "doc": "Installs the eventtap and (if available) starts the multitouch callback. Errors if Hammerspoon does not have Accessibility permission. Idempotent.\n\nReturns:\n * self",
+        "examples": [],
+        "file": "Source/MouseTrackpadTweaks.spoon//init.lua",
+        "lineno": "776",
+        "name": "start",
+        "notes": [],
+        "parameters": [],
+        "returns": [
+          " * self"
+        ],
+        "signature": "MouseTrackpadTweaks:start()",
+        "stripped_doc": "",
+        "type": "Method"
+      },
+      {
+        "def": "MouseTrackpadTweaks:stop()",
+        "desc": "Stops the eventtap and the multitouch callback, and clears all per-device touch state.",
+        "doc": "Stops the eventtap and the multitouch callback, and clears all per-device touch state.\n\nReturns:\n * self",
+        "examples": [],
+        "file": "Source/MouseTrackpadTweaks.spoon//init.lua",
+        "lineno": "822",
+        "name": "stop",
+        "notes": [],
+        "parameters": [],
+        "returns": [
+          " * self"
+        ],
+        "signature": "MouseTrackpadTweaks:stop()",
+        "stripped_doc": "",
+        "type": "Method"
+      },
+      {
+        "def": "MouseTrackpadTweaks:toggle()",
+        "desc": "Toggles the Spoon on/off and shows a brief hs.alert banner.",
+        "doc": "Toggles the Spoon on/off and shows a brief hs.alert banner.",
+        "examples": [],
+        "file": "Source/MouseTrackpadTweaks.spoon//init.lua",
+        "lineno": "843",
+        "name": "toggle",
+        "notes": [],
+        "parameters": [],
+        "returns": [],
+        "signature": "MouseTrackpadTweaks:toggle()",
+        "stripped_doc": "",
+        "type": "Method"
+      },
+      {
+        "def": "MouseTrackpadTweaks:toggleInvertScroll()",
+        "desc": "Toggles only the Magic Mouse vertical scroll inversion and shows an hs.alert banner.",
+        "doc": "Toggles only the Magic Mouse vertical scroll inversion and shows an hs.alert banner.",
+        "examples": [],
+        "file": "Source/MouseTrackpadTweaks.spoon//init.lua",
+        "lineno": "856",
+        "name": "toggleInvertScroll",
+        "notes": [],
+        "parameters": [],
+        "returns": [],
+        "signature": "MouseTrackpadTweaks:toggleInvertScroll()",
+        "stripped_doc": "",
+        "type": "Method"
+      },
+      {
+        "def": "MouseTrackpadTweaks:toggleMiddleClick()",
+        "desc": "Toggles middle-click synthesis (both modes) and shows an hs.alert banner.",
+        "doc": "Toggles middle-click synthesis (both modes) and shows an hs.alert banner.",
+        "examples": [],
+        "file": "Source/MouseTrackpadTweaks.spoon//init.lua",
+        "lineno": "866",
+        "name": "toggleMiddleClick",
+        "notes": [],
+        "parameters": [],
+        "returns": [],
+        "signature": "MouseTrackpadTweaks:toggleMiddleClick()",
+        "stripped_doc": "",
+        "type": "Method"
+      },
+      {
+        "def": "MouseTrackpadTweaks:bindHotkeys(mapping)",
+        "desc": "Binds (or rebinds) keyboard shortcuts. Supported actions: toggle, toggleInvertScroll, toggleMiddleClick.",
+        "doc": "Binds (or rebinds) keyboard shortcuts. Supported actions: toggle, toggleInvertScroll, toggleMiddleClick. Each value is a {mods, key} pair compatible with hs.hotkey.bindSpec. Calling bindHotkeys again clears prior bindings first.\n\nParameters:\n * mapping - table like { toggle = {{\"ctrl\",\"cmd\"}, \"m\"} }\n\nReturns:\n * self",
+        "examples": [],
+        "file": "Source/MouseTrackpadTweaks.spoon//init.lua",
+        "lineno": "876",
+        "name": "bindHotkeys",
+        "notes": [],
+        "parameters": [
+          " * mapping - table like { toggle = {{\"ctrl\",\"cmd\"}, \"m\"} }"
+        ],
+        "returns": [
+          " * self"
+        ],
+        "signature": "MouseTrackpadTweaks:bindHotkeys(mapping)",
+        "stripped_doc": "",
+        "type": "Method"
+      }
+    ],
+    "Variable": [
+      {
+        "def": "MouseTrackpadTweaks.invertVertical",
+        "desc": "If true (default), Magic Mouse vertical scroll direction is flipped.",
+        "doc": "If true (default), Magic Mouse vertical scroll direction is flipped. Trackpad scrolling is unaffected.",
+        "file": "Source/MouseTrackpadTweaks.spoon//init.lua",
+        "lineno": "45",
+        "name": "invertVertical",
+        "signature": "MouseTrackpadTweaks.invertVertical",
+        "stripped_doc": "",
+        "type": "Variable"
+      },
+      {
+        "def": "MouseTrackpadTweaks.invertHorizontal",
+        "desc": "If true, Magic Mouse horizontal scroll direction is flipped. Defaults to false.",
+        "doc": "If true, Magic Mouse horizontal scroll direction is flipped. Defaults to false.",
+        "file": "Source/MouseTrackpadTweaks.spoon//init.lua",
+        "lineno": "51",
+        "name": "invertHorizontal",
+        "signature": "MouseTrackpadTweaks.invertHorizontal",
+        "stripped_doc": "",
+        "type": "Variable"
+      },
+      {
+        "def": "MouseTrackpadTweaks.middleClick",
+        "desc": "Middle-click synthesis configuration. Two trigger modes (multiFinger and topCenter), each with an independently-configurable trigger type (tap | click | either).",
+        "doc": "Middle-click synthesis configuration. Two trigger modes, each with an independently-configurable trigger type:\n\nmiddleClick = {\n  enabled = true,\n\n  multiFinger = {\n    enabled     = true,\n    fingerCount = 3,            -- >= this many fingers fires middle-click\n    trigger     = \"either\",     -- \"tap\" | \"click\" | \"either\"\n    maxAgeMs    = 1500,         -- a touch only counts toward fingerCount if it BEGAN this recently before the click\n  },\n\n  topCenter = {\n    enabled = true,\n    devices = { magicMouse = true, trackpad = true },\n    trigger = \"either\",         -- \"tap\" | \"click\" | \"either\"\n    xMin = 0.30, xMax = 0.70,   -- normalized fractions of the\n    yMin = 0.00, yMax = 0.30,   -- device surface (0,0 = top-left)\n    maxAgeMs = 1500,            -- a touch only counts as a deliberate placement if it ENTERED the region this recently\n  },\n\n  tap = {                       -- shared tap-validity thresholds\n    maxDurationMs    = 200,\n    maxTravelPx      = 12,      -- max cursor travel during the tap\n    maxSurfaceTravel = 0.05,    -- max normalized surface travel of any touch in the session\n  },\n}",
+        "file": "Source/MouseTrackpadTweaks.spoon//init.lua",
+        "lineno": "57",
+        "name": "middleClick",
+        "signature": "MouseTrackpadTweaks.middleClick",
+        "stripped_doc": "",
+        "type": "Variable"
+      },
+      {
+        "def": "MouseTrackpadTweaks.logger",
+        "desc": "Logger object used within the Spoon. Set its level to trace touch sessions and middle-click decisions.",
+        "doc": "Logger object used within the Spoon. Set its level (e.g. spoon.MouseTrackpadTweaks.logger.setLogLevel(\"debug\")) to trace touch sessions and middle-click decisions.",
+        "file": "Source/MouseTrackpadTweaks.spoon//init.lua",
+        "lineno": "124",
+        "name": "logger",
+        "signature": "MouseTrackpadTweaks.logger",
+        "stripped_doc": "",
+        "type": "Variable"
+      }
+    ],
+    "desc": "Per-device input tweaks for Magic Mouse and the built-in Trackpad that macOS doesn't expose itself.",
+    "doc": "Per-device input tweaks for Magic Mouse and the built-in Trackpad that macOS doesn't expose itself:\n\n1. Magic-Mouse-only scroll inversion. Flips vertical (and optionally horizontal) scroll for the Magic Mouse without touching trackpad scrolling - useful when the trackpad is set to \"Natural\" and the mouse should scroll the other way.\n2. Middle-click synthesis. Fires a middle-click on either (a) >= N-finger tap or click, or (b) 1-finger tap or click inside a configurable top-center region of the device surface. Both the Magic Mouse and the Trackpad are supported. Each trigger mode's tap-vs-click can be configured independently.\n\nAttribution of scroll events to a specific physical device, and multi-finger touch counting, are not exposed by Hammerspoon's pure Lua API. Both features depend on an optional native module, hs._ckol.multitouch, that wraps MultitouchSupport.framework. When the module is not installed, the Spoon loads cleanly, logs a warning, and lets all events pass through unmodified.\n\nCoexists with MouseScrollTweaks.spoon: that Spoon ignores continuous-scroll events (trackpad / Magic Mouse) via scrollWheelEventIsContinuous, and this Spoon ignores discrete wheel events, so the two do not interact. Each stamps its own sentinel on synthetic events to prevent self re-entry, and the family uses a shared sentinel-prefix convention so siblings can recognise each other's synthetic events.",
+    "items": [],
+    "name": "MouseTrackpadTweaks",
+    "stripped_doc": "",
+    "submodules": [],
+    "type": "Module"
+  }
+]
