@@ -192,10 +192,33 @@ local MOUSE_CANCEL_PX   = 400     -- per-frame mouse-motion threshold;
                                   -- sloppy-focus where no click fires)
 -- Sentinel stamped on every synthetic event we post via
 -- `eventSourceUserData`. The tap's first check looks for this value
--- and short-circuits so our own posts don't loop back through the
--- handler (we no longer rely on `IsContinuous = 1` for this, because
--- IsContinuous flips iTerm into pixel-scrolling mode and overshoots).
-local SENTINEL = 0xC0DE5C01
+-- (and the broader sibling-family prefix below) and short-circuits so
+-- neither our own posts nor a sibling Spoon's synthetic events loop
+-- back through the handler. We no longer rely on `IsContinuous = 1`
+-- for this, because IsContinuous flips iTerm into pixel-scrolling
+-- mode and overshoots.
+--
+-- Convention shared across this Spoon family: every sibling Spoon that
+-- posts synthetic events stamps `eventSourceUserData` with a value in
+-- the range `0xC0DE5C00 .. 0xC0DE5CFF`. Low-byte assignments:
+--   0x01 = MouseScrollTweaks (this Spoon)
+--   0x02 = MouseTrackpadTweaks
+--   0x03 = MouseCopyPasteSelection
+-- isSiblingSyntheticEvent() below treats anything in that range as
+-- "already handled by another tap in the chain, pass through" — so we
+-- never react to a synthetic click another Spoon emitted (e.g.
+-- MouseCopyPasteSelection's focus-click pair) as if it were the user
+-- redirecting their attention away from an in-flight glide.
+-- New Spoons in this collection should pick an unused byte in the
+-- range and document it in every family member.
+local SENTINEL              = 0xC0DE5C01
+local SENTINEL_PREFIX_MASK  = 0xFFFFFF00
+local SENTINEL_PREFIX_VALUE = 0xC0DE5C00
+
+local function isSiblingSyntheticEvent(usd)
+  if not usd then return false end
+  return (usd & SENTINEL_PREFIX_MASK) == SENTINEL_PREFIX_VALUE
+end
 
 local function sign(v)
   if v > 0 then return 1 end
@@ -646,20 +669,23 @@ function obj:_handle(ev)
     return false, {}
   end
 
-  -- Any mouse click is treated as "user redirected attention". Cancel
-  -- in-flight glide synchronously so residual scroll never lands in the
-  -- newly-clicked window. The click itself always passes through.
-  if etype == T.leftMouseDown then
-    if self._anim.frameTimer then self:_cancelGlide() end
+  local P = hs.eventtap.event.properties
+
+  -- Skip events synthesised by us or any sibling Spoon. Without this
+  -- gate, a sibling's synthetic leftMouseDown (e.g. the focus-click
+  -- MouseCopyPasteSelection emits before Cmd+V) would cancel an
+  -- in-flight glide, and our own synthetic scroll events would loop
+  -- back through the smoothing engine.
+  if isSiblingSyntheticEvent(ev:getProperty(P.eventSourceUserData)) then
     return false, {}
   end
 
-  local P = hs.eventtap.event.properties
-
-  -- Skip our own synthetic events (stamped with SENTINEL on
-  -- eventSourceUserData) so we don't loop back through the smoothing
-  -- engine.
-  if ev:getProperty(P.eventSourceUserData) == SENTINEL then
+  -- Any real mouse click is treated as "user redirected attention".
+  -- Cancel in-flight glide synchronously so residual scroll never
+  -- lands in the newly-clicked window. The click itself always passes
+  -- through.
+  if etype == T.leftMouseDown then
+    if self._anim.frameTimer then self:_cancelGlide() end
     return false, {}
   end
 

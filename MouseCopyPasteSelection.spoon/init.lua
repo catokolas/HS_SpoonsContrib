@@ -98,6 +98,29 @@ local IBEAM_TYPES = {
   IBeamCursorForVerticalLayout = true,
 }
 
+-- Sentinel stamped on synthetic events posted by this Spoon (the
+-- focus-click pair fired by _synthPaste before Cmd+V).
+--
+-- Convention shared across this Spoon family: every sibling Spoon that
+-- posts synthetic events stamps `eventSourceUserData` with a value in
+-- the range `0xC0DE5C00 .. 0xC0DE5CFF`. Low-byte assignments:
+--   0x01 = MouseScrollTweaks
+--   0x02 = MouseTrackpadTweaks
+--   0x03 = MouseCopyPasteSelection (this Spoon)
+-- isSiblingSyntheticEvent() below treats anything in that range as
+-- "already handled by another tap in the chain, pass through" — so a
+-- middle-click that another Spoon synthesised won't re-trigger our
+-- paste cycle, and our own focus-click pair won't be misread by our
+-- double-click detector as a real user double-click.
+local SENTINEL              = 0xC0DE5C03
+local SENTINEL_PREFIX_MASK  = 0xFFFFFF00
+local SENTINEL_PREFIX_VALUE = 0xC0DE5C00
+
+local function isSiblingSyntheticEvent(usd)
+  if not usd then return false end
+  return (usd & SENTINEL_PREFIX_MASK) == SENTINEL_PREFIX_VALUE
+end
+
 local function isOverText()
   return IBEAM_TYPES[hs.mouse.currentCursorType()] == true
 end
@@ -185,8 +208,15 @@ function obj:_synthPaste(ev)
     end
   end
 
-  hs.eventtap.event.newMouseEvent(T.leftMouseDown, loc):post()
-  hs.eventtap.event.newMouseEvent(T.leftMouseUp,   loc):post()
+  -- Stamp the synthetic focus-click pair so siblings (and our own
+  -- _handle below) can recognise these as "not a real user click".
+  local P = hs.eventtap.event.properties
+  local down = hs.eventtap.event.newMouseEvent(T.leftMouseDown, loc)
+  local up   = hs.eventtap.event.newMouseEvent(T.leftMouseUp,   loc)
+  down:setProperty(P.eventSourceUserData, SENTINEL)
+  up  :setProperty(P.eventSourceUserData, SENTINEL)
+  down:post()
+  up:post()
   hs.timer.usleep(self.pasteClickDelayUs)
   hs.timer.usleep(self.pasteTypeDelayUs)
   hs.eventtap.keyStroke({"cmd"}, "v", 0)
@@ -220,12 +250,24 @@ function obj:_handle(ev)
     return false, {}
   end
 
+  -- The leftMouse* paths feed the double-click detector and the
+  -- copy-on-drag arm. They must ignore synthetic clicks (ours or any
+  -- sibling Spoon's) so the focus-click pair _synthPaste emits doesn't
+  -- get misread as a real user gesture. The otherMouseDown branch
+  -- below is NOT gated — a middle-click that MouseTrackpadTweaks
+  -- synthesised (1-finger top-center, 3-finger tap, …) should still
+  -- trigger a paste, exactly like a hardware middle-click does.
+  local P = hs.eventtap.event.properties
+  local isSibling = isSiblingSyntheticEvent(ev:getProperty(P.eventSourceUserData))
+
   if etype == T.leftMouseDown then
+    if isSibling then return false, {} end
     self._prevClickMs  = self._curClickMs
     self._curClickMs   = hs.timer.absoluteTime() / 1e6   -- ns -> ms
     self._dragStartLoc = ev:location()
 
   elseif etype == T.leftMouseUp then
+    if isSibling then return false, {} end
     local isDouble = (self._curClickMs - self._prevClickMs) < self.doubleClickMs
     if isDouble then
       self.logger.d("copy - doubleclick")
@@ -237,6 +279,7 @@ function obj:_handle(ev)
     end
 
   elseif etype == T.leftMouseDragged then
+    if isSibling then return false, {} end
     if not self._isDragging and isOverText() and self._dragStartLoc then
       local loc = ev:location()
       local dx  = math.abs(loc.x - self._dragStartLoc.x)
@@ -249,8 +292,12 @@ function obj:_handle(ev)
 
   elseif etype == T.otherMouseDown then
     local btn = ev:getProperty(hs.eventtap.event.properties.mouseEventButtonNumber)
-    if btn == 2 and isOverText() then
-      self.logger.d("paste")
+    local overText = isOverText()
+    self.logger.d(string.format(
+      "otherMouseDown received: btn=%s overText=%s sibling=%s",
+      tostring(btn), tostring(overText), tostring(isSibling)))
+    if btn == 2 and overText then
+      self.logger.d("middle-click paste fired")
       self:_synthPaste(ev)
     end
   end
