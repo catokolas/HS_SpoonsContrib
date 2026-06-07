@@ -579,10 +579,17 @@ function obj:_handleScroll(ev)
   local function fy(v) return self.invertVertical   and -v or v end
   local function fx(v) return self.invertHorizontal and -v or v end
 
-  -- Read deltas off the original, then build a fresh event with the
-  -- flipped values. Mutating a copy via setProperty is unreliable —
-  -- apps end up reading a delta variant we didn't touch and scroll in
-  -- the original direction. (Same trap MouseScrollTweaks documents.)
+  -- Mutate the original event in place and let it pass through. Every
+  -- delta variant (line / point / fixed-point, both axes) is overwritten
+  -- so no app reads a stale unmutated value — the failure mode the old
+  -- "build a fresh event with newScrollEvent + post" path was working
+  -- around. That path traded the stale-variant bug for a worse one:
+  -- newScrollEvent gives the replacement event a new source, timestamp,
+  -- and gesture identity, which breaks the per-gesture grouping apps
+  -- use to render the momentum tail as a continuous glide. Pass-through
+  -- preserves all of it (source, timestamp, scroll-phase, momentum
+  -- phase, scroll count, gesture id) and only changes the sign of the
+  -- deltas, so the tail renders the same as it would without the Spoon.
   local lineY  = ev:getProperty(P.scrollWheelEventDeltaAxis1)        or 0
   local lineX  = ev:getProperty(P.scrollWheelEventDeltaAxis2)        or 0
   local pointY = ev:getProperty(P.scrollWheelEventPointDeltaAxis1)   or 0
@@ -590,25 +597,18 @@ function obj:_handleScroll(ev)
   local fixedY = ev:getProperty(P.scrollWheelEventFixedPtDeltaAxis1) or 0
   local fixedX = ev:getProperty(P.scrollWheelEventFixedPtDeltaAxis2) or 0
 
-  local newLineY,  newLineX  = fy(lineY),  fx(lineX)
-  local newPointY, newPointX = fy(pointY), fx(pointX)
-  local newFixedY, newFixedX = fy(fixedY), fx(fixedX)
+  ev:setProperty(P.scrollWheelEventDeltaAxis1,        fy(lineY))
+  ev:setProperty(P.scrollWheelEventDeltaAxis2,        fx(lineX))
+  ev:setProperty(P.scrollWheelEventPointDeltaAxis1,   fy(pointY))
+  ev:setProperty(P.scrollWheelEventPointDeltaAxis2,   fx(pointX))
+  ev:setProperty(P.scrollWheelEventFixedPtDeltaAxis1, fy(fixedY))
+  ev:setProperty(P.scrollWheelEventFixedPtDeltaAxis2, fx(fixedX))
 
-  local newEv = hs.eventtap.event.newScrollEvent({ newPointX, newPointY }, {}, "pixel")
-  newEv:setProperty(P.scrollWheelEventDeltaAxis1,        newLineY)
-  newEv:setProperty(P.scrollWheelEventDeltaAxis2,        newLineX)
-  newEv:setProperty(P.scrollWheelEventFixedPtDeltaAxis1, newFixedY)
-  newEv:setProperty(P.scrollWheelEventFixedPtDeltaAxis2, newFixedX)
-  -- Mark as continuous so the receiver treats this as a smooth gesture
-  -- (newScrollEvent in "pixel" mode does not set this by itself).
-  newEv:setProperty(P.scrollWheelEventIsContinuous, 1)
-  newEv:setProperty(P.eventSourceUserData, SENTINEL)
-  newEv:post()
   self.logger.d(string.format("magic-mouse scroll inverted (V=%s H=%s ph=%d mom=%d)",
     tostring(self.invertVertical), tostring(self.invertHorizontal),
     phase, mom))
   if clearAfter then self._scrollStreamIsMagicMouse = false end
-  return true, {}
+  return false
 end
 
 function obj:_handleLeftDown(ev)
