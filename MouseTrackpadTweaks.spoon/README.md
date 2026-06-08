@@ -39,7 +39,7 @@ In `~/.hammerspoon/init.lua`:
 hs.loadSpoon("MouseTrackpadTweaks")
 spoon.MouseTrackpadTweaks:configure({
   invertVertical   = true,
-  invertHorizontal = false,
+  invertHorizontal = true,
   middleClick = {
     enabled = true,
     multiFinger = {
@@ -47,10 +47,10 @@ spoon.MouseTrackpadTweaks:configure({
       trigger     = "either",
     },
     topCenter = {
-      xMin = 0.40, xMax = 0.60,    -- middle 20% of the device, top 30%
+      xMin = 0.30, xMax = 0.70,    -- middle 40% of the device, top 30%
       yMin = 0.00, yMax = 0.30,
-      trigger = "tap",             -- only taps in the region trigger
-                                   -- (clicks in the region stay normal)
+      trigger = "click",           -- only clicks in the region trigger
+                                   -- (taps in the region stay normal)
     },
     tap = {
       maxDurationMs = 200,
