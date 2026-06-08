@@ -42,7 +42,7 @@ spoon.FocusFollowsMouse:configure({
 })
 spoon.FocusFollowsMouse:start()
 spoon.FocusFollowsMouse:bindHotkeys({
-  toggle = {{"ctrl","cmd"}, "f"},  -- toggle on/off
+  toggle = {{"shift","ctrl","cmd"}, "f"},  -- toggle on/off
 })
 ```
 
