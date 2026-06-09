@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "name": "MoveSpaces",
+  "version": "0.1",
+  "description": "Move the focused window to the macOS Space immediately to the left or right of the current Space, on the same screen.",
+  "author": "Cato Kolås <cato.kolas@gmail.com>",
+  "homepage": "https://github.com/catokolas/HS_SpoonsContrib",
+  "license": "MIT",
+  "lifecycle": {
+    "hasStart": false,
+    "hasStop": false,
+    "hasToggle": false,
+    "hasConfigure": false,
+    "eventDriven": false
+  },
+  "config": [
+    {
+      "key": "followWindow",
+      "label": "Follow window",
+      "description": "If on (default), the viewer follows the window to its new Space — like moving a window between workspaces on Linux. Off snaps the view back after the move.",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "wrap",
+      "label": "Wrap at edges",
+      "description": "If on, moving past the leftmost/rightmost Space wraps around to the opposite end. Off (default) is a silent no-op at edges.",
+      "type": "bool",
+      "default": false
+    },
+    {
+      "key": "skipFullScreenSpaces",
+      "label": "Skip fullscreen Spaces",
+      "description": "If on (default), fullscreen-app Spaces are stepped over when looking for the destination Space.",
+      "type": "bool",
+      "default": true
+    }
+  ],
+  "hotkeys": [
+    { "action": "space_left",  "label": "Move window one Space left",
+      "default": { "mods": ["shift", "ctrl"], "key": "left" } },
+    { "action": "space_right", "label": "Move window one Space right",
+      "default": { "mods": ["shift", "ctrl"], "key": "right" } }
+  ]
+}

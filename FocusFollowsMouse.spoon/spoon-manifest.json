@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "name": "FocusFollowsMouse",
+  "version": "0.1",
+  "description": "Sloppy focus / X11-style focus-follows-mouse: when the pointer comes to rest over a window that isn't focused, that window is focused.",
+  "author": "Cato Kolås <cato.kolas@gmail.com>",
+  "homepage": "https://github.com/catokolas/HS_SpoonsContrib",
+  "license": "MIT",
+  "lifecycle": {
+    "hasStart": true,
+    "hasStop": true,
+    "hasToggle": true,
+    "hasConfigure": true,
+    "eventDriven": false
+  },
+  "config": [
+    {
+      "key": "delay",
+      "label": "Focus delay",
+      "description": "Seconds the pointer must rest over a window before focus is changed.",
+      "type": "number",
+      "default": 0.1,
+      "min": 0.0,
+      "max": 2.0,
+      "step": 0.01,
+      "unit": "s"
+    },
+    {
+      "key": "excludedApps",
+      "label": "Excluded apps",
+      "description": "App names or bundle IDs whose windows should never be auto-focused.",
+      "type": "stringList",
+      "default": [],
+      "itemPlaceholder": "Notification Center  or  org.keepassxc.keepassxc"
+    }
+  ],
+  "hotkeys": [
+    {
+      "action": "toggle",
+      "label": "Toggle on/off",
+      "default": { "mods": ["shift", "ctrl", "cmd"], "key": "f" }
+    }
+  ]
+}

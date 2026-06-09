@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "name": "MouseScrollTweaks",
+  "version": "0.1",
+  "description": "Per-axis scroll inversion and optional smoothing for traditional mouse wheels (trackpads / Magic Mouse pass through untouched).",
+  "author": "Cato Kolås <cato.kolas@gmail.com>",
+  "homepage": "https://github.com/catokolas/HS_SpoonsContrib",
+  "license": "MIT",
+  "lifecycle": {
+    "hasStart": true,
+    "hasStop": true,
+    "hasToggle": true,
+    "hasConfigure": true,
+    "eventDriven": false
+  },
+  "config": [
+    {
+      "key": "invertVertical",
+      "label": "Invert vertical scroll",
+      "description": "Flip the vertical mouse-wheel direction, independent of the system Natural-scrolling toggle.",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "invertHorizontal",
+      "label": "Invert horizontal scroll",
+      "description": "Flip the horizontal (tilt-wheel) direction.",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "smoothness",
+      "label": "Smoothness",
+      "description": "Smoothing intensity (0 = passthrough, only inversion applies). Mid grades (5–10) feel subtle; 10–15 approximates mac-mouse-fix; 15–20 leans into long glides.",
+      "type": "int",
+      "default": 0,
+      "min": 0,
+      "max": 20,
+      "step": 1
+    }
+  ],
+  "hotkeys": [
+    {
+      "action": "toggle",
+      "label": "Toggle on/off",
+      "default": { "mods": ["ctrl", "cmd"], "key": "m" }
+    }
+  ]
+}

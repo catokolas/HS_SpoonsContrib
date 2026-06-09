@@ -1,0 +1,97 @@
+{
+  "schemaVersion": 1,
+  "name": "MouseCopyPasteSelection",
+  "version": "0.1",
+  "description": "X11-style copy-on-select for macOS. Releasing the mouse after dragging across text — or double-clicking a word — copies the selection automatically. Optional middle-click paste.",
+  "author": "Cato Kolås <cato.kolas@gmail.com>",
+  "homepage": "https://github.com/catokolas/HS_SpoonsContrib",
+  "license": "Unlicense",
+  "lifecycle": {
+    "hasStart": true,
+    "hasStop": true,
+    "hasToggle": true,
+    "hasConfigure": true,
+    "eventDriven": false
+  },
+  "config": [
+    {
+      "key": "doubleClickMs",
+      "label": "Double-click window",
+      "description": "Maximum milliseconds between two clicks for them to count as a double-click.",
+      "type": "int",
+      "default": 400,
+      "min": 0,
+      "max": 1000,
+      "step": 10,
+      "unit": "ms"
+    },
+    {
+      "key": "enableMiddleClickPaste",
+      "label": "Enable middle-click paste",
+      "description": "If on, middle-clicking inside a text field pastes the clipboard at the click point.",
+      "type": "bool",
+      "default": false
+    },
+    {
+      "key": "useSeparateSelectionBuffer",
+      "label": "Use private selection buffer",
+      "description": "When on (default), copy-on-select fills a private buffer instead of the system clipboard (X11 PRIMARY model). Middle-click paste reads from this private buffer. Off = legacy shared-clipboard model.",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "dragThresholdPx",
+      "label": "Drag threshold",
+      "description": "Minimum cursor movement before a drag arms the copy-on-release. Prevents tiny accidental drags from triggering a copy.",
+      "type": "int",
+      "default": 5,
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "unit": "px"
+    },
+    {
+      "key": "restoreDelayMs",
+      "label": "Clipboard restore delay",
+      "description": "Milliseconds to wait after a middle-click paste before restoring the real clipboard. Only used when the private selection buffer is enabled.",
+      "type": "int",
+      "default": 200,
+      "min": 0,
+      "max": 2000,
+      "step": 10,
+      "unit": "ms",
+      "advanced": true
+    },
+    {
+      "key": "pasteClickDelayUs",
+      "label": "Paste focus-click delay",
+      "description": "Microseconds to wait after the synthesised focus-click before the paste keystroke.",
+      "type": "int",
+      "default": 15000,
+      "min": 0,
+      "max": 1000000,
+      "step": 1000,
+      "unit": "μs",
+      "advanced": true
+    },
+    {
+      "key": "pasteTypeDelayUs",
+      "label": "Paste typing delay",
+      "description": "Additional microseconds slept before the Cmd+V keystroke is issued.",
+      "type": "int",
+      "default": 1000,
+      "min": 0,
+      "max": 1000000,
+      "step": 100,
+      "unit": "μs",
+      "advanced": true
+    }
+  ],
+  "hotkeys": [
+    {
+      "action": "toggle",
+      "label": "Toggle on/off",
+      "default": { "mods": ["ctrl", "alt"], "key": "p" }
+    }
+  ]
+}

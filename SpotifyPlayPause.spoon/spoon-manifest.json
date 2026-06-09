@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "name": "SpotifyPlayPause",
+  "version": "0.1",
+  "description": "Auto play/pause Spotify based on screen state and audio output device. Pauses when headphones disconnect or screen sleeps; resumes on wake. Includes a 'pause for N hours' menubar item.",
+  "author": "Cato Kolås <cato.kolas@gmail.com>",
+  "homepage": "https://github.com/catokolas/HS_SpoonsContrib",
+  "license": "MIT",
+  "lifecycle": {
+    "hasStart": true,
+    "hasStop": true,
+    "hasToggle": false,
+    "hasConfigure": true,
+    "eventDriven": true
+  },
+  "config": [
+    {
+      "key": "preferredDevices",
+      "label": "Preferred audio devices",
+      "description": "Substrings (case-insensitive) matched against audio device names. Devices that match are treated as 'headphones' for play/pause logic and as auto-switch candidates.",
+      "type": "stringList",
+      "default": ["usb audio", "airpods", "Headphone", "plantronics", "jabra"],
+      "itemPlaceholder": "airpods"
+    },
+    {
+      "key": "autoSwitchOutput",
+      "label": "Auto-switch audio output",
+      "description": "On audio device list changes, switch the default output to the first available preferred device.",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "respectManualPause",
+      "label": "Respect manual pause",
+      "description": "Only auto-resume on screen wake if this Spoon was the one that paused Spotify (i.e. user didn't manually pause).",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "pauseHoursMenu",
+      "label": "Show menubar dropdown",
+      "description": "Show a menubar item with 'Pause Spotify for N hours' entries.",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "pauseHoursOptions",
+      "label": "Pause-hours entries",
+      "description": "Number of hour entries offered in the menubar dropdown (1..N).",
+      "type": "int",
+      "default": 4,
+      "min": 0,
+      "max": 24,
+      "step": 1
+    },
+    {
+      "key": "speak",
+      "label": "Spoken feedback",
+      "description": "Speak transitions (pause / resume / arm / expire) via hs.speech.",
+      "type": "bool",
+      "default": false
+    }
+  ],
+  "hotkeys": []
+}

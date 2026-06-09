@@ -1,0 +1,123 @@
+{
+  "schemaVersion": 1,
+  "name": "MouseTrackpadTweaks",
+  "version": "0.1",
+  "description": "Per-device input tweaks: Magic-Mouse-only scroll inversion, and middle-click synthesis from multi-finger or top-center touches on Magic Mouse / Trackpad.",
+  "author": "Cato Kolås <cato.kolas@gmail.com>",
+  "homepage": "https://github.com/catokolas/HS_SpoonsContrib",
+  "license": "MIT",
+  "lifecycle": {
+    "hasStart": true,
+    "hasStop": true,
+    "hasToggle": true,
+    "hasConfigure": true,
+    "eventDriven": false
+  },
+  "config": [
+    {
+      "key": "invertVertical",
+      "label": "Invert Magic Mouse vertical scroll",
+      "description": "Flip vertical scroll for the Magic Mouse only. Trackpad scrolling is unaffected.",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "invertHorizontal",
+      "label": "Invert Magic Mouse horizontal scroll",
+      "description": "Flip horizontal scroll for the Magic Mouse only.",
+      "type": "bool",
+      "default": true
+    },
+    {
+      "key": "middleClick",
+      "label": "Middle-click synthesis",
+      "type": "object",
+      "collapsible": true,
+      "fields": [
+        {
+          "key": "enabled",
+          "label": "Enable middle-click synthesis",
+          "type": "bool",
+          "default": true
+        },
+        {
+          "key": "multiFinger",
+          "label": "Multi-finger trigger",
+          "type": "object",
+          "collapsible": true,
+          "requires": { "key": "middleClick.enabled", "equals": true },
+          "fields": [
+            { "key": "enabled",     "label": "Enable",        "type": "bool", "default": true },
+            { "key": "fingerCount", "label": "Finger count",  "type": "int",  "default": 3, "min": 2, "max": 5, "step": 1 },
+            {
+              "key": "trigger", "label": "Trigger on", "type": "enum", "default": "either",
+              "enum": [
+                { "value": "tap",    "label": "Tap" },
+                { "value": "click",  "label": "Click" },
+                { "value": "either", "label": "Either" }
+              ]
+            },
+            {
+              "key": "maxAgeMs", "label": "Max finger age", "type": "int",
+              "default": 1500, "min": 0, "max": 5000, "step": 50, "unit": "ms",
+              "advanced": true,
+              "description": "Only count touches that began this recently before the click. Filters resting contacts from a Magic Mouse grip."
+            }
+          ]
+        },
+        {
+          "key": "topCenter",
+          "label": "Top-center region trigger",
+          "type": "object",
+          "collapsible": true,
+          "requires": { "key": "middleClick.enabled", "equals": true },
+          "fields": [
+            { "key": "enabled", "label": "Enable", "type": "bool", "default": true },
+            {
+              "key": "trigger", "label": "Trigger on", "type": "enum", "default": "click",
+              "enum": [
+                { "value": "tap",    "label": "Tap" },
+                { "value": "click",  "label": "Click" },
+                { "value": "either", "label": "Either" }
+              ]
+            },
+            { "key": "xMin", "label": "X min", "type": "number", "default": 0.30, "min": 0.0, "max": 1.0, "step": 0.01 },
+            { "key": "xMax", "label": "X max", "type": "number", "default": 0.70, "min": 0.0, "max": 1.0, "step": 0.01 },
+            { "key": "yMin", "label": "Y min", "type": "number", "default": 0.00, "min": 0.0, "max": 1.0, "step": 0.01 },
+            { "key": "yMax", "label": "Y max", "type": "number", "default": 0.30, "min": 0.0, "max": 1.0, "step": 0.01 },
+            {
+              "key": "devices", "label": "Devices", "type": "object", "collapsible": true,
+              "fields": [
+                { "key": "magicMouse", "label": "Magic Mouse", "type": "bool", "default": true },
+                { "key": "trackpad",   "label": "Trackpad",    "type": "bool", "default": true }
+              ]
+            },
+            {
+              "key": "maxAgeMs", "label": "Max touch age", "type": "int",
+              "default": 1500, "min": 0, "max": 5000, "step": 50, "unit": "ms",
+              "advanced": true
+            }
+          ]
+        },
+        {
+          "key": "tap",
+          "label": "Tap thresholds (shared)",
+          "type": "object", "collapsible": true, "advanced": true,
+          "fields": [
+            { "key": "maxDurationMs",    "label": "Max duration",        "type": "int",    "default": 200, "min": 0, "max": 2000, "step": 10, "unit": "ms" },
+            { "key": "maxTravelPx",      "label": "Max cursor travel",   "type": "int",    "default": 12,  "min": 0, "max": 200,  "step": 1,  "unit": "px" },
+            { "key": "maxSurfaceTravel", "label": "Max surface travel",  "type": "number", "default": 0.05, "min": 0.0, "max": 1.0, "step": 0.01 }
+          ]
+        }
+      ]
+    }
+  ],
+  "hotkeys": [
+    { "action": "toggle",             "label": "Toggle on/off",
+      "default": { "mods": ["shift", "ctrl", "cmd"], "key": "m" } },
+    { "action": "toggleInvertScroll", "label": "Toggle scroll inversion",
+      "default": { "mods": ["shift", "ctrl", "cmd"], "key": "i" } },
+    { "action": "toggleMiddleClick",  "label": "Toggle middle-click synthesis",
+      "default": { "mods": ["shift", "ctrl", "cmd"], "key": "k" } }
+  ]
+}
