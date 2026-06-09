@@ -60,9 +60,9 @@ spoon.MouseTrackpadTweaks:configure({
 })
 spoon.MouseTrackpadTweaks:start()
 spoon.MouseTrackpadTweaks:bindHotkeys({
-  toggle             = {{"ctrl","cmd"}, "m"},
-  toggleInvertScroll = {{"ctrl","cmd"}, "i"},
-  toggleMiddleClick  = {{"ctrl","cmd"}, "k"},
+  toggle             = {{"shift", "ctrl","cmd"}, "m"},
+  toggleInvertScroll = {{"shift", "ctrl","cmd"}, "i"},
+  toggleMiddleClick  = {{"shift", "ctrl","cmd"}, "k"},
 })
 ```
 
