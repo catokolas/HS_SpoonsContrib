@@ -1,0 +1,23 @@
+name: manifest
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install lua
+        run: sudo apt-get update && sudo apt-get install -y lua5.3
+
+      - name: Validate per-Spoon manifests against init.lua defaults
+        run: lua tools/validate-manifest.lua
+
+      - name: Check that spoons.json is up to date
+        run: lua tools/build-manifest.lua --check
+
+      - name: Check that docs/docs.json + Spoons/*.zip are up to date
+        run: python3 tools/build-release.py --check

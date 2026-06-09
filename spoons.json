@@ -1,0 +1,635 @@
+{
+  "commit": "30c045fe7123fc632b49303752c9fb46339df261",
+  "generatedAt": "2026-06-07T21:30:59Z",
+  "overrides": {},
+  "repo": "catokolas/HS_SpoonsContrib",
+  "schemaVersion": 1,
+  "spoons": [
+    {
+      "author": "Cato Kolås <cato.kolas@gmail.com>",
+      "config": [
+        {
+          "default": 0.1,
+          "description": "Seconds the pointer must rest over a window before focus is changed.",
+          "key": "delay",
+          "label": "Focus delay",
+          "max": 2,
+          "min": 0,
+          "step": 0.01,
+          "type": "number",
+          "unit": "s"
+        },
+        {
+          "default": [],
+          "description": "App names or bundle IDs whose windows should never be auto-focused.",
+          "itemPlaceholder": "Notification Center  or  org.keepassxc.keepassxc",
+          "key": "excludedApps",
+          "label": "Excluded apps",
+          "type": "stringList"
+        }
+      ],
+      "description": "Sloppy focus / X11-style focus-follows-mouse: when the pointer comes to rest over a window that isn't focused, that window is focused.",
+      "homepage": "https://github.com/catokolas/HS_SpoonsContrib",
+      "hotkeys": [
+        {
+          "action": "toggle",
+          "default": {
+            "key": "f",
+            "mods": [
+              "ctrl",
+              "cmd"
+            ]
+          },
+          "label": "Toggle on/off"
+        }
+      ],
+      "license": "MIT",
+      "lifecycle": {
+        "eventDriven": false,
+        "hasConfigure": true,
+        "hasStart": true,
+        "hasStop": true,
+        "hasToggle": true
+      },
+      "name": "FocusFollowsMouse",
+      "schemaVersion": 1,
+      "version": "0.1"
+    },
+    {
+      "author": "Cato Kolås <cato.kolas@gmail.com>",
+      "config": [
+        {
+          "default": 400,
+          "description": "Maximum milliseconds between two clicks for them to count as a double-click.",
+          "key": "doubleClickMs",
+          "label": "Double-click window",
+          "max": 1000,
+          "min": 0,
+          "step": 10,
+          "type": "int",
+          "unit": "ms"
+        },
+        {
+          "default": false,
+          "description": "If on, middle-clicking inside a text field pastes the clipboard at the click point.",
+          "key": "enableMiddleClickPaste",
+          "label": "Enable middle-click paste",
+          "type": "bool"
+        },
+        {
+          "default": true,
+          "description": "When on (default), copy-on-select fills a private buffer instead of the system clipboard (X11 PRIMARY model). Middle-click paste reads from this private buffer. Off = legacy shared-clipboard model.",
+          "key": "useSeparateSelectionBuffer",
+          "label": "Use private selection buffer",
+          "type": "bool"
+        },
+        {
+          "default": 5,
+          "description": "Minimum cursor movement before a drag arms the copy-on-release. Prevents tiny accidental drags from triggering a copy.",
+          "key": "dragThresholdPx",
+          "label": "Drag threshold",
+          "max": 100,
+          "min": 0,
+          "step": 1,
+          "type": "int",
+          "unit": "px"
+        },
+        {
+          "advanced": true,
+          "default": 200,
+          "description": "Milliseconds to wait after a middle-click paste before restoring the real clipboard. Only used when the private selection buffer is enabled.",
+          "key": "restoreDelayMs",
+          "label": "Clipboard restore delay",
+          "max": 2000,
+          "min": 0,
+          "step": 10,
+          "type": "int",
+          "unit": "ms"
+        },
+        {
+          "advanced": true,
+          "default": 15000,
+          "description": "Microseconds to wait after the synthesised focus-click before the paste keystroke.",
+          "key": "pasteClickDelayUs",
+          "label": "Paste focus-click delay",
+          "max": 1000000,
+          "min": 0,
+          "step": 1000,
+          "type": "int",
+          "unit": "μs"
+        },
+        {
+          "advanced": true,
+          "default": 1000,
+          "description": "Additional microseconds slept before the Cmd+V keystroke is issued.",
+          "key": "pasteTypeDelayUs",
+          "label": "Paste typing delay",
+          "max": 1000000,
+          "min": 0,
+          "step": 100,
+          "type": "int",
+          "unit": "μs"
+        }
+      ],
+      "description": "X11-style copy-on-select for macOS. Releasing the mouse after dragging across text — or double-clicking a word — copies the selection automatically. Optional middle-click paste.",
+      "homepage": "https://github.com/catokolas/HS_SpoonsContrib",
+      "hotkeys": [
+        {
+          "action": "toggle",
+          "default": {
+            "key": "p",
+            "mods": [
+              "ctrl",
+              "alt"
+            ]
+          },
+          "label": "Toggle on/off"
+        }
+      ],
+      "license": "Unlicense",
+      "lifecycle": {
+        "eventDriven": false,
+        "hasConfigure": true,
+        "hasStart": true,
+        "hasStop": true,
+        "hasToggle": true
+      },
+      "name": "MouseCopyPasteSelection",
+      "schemaVersion": 1,
+      "version": "0.1"
+    },
+    {
+      "author": "Cato Kolås <cato.kolas@gmail.com>",
+      "config": [
+        {
+          "default": true,
+          "description": "Flip the vertical mouse-wheel direction, independent of the system Natural-scrolling toggle.",
+          "key": "invertVertical",
+          "label": "Invert vertical scroll",
+          "type": "bool"
+        },
+        {
+          "default": true,
+          "description": "Flip the horizontal (tilt-wheel) direction.",
+          "key": "invertHorizontal",
+          "label": "Invert horizontal scroll",
+          "type": "bool"
+        },
+        {
+          "default": 0,
+          "description": "Smoothing intensity (0 = passthrough, only inversion applies). Mid grades (5–10) feel subtle; 10–15 approximates mac-mouse-fix; 15–20 leans into long glides.",
+          "key": "smoothness",
+          "label": "Smoothness",
+          "max": 20,
+          "min": 0,
+          "step": 1,
+          "type": "int"
+        }
+      ],
+      "description": "Per-axis scroll inversion and optional smoothing for traditional mouse wheels (trackpads / Magic Mouse pass through untouched).",
+      "homepage": "https://github.com/catokolas/HS_SpoonsContrib",
+      "hotkeys": [
+        {
+          "action": "toggle",
+          "default": {
+            "key": "m",
+            "mods": [
+              "ctrl",
+              "cmd"
+            ]
+          },
+          "label": "Toggle on/off"
+        }
+      ],
+      "license": "MIT",
+      "lifecycle": {
+        "eventDriven": false,
+        "hasConfigure": true,
+        "hasStart": true,
+        "hasStop": true,
+        "hasToggle": true
+      },
+      "name": "MouseScrollTweaks",
+      "schemaVersion": 1,
+      "version": "0.1"
+    },
+    {
+      "author": "Cato Kolås <cato.kolas@gmail.com>",
+      "config": [
+        {
+          "default": true,
+          "description": "Flip vertical scroll for the Magic Mouse only. Trackpad scrolling is unaffected.",
+          "key": "invertVertical",
+          "label": "Invert Magic Mouse vertical scroll",
+          "type": "bool"
+        },
+        {
+          "default": false,
+          "description": "Flip horizontal scroll for the Magic Mouse only.",
+          "key": "invertHorizontal",
+          "label": "Invert Magic Mouse horizontal scroll",
+          "type": "bool"
+        },
+        {
+          "collapsible": true,
+          "fields": [
+            {
+              "default": true,
+              "key": "enabled",
+              "label": "Enable middle-click synthesis",
+              "type": "bool"
+            },
+            {
+              "collapsible": true,
+              "fields": [
+                {
+                  "default": true,
+                  "key": "enabled",
+                  "label": "Enable",
+                  "type": "bool"
+                },
+                {
+                  "default": 3,
+                  "key": "fingerCount",
+                  "label": "Finger count",
+                  "max": 5,
+                  "min": 2,
+                  "step": 1,
+                  "type": "int"
+                },
+                {
+                  "default": "either",
+                  "enum": [
+                    {
+                      "label": "Tap",
+                      "value": "tap"
+                    },
+                    {
+                      "label": "Click",
+                      "value": "click"
+                    },
+                    {
+                      "label": "Either",
+                      "value": "either"
+                    }
+                  ],
+                  "key": "trigger",
+                  "label": "Trigger on",
+                  "type": "enum"
+                },
+                {
+                  "advanced": true,
+                  "default": 1500,
+                  "description": "Only count touches that began this recently before the click. Filters resting contacts from a Magic Mouse grip.",
+                  "key": "maxAgeMs",
+                  "label": "Max finger age",
+                  "max": 5000,
+                  "min": 0,
+                  "step": 50,
+                  "type": "int",
+                  "unit": "ms"
+                }
+              ],
+              "key": "multiFinger",
+              "label": "Multi-finger trigger",
+              "requires": {
+                "equals": true,
+                "key": "middleClick.enabled"
+              },
+              "type": "object"
+            },
+            {
+              "collapsible": true,
+              "fields": [
+                {
+                  "default": true,
+                  "key": "enabled",
+                  "label": "Enable",
+                  "type": "bool"
+                },
+                {
+                  "default": "either",
+                  "enum": [
+                    {
+                      "label": "Tap",
+                      "value": "tap"
+                    },
+                    {
+                      "label": "Click",
+                      "value": "click"
+                    },
+                    {
+                      "label": "Either",
+                      "value": "either"
+                    }
+                  ],
+                  "key": "trigger",
+                  "label": "Trigger on",
+                  "type": "enum"
+                },
+                {
+                  "default": 0.3,
+                  "key": "xMin",
+                  "label": "X min",
+                  "max": 1,
+                  "min": 0,
+                  "step": 0.01,
+                  "type": "number"
+                },
+                {
+                  "default": 0.7,
+                  "key": "xMax",
+                  "label": "X max",
+                  "max": 1,
+                  "min": 0,
+                  "step": 0.01,
+                  "type": "number"
+                },
+                {
+                  "default": 0,
+                  "key": "yMin",
+                  "label": "Y min",
+                  "max": 1,
+                  "min": 0,
+                  "step": 0.01,
+                  "type": "number"
+                },
+                {
+                  "default": 0.3,
+                  "key": "yMax",
+                  "label": "Y max",
+                  "max": 1,
+                  "min": 0,
+                  "step": 0.01,
+                  "type": "number"
+                },
+                {
+                  "collapsible": true,
+                  "fields": [
+                    {
+                      "default": true,
+                      "key": "magicMouse",
+                      "label": "Magic Mouse",
+                      "type": "bool"
+                    },
+                    {
+                      "default": true,
+                      "key": "trackpad",
+                      "label": "Trackpad",
+                      "type": "bool"
+                    }
+                  ],
+                  "key": "devices",
+                  "label": "Devices",
+                  "type": "object"
+                },
+                {
+                  "advanced": true,
+                  "default": 1500,
+                  "key": "maxAgeMs",
+                  "label": "Max touch age",
+                  "max": 5000,
+                  "min": 0,
+                  "step": 50,
+                  "type": "int",
+                  "unit": "ms"
+                }
+              ],
+              "key": "topCenter",
+              "label": "Top-center region trigger",
+              "requires": {
+                "equals": true,
+                "key": "middleClick.enabled"
+              },
+              "type": "object"
+            },
+            {
+              "advanced": true,
+              "collapsible": true,
+              "fields": [
+                {
+                  "default": 200,
+                  "key": "maxDurationMs",
+                  "label": "Max duration",
+                  "max": 2000,
+                  "min": 0,
+                  "step": 10,
+                  "type": "int",
+                  "unit": "ms"
+                },
+                {
+                  "default": 12,
+                  "key": "maxTravelPx",
+                  "label": "Max cursor travel",
+                  "max": 200,
+                  "min": 0,
+                  "step": 1,
+                  "type": "int",
+                  "unit": "px"
+                },
+                {
+                  "default": 0.05,
+                  "key": "maxSurfaceTravel",
+                  "label": "Max surface travel",
+                  "max": 1,
+                  "min": 0,
+                  "step": 0.01,
+                  "type": "number"
+                }
+              ],
+              "key": "tap",
+              "label": "Tap thresholds (shared)",
+              "type": "object"
+            }
+          ],
+          "key": "middleClick",
+          "label": "Middle-click synthesis",
+          "type": "object"
+        }
+      ],
+      "description": "Per-device input tweaks: Magic-Mouse-only scroll inversion, and middle-click synthesis from multi-finger or top-center touches on Magic Mouse / Trackpad.",
+      "homepage": "https://github.com/catokolas/HS_SpoonsContrib",
+      "hotkeys": [
+        {
+          "action": "toggle",
+          "default": {
+            "key": "m",
+            "mods": [
+              "shift",
+              "ctrl",
+              "cmd"
+            ]
+          },
+          "label": "Toggle on/off"
+        },
+        {
+          "action": "toggleInvertScroll",
+          "default": {
+            "key": "i",
+            "mods": [
+              "ctrl",
+              "cmd"
+            ]
+          },
+          "label": "Toggle scroll inversion"
+        },
+        {
+          "action": "toggleMiddleClick",
+          "default": {
+            "key": "k",
+            "mods": [
+              "ctrl",
+              "cmd"
+            ]
+          },
+          "label": "Toggle middle-click synthesis"
+        }
+      ],
+      "license": "MIT",
+      "lifecycle": {
+        "eventDriven": false,
+        "hasConfigure": true,
+        "hasStart": true,
+        "hasStop": true,
+        "hasToggle": true
+      },
+      "name": "MouseTrackpadTweaks",
+      "schemaVersion": 1,
+      "version": "0.1"
+    },
+    {
+      "author": "Cato Kolås <cato.kolas@gmail.com>",
+      "config": [
+        {
+          "default": true,
+          "description": "If on (default), the viewer follows the window to its new Space — like moving a window between workspaces on Linux. Off snaps the view back after the move.",
+          "key": "followWindow",
+          "label": "Follow window",
+          "type": "bool"
+        },
+        {
+          "default": false,
+          "description": "If on, moving past the leftmost/rightmost Space wraps around to the opposite end. Off (default) is a silent no-op at edges.",
+          "key": "wrap",
+          "label": "Wrap at edges",
+          "type": "bool"
+        },
+        {
+          "default": true,
+          "description": "If on (default), fullscreen-app Spaces are stepped over when looking for the destination Space.",
+          "key": "skipFullScreenSpaces",
+          "label": "Skip fullscreen Spaces",
+          "type": "bool"
+        }
+      ],
+      "description": "Move the focused window to the macOS Space immediately to the left or right of the current Space, on the same screen.",
+      "homepage": "https://github.com/catokolas/HS_SpoonsContrib",
+      "hotkeys": [
+        {
+          "action": "space_left",
+          "default": {
+            "key": "left",
+            "mods": [
+              "shift",
+              "ctrl"
+            ]
+          },
+          "label": "Move window one Space left"
+        },
+        {
+          "action": "space_right",
+          "default": {
+            "key": "right",
+            "mods": [
+              "shift",
+              "ctrl"
+            ]
+          },
+          "label": "Move window one Space right"
+        }
+      ],
+      "license": "MIT",
+      "lifecycle": {
+        "eventDriven": false,
+        "hasConfigure": false,
+        "hasStart": false,
+        "hasStop": false,
+        "hasToggle": false
+      },
+      "name": "MoveSpaces",
+      "schemaVersion": 1,
+      "version": "0.1"
+    },
+    {
+      "author": "Cato Kolås <cato.kolas@gmail.com>",
+      "config": [
+        {
+          "default": [
+            "usb audio",
+            "airpods",
+            "Headphone",
+            "plantronics",
+            "jabra"
+          ],
+          "description": "Substrings (case-insensitive) matched against audio device names. Devices that match are treated as 'headphones' for play/pause logic and as auto-switch candidates.",
+          "itemPlaceholder": "airpods",
+          "key": "preferredDevices",
+          "label": "Preferred audio devices",
+          "type": "stringList"
+        },
+        {
+          "default": true,
+          "description": "On audio device list changes, switch the default output to the first available preferred device.",
+          "key": "autoSwitchOutput",
+          "label": "Auto-switch audio output",
+          "type": "bool"
+        },
+        {
+          "default": true,
+          "description": "Only auto-resume on screen wake if this Spoon was the one that paused Spotify (i.e. user didn't manually pause).",
+          "key": "respectManualPause",
+          "label": "Respect manual pause",
+          "type": "bool"
+        },
+        {
+          "default": true,
+          "description": "Show a menubar item with 'Pause Spotify for N hours' entries.",
+          "key": "pauseHoursMenu",
+          "label": "Show menubar dropdown",
+          "type": "bool"
+        },
+        {
+          "default": 4,
+          "description": "Number of hour entries offered in the menubar dropdown (1..N).",
+          "key": "pauseHoursOptions",
+          "label": "Pause-hours entries",
+          "max": 24,
+          "min": 0,
+          "step": 1,
+          "type": "int"
+        },
+        {
+          "default": false,
+          "description": "Speak transitions (pause / resume / arm / expire) via hs.speech.",
+          "key": "speak",
+          "label": "Spoken feedback",
+          "type": "bool"
+        }
+      ],
+      "description": "Auto play/pause Spotify based on screen state and audio output device. Pauses when headphones disconnect or screen sleeps; resumes on wake. Includes a 'pause for N hours' menubar item.",
+      "homepage": "https://github.com/catokolas/HS_SpoonsContrib",
+      "hotkeys": [],
+      "license": "MIT",
+      "lifecycle": {
+        "eventDriven": true,
+        "hasConfigure": true,
+        "hasStart": true,
+        "hasStop": true,
+        "hasToggle": false
+      },
+      "name": "SpotifyPlayPause",
+      "schemaVersion": 1,
+      "version": "0.1"
+    }
+  ]
+}

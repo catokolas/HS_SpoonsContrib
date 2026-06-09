@@ -1,0 +1,55 @@
+name: release
+
+on:
+  push:
+    branches: [main]
+    # Don't re-trigger on our own commits that only touch the generated
+    # artifacts — that would be an infinite loop.
+    paths-ignore:
+      - "spoons.json"
+      - "docs/docs.json"
+      - "Spoons/**"
+  workflow_dispatch:
+
+jobs:
+  rebuild-artifacts:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Need write-access token for the push-back step.
+          persist-credentials: true
+          # Default fetch-depth is 1; we don't need history for the build.
+
+      - name: Install lua
+        run: sudo apt-get update && sudo apt-get install -y lua5.3
+
+      - name: Validate per-Spoon manifests against init.lua defaults
+        run: lua tools/validate-manifest.lua
+
+      - name: Rebuild spoons.json
+        run: lua tools/build-manifest.lua
+
+      - name: Rebuild docs/docs.json + Spoons/*.zip
+        run: python3 tools/build-release.py
+
+      - name: Commit + push if artifacts changed
+        env:
+          GIT_AUTHOR_NAME:  github-actions[bot]
+          GIT_AUTHOR_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+          GIT_COMMITTER_NAME:  github-actions[bot]
+          GIT_COMMITTER_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+        run: |
+          set -e
+          git add spoons.json docs/docs.json Spoons/
+          if git diff --cached --quiet; then
+            echo "No artifact changes to commit."
+            exit 0
+          fi
+          # The commit's path-set (spoons.json / docs/docs.json / Spoons/**)
+          # exactly matches release.yml's paths-ignore filter, so this
+          # push does NOT re-trigger this workflow.
+          git commit -m "ci: rebuild release artifacts"
+          git push

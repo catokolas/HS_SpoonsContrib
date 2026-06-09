@@ -1,0 +1,922 @@
+[
+  {
+    "Command": [],
+    "Constant": [],
+    "Constructor": [],
+    "Deprecated": [],
+    "Field": [],
+    "Function": [],
+    "Method": [
+      {
+        "def": "FocusFollowsMouse:configure(configuration)",
+        "desc": "Configures the spoon. Accepts any of the public variables (delay, excludedApps).",
+        "doc": "Configures the spoon. Accepts any of the public variables (delay, excludedApps).\n\nParameters:\n * configuration - a table of configuration values to merge into the spoon",
+        "examples": [],
+        "file": "Source/FocusFollowsMouse.spoon//init.lua",
+        "lineno": "45",
+        "name": "configure",
+        "notes": [],
+        "parameters": [
+          " * configuration - a table of configuration values to merge into the spoon"
+        ],
+        "returns": [],
+        "signature": "FocusFollowsMouse:configure(configuration)",
+        "stripped_doc": "",
+        "type": "Method"
+      },
+      {
+        "def": "FocusFollowsMouse:windowUnderPoint(point)",
+        "desc": "Returns the topmost standard window whose frame contains the given point, or nil.",
+        "doc": "Returns the topmost standard window whose frame contains the given point, or nil.\n\nParameters:\n * point - a table with x and y fields (e.g. from hs.mouse.absolutePosition())",
+        "examples": [],
+        "file": "Source/FocusFollowsMouse.spoon//init.lua",
+        "lineno": "66",
+        "name": "windowUnderPoint",
+        "notes": [],
+        "parameters": [
+          " * point - a table with x and y fields (e.g. from hs.mouse.absolutePosition())"
+        ],
+        "returns": [],
+        "signature": "FocusFollowsMouse:windowUnderPoint(point)",
+        "stripped_doc": "",
+        "type": "Method"
+      },
+      {
+        "def": "FocusFollowsMouse:start()",
+        "desc": "Starts focusing windows as the mouse moves over them.",
+        "doc": "Starts focusing windows as the mouse moves over them.\n\nParameters:\n * None",
+        "examples": [],
+        "file": "Source/FocusFollowsMouse.spoon//init.lua",
+        "lineno": "89",
+        "name": "start",
+        "notes": [],
+        "parameters": [
+          " * None"
+        ],
+        "returns": [],
+        "signature": "FocusFollowsMouse:start()",
+        "stripped_doc": "",
+        "type": "Method"
+      },
+      {
+        "def": "FocusFollowsMouse:stop()",
+        "desc": "Stops focusing windows as the mouse moves.",
+        "doc": "Stops focusing windows as the mouse moves.\n\nParameters:\n * None",
+        "examples": [],
+        "file": "Source/FocusFollowsMouse.spoon//init.lua",
+        "lineno": "104",
+        "name": "stop",
+        "notes": [],
+        "parameters": [
+          " * None"
+        ],
+        "returns": [],
+        "signature": "FocusFollowsMouse:stop()",
+        "stripped_doc": "",
+        "type": "Method"
+      }
+    ],
+    "Variable": [
+      {
+        "def": "FocusFollowsMouse.delay",
+        "desc": "Seconds the pointer must rest over a window before focus is changed. Defaults to 0.1.",
+        "doc": "Seconds the pointer must rest over a window before focus is changed. Defaults to 0.1.",
+        "file": "Source/FocusFollowsMouse.spoon//init.lua",
+        "lineno": "29",
+        "name": "delay",
+        "signature": "FocusFollowsMouse.delay",
+        "stripped_doc": "",
+        "type": "Variable"
+      },
+      {
+        "def": "FocusFollowsMouse.excludedApps",
+        "desc": "List of app names or bundle IDs whose windows should never be auto-focused.",
+        "doc": "List of app names or bundle IDs whose windows should never be auto-focused.",
+        "file": "Source/FocusFollowsMouse.spoon//init.lua",
+        "lineno": "34",
+        "name": "excludedApps",
+        "signature": "FocusFollowsMouse.excludedApps",
+        "stripped_doc": "",
+        "type": "Variable"
+      },
+      {
+        "def": "FocusFollowsMouse.logger",
+        "desc": "Logger object used within the Spoon. Can be accessed to set the default log level for the messages coming from the Spoon.",
+        "doc": "Logger object used within the Spoon. Can be accessed to set the default log level for the messages coming from the Spoon.",
+        "file": "Source/FocusFollowsMouse.spoon//init.lua",
+        "lineno": "39",
+        "name": "logger",
+        "signature": "FocusFollowsMouse.logger",
+        "stripped_doc": "",
+        "type": "Variable"
+      }
+    ],
+    "desc": "Focus the window under the mouse pointer (\"sloppy focus\" / X11-style focus-follows-mouse).",
+    "doc": "Focus the window under the mouse pointer (\"sloppy focus\" / X11-style focus-follows-mouse). When the pointer comes to rest over a window that isn't already focused, that window is focused.\n\nA short debounce delay means focus only changes once the cursor settles, so quickly sweeping the pointer across windows does not thrash focus. Focus changes are suppressed while a mouse button is held, so dragging never steals focus.\n\nNote: on macOS, focusing a window also raises it; there is no system primitive for focus-without-raise.",
+    "items": [],
+    "name": "FocusFollowsMouse",
+    "stripped_doc": "",
+    "submodules": [],
+    "type": "Module"
+  },
+  {
+    "Command": [],
+    "Constant": [],
+    "Constructor": [],
+    "Deprecated": [],
+    "Field": [],
+    "Function": [],
+    "Method": [
+      {
+        "def": "MouseCopyPasteSelection:configure(configuration)",
+        "desc": "Configures the spoon. Accepts any of the public variables (doubleClickMs, enableMiddleClickPaste, useSeparateSelectionBuffer, dragThresholdPx, restoreDelayMs, pasteClickDelayUs, pasteTypeDelayUs).",
+        "doc": "Configures the spoon. Accepts any of the public variables (doubleClickMs, enableMiddleClickPaste, useSeparateSelectionBuffer, dragThresholdPx, restoreDelayMs, pasteClickDelayUs, pasteTypeDelayUs).\n\nParameters:\n * configuration - a table of configuration values to merge into the spoon\n\nReturns:\n * self",
+        "examples": [],
+        "file": "Source/MouseCopyPasteSelection.spoon//init.lua",
+        "lineno": "75",
+        "name": "configure",
+        "notes": [],
+        "parameters": [
+          " * configuration - a table of configuration values to merge into the spoon"
+        ],
+        "returns": [
+          " * self"
+        ],
+        "signature": "MouseCopyPasteSelection:configure(configuration)",
+        "stripped_doc": "",
+        "type": "Method"
+      },
+      {
+        "def": "MouseCopyPasteSelection:start()",
+        "desc": "Starts the event tap. Drag-to-select and double-click in text fields will now copy automatically.",
+        "doc": "Starts the event tap. Drag-to-select and double-click in text fields will now copy automatically. Middle-click paste is also active if `enableMiddleClickPaste` is true.\n\nErrors loudly if Hammerspoon doesn't have Accessibility permission, since `hs.eventtap` silently fails without it.\n\nReturns:\n * self",
+        "examples": [],
+        "file": "Source/MouseCopyPasteSelection.spoon//init.lua",
+        "lineno": "150",
+        "name": "start",
+        "notes": [],
+        "parameters": [],
+        "returns": [
+          " * self"
+        ],
+        "signature": "MouseCopyPasteSelection:start()",
+        "stripped_doc": "",
+        "type": "Method"
+      },
+      {
+        "def": "MouseCopyPasteSelection:stop()",
+        "desc": "Stops the event tap. Copy-on-select and middle-click-paste both stop.",
+        "doc": "Stops the event tap. Copy-on-select and middle-click-paste both stop.\n\nReturns:\n * self",
+        "examples": [],
+        "file": "Source/MouseCopyPasteSelection.spoon//init.lua",
+        "lineno": "175",
+        "name": "stop",
+        "notes": [],
+        "parameters": [],
+        "returns": [
+          " * self"
+        ],
+        "signature": "MouseCopyPasteSelection:stop()",
+        "stripped_doc": "",
+        "type": "Method"
+      },
+      {
+        "def": "MouseCopyPasteSelection:toggle()",
+        "desc": "Toggles the event tap on/off.",
+        "doc": "Toggles the event tap on/off. Useful as a hotkey binding when typing in apps where the middle-click paste or the copy-on-release would get in the way.",
+        "examples": [],
+        "file": "Source/MouseCopyPasteSelection.spoon//init.lua",
+        "lineno": "185",
+        "name": "toggle",
+        "notes": [],
+        "parameters": [],
+        "returns": [],
+        "signature": "MouseCopyPasteSelection:toggle()",
+        "stripped_doc": "",
+        "type": "Method"
+      },
+      {
+        "def": "MouseCopyPasteSelection:getSelection()",
+        "desc": "Returns the most recent copy-on-select text from the private selection buffer, or nil.",
+        "doc": "Returns the most recent copy-on-select text from the private selection buffer, or `nil` if the buffer is empty (no selection has happened yet, or `useSeparateSelectionBuffer` is `false`).\n\nReturns:\n * string or nil",
+        "examples": [],
+        "file": "Source/MouseCopyPasteSelection.spoon//init.lua",
+        "lineno": "240",
+        "name": "getSelection",
+        "notes": [],
+        "parameters": [],
+        "returns": [
+          " * string or nil"
+        ],
+        "signature": "MouseCopyPasteSelection:getSelection()",
+        "stripped_doc": "",
+        "type": "Method"
+      },
+      {
+        "def": "MouseCopyPasteSelection:bindHotkeys(mapping)",
+        "desc": "Binds (or rebinds) keyboard shortcuts. The mapping table accepts a `toggle` key.",
+        "doc": "Binds (or rebinds) keyboard shortcuts. The mapping table accepts a `toggle` key with a `{mods, key}` pair compatible with `hs.hotkey.bindSpec`. Calling `bindHotkeys` again clears prior bindings first.\n\nParameters:\n * mapping - table like `{ toggle = {{\"cmd\",\"alt\"}, \"p\"} }`\n\nReturns:\n * self",
+        "examples": [],
+        "file": "Source/MouseCopyPasteSelection.spoon//init.lua",
+        "lineno": "197",
+        "name": "bindHotkeys",
+        "notes": [],
+        "parameters": [
+          " * mapping - table like `{ toggle = {{\"cmd\",\"alt\"}, \"p\"} }`"
+        ],
+        "returns": [
+          " * self"
+        ],
+        "signature": "MouseCopyPasteSelection:bindHotkeys(mapping)",
+        "stripped_doc": "",
+        "type": "Method"
+      }
+    ],
+    "Variable": [
+      {
+        "def": "MouseCopyPasteSelection.doubleClickMs",
+        "desc": "Maximum milliseconds between two leftMouseDown events for the pair to count as a double-click. Defaults to 400.",
+        "doc": "Maximum milliseconds between two leftMouseDown events for the pair to count as a double-click. Defaults to 400, matching myPaste's `DOUBLE_CLICK_MILLIS`.",
+        "file": "Source/MouseCopyPasteSelection.spoon//init.lua",
+        "lineno": "34",
+        "name": "doubleClickMs",
+        "signature": "MouseCopyPasteSelection.doubleClickMs",
+        "stripped_doc": "",
+        "type": "Variable"
+      },
+      {
+        "def": "MouseCopyPasteSelection.enableMiddleClickPaste",
+        "desc": "If true, middle-clicking while the cursor is the I-beam pastes the clipboard at the click location. Default `false`.",
+        "doc": "If true, middle-clicking (mouse button 2) while the cursor is the I-beam pastes the clipboard at the click location. Default `false` (the synthesised left-click that focuses the field before pasting can trigger unintended actions in some apps).",
+        "file": "Source/MouseCopyPasteSelection.spoon//init.lua",
+        "lineno": "41",
+        "name": "enableMiddleClickPaste",
+        "signature": "MouseCopyPasteSelection.enableMiddleClickPaste",
+        "stripped_doc": "",
+        "type": "Variable"
+      },
+      {
+        "def": "MouseCopyPasteSelection.pasteClickDelayUs",
+        "desc": "Microseconds to wait after the synthesised focus-click before the paste keystroke. Defaults to 15000.",
+        "doc": "Microseconds to wait after the synthesised focus-click before the paste keystroke. Defaults to 15000 (15ms), matching myPaste's `usleep(15000)` after the click pair.",
+        "file": "Source/MouseCopyPasteSelection.spoon//init.lua",
+        "lineno": "48",
+        "name": "pasteClickDelayUs",
+        "signature": "MouseCopyPasteSelection.pasteClickDelayUs",
+        "stripped_doc": "",
+        "type": "Variable"
+      },
+      {
+        "def": "MouseCopyPasteSelection.pasteTypeDelayUs",
+        "desc": "Additional microseconds slept before the Cmd+V keystroke is issued. Defaults to 1000.",
+        "doc": "Additional microseconds slept before the Cmd+V keystroke is issued. Defaults to 1000 (1ms), matching myPaste's second `usleep(1000)`.",
+        "file": "Source/MouseCopyPasteSelection.spoon//init.lua",
+        "lineno": "55",
+        "name": "pasteTypeDelayUs",
+        "signature": "MouseCopyPasteSelection.pasteTypeDelayUs",
+        "stripped_doc": "",
+        "type": "Variable"
+      },
+      {
+        "def": "MouseCopyPasteSelection.useSeparateSelectionBuffer",
+        "desc": "When true (default), copy-on-select fills a private in-memory selection buffer instead of clobbering the system clipboard.",
+        "doc": "When `true` (default), copy-on-select fills a private in-memory selection buffer instead of clobbering the system clipboard — the X11 PRIMARY/CLIPBOARD model. The system clipboard is snapshot before the synthesised Cmd+C and restored afterward, so Cmd+V always pastes what the user explicitly Cmd+C'd. Middle-click paste reads from the private buffer.\n\nSet to `false` to use the legacy shared-clipboard model where copy-on-select writes directly to the system clipboard.",
+        "file": "Source/MouseCopyPasteSelection.spoon//init.lua",
+        "lineno": "62",
+        "name": "useSeparateSelectionBuffer",
+        "signature": "MouseCopyPasteSelection.useSeparateSelectionBuffer",
+        "stripped_doc": "",
+        "type": "Variable"
+      },
+      {
+        "def": "MouseCopyPasteSelection.dragThresholdPx",
+        "desc": "Minimum cursor movement in pixels before a drag arms the copy-on-release. Defaults to 5.",
+        "doc": "Minimum cursor movement (in pixels, max of |dx|/|dy|) before a drag arms the copy-on-release. Defaults to 5; prevents a tiny accidental 1-2px drag from triggering a copy. Adopted from lodestone/macpaste PR #7.",
+        "file": "Source/MouseCopyPasteSelection.spoon//init.lua",
+        "lineno": "75",
+        "name": "dragThresholdPx",
+        "signature": "MouseCopyPasteSelection.dragThresholdPx",
+        "stripped_doc": "",
+        "type": "Variable"
+      },
+      {
+        "def": "MouseCopyPasteSelection.restoreDelayMs",
+        "desc": "Milliseconds to wait after a synthesised Cmd+V before restoring the user's real clipboard. Defaults to 200.",
+        "doc": "Milliseconds to wait after a synthesised Cmd+V before restoring the user's \"real\" clipboard. The target app needs time to read the pasteboard during its paste handler; too short and the restore wins the race. Too long and Cmd+V the user types in this window would paste the selection. Defaults to 200. Only used when `useSeparateSelectionBuffer` is `true`.",
+        "file": "Source/MouseCopyPasteSelection.spoon//init.lua",
+        "lineno": "85",
+        "name": "restoreDelayMs",
+        "signature": "MouseCopyPasteSelection.restoreDelayMs",
+        "stripped_doc": "",
+        "type": "Variable"
+      },
+      {
+        "def": "MouseCopyPasteSelection.logger",
+        "desc": "Logger object used within the Spoon. Set its level to control verbosity.",
+        "doc": "Logger object used within the Spoon. Set its level to control verbosity.",
+        "file": "Source/MouseCopyPasteSelection.spoon//init.lua",
+        "lineno": "60",
+        "name": "logger",
+        "signature": "MouseCopyPasteSelection.logger",
+        "stripped_doc": "",
+        "type": "Variable"
+      }
+    ],
+    "desc": "X11-style copy-on-select for macOS with a separate selection buffer, plus optional middle-click paste.",
+    "doc": "X11-style copy-on-select for macOS: when you release the mouse after dragging across text, or double-click a word, the selection is captured into a private in-memory buffer (the X11 PRIMARY analogue). Cmd+V remains untouched — it still pastes whatever the user explicitly Cmd+C'd. Optionally, middle-clicking inside a text field pastes the selection buffer at the click point.\n\nThe \"is the cursor over text\" gate uses `hs.mouse.currentCursorType()`, which returns `\"IBeamCursor\"` (or `\"IBeamCursorForVerticalLayout\"`) when the system cursor is the text I-beam — the same NSCursor hot-spot check the original C implementation performs.\n\nSet `useSeparateSelectionBuffer = false` for legacy shared-clipboard behaviour.\n\nReimplemented from the standalone myPaste.app (Cato Kolås), itself derived from `lodestone/macpaste`; the separate-buffer design mirrors `lodestone/macpaste` PR #7.",
+    "items": [],
+    "name": "MouseCopyPasteSelection",
+    "stripped_doc": "",
+    "submodules": [],
+    "type": "Module"
+  },
+  {
+    "Command": [],
+    "Constant": [],
+    "Constructor": [],
+    "Deprecated": [],
+    "Field": [],
+    "Function": [],
+    "Method": [
+      {
+        "def": "MouseScrollTweaks:configure(configuration)",
+        "desc": "Merges configuration values into the spoon. Accepts any of the public variables (invertVertical, invertHorizontal, smoothness).",
+        "doc": "Merges configuration values into the spoon. Accepts any of the public variables (invertVertical, invertHorizontal, smoothness). smoothness is clamped to [0, 20] and rounded to the nearest integer.\n\nParameters:\n * configuration - a table of configuration values to merge into the spoon\n\nReturns:\n * self",
+        "examples": [],
+        "file": "Source/MouseScrollTweaks.spoon//init.lua",
+        "lineno": "224",
+        "name": "configure",
+        "notes": [],
+        "parameters": [
+          " * configuration - a table of configuration values to merge into the spoon"
+        ],
+        "returns": [
+          " * self"
+        ],
+        "signature": "MouseScrollTweaks:configure(configuration)",
+        "stripped_doc": "",
+        "type": "Method"
+      },
+      {
+        "def": "MouseScrollTweaks:start()",
+        "desc": "Installs the scroll-event tap. Errors loudly if Hammerspoon does not have Accessibility permission.",
+        "doc": "Installs the scroll-event tap. Errors loudly if Hammerspoon does not have Accessibility permission, since hs.eventtap silently fails without it. Idempotent - calling start() again replaces the tap.\n\nReturns:\n * self",
+        "examples": [],
+        "file": "Source/MouseScrollTweaks.spoon//init.lua",
+        "lineno": "734",
+        "name": "start",
+        "notes": [],
+        "parameters": [],
+        "returns": [
+          " * self"
+        ],
+        "signature": "MouseScrollTweaks:start()",
+        "stripped_doc": "",
+        "type": "Method"
+      },
+      {
+        "def": "MouseScrollTweaks:stop()",
+        "desc": "Stops the event tap and cancels any in-flight smoothing animation.",
+        "doc": "Stops the event tap and cancels any in-flight smoothing animation.\n\nReturns:\n * self",
+        "examples": [],
+        "file": "Source/MouseScrollTweaks.spoon//init.lua",
+        "lineno": "782",
+        "name": "stop",
+        "notes": [],
+        "parameters": [],
+        "returns": [
+          " * self"
+        ],
+        "signature": "MouseScrollTweaks:stop()",
+        "stripped_doc": "",
+        "type": "Method"
+      },
+      {
+        "def": "MouseScrollTweaks:toggle()",
+        "desc": "Toggles the Spoon on/off and shows a brief hs.alert banner.",
+        "doc": "Toggles the Spoon on/off and shows a brief hs.alert banner so the user can tell which state they're in without checking the console. Useful as a hotkey binding for apps where wheel-direction inversion or smoothing would get in the way (games, drawing apps).",
+        "examples": [],
+        "file": "Source/MouseScrollTweaks.spoon//init.lua",
+        "lineno": "812",
+        "name": "toggle",
+        "notes": [],
+        "parameters": [],
+        "returns": [],
+        "signature": "MouseScrollTweaks:toggle()",
+        "stripped_doc": "",
+        "type": "Method"
+      },
+      {
+        "def": "MouseScrollTweaks:bindHotkeys(mapping)",
+        "desc": "Binds (or rebinds) keyboard shortcuts. The mapping table accepts a toggle key with a {mods, key} pair compatible with hs.hotkey.bindSpec.",
+        "doc": "Binds (or rebinds) keyboard shortcuts. The mapping table accepts a toggle key with a {mods, key} pair compatible with hs.hotkey.bindSpec. Calling bindHotkeys again clears prior bindings first.\n\nParameters:\n * mapping - table like { toggle = {{\"ctrl\",\"cmd\"}, \"m\"} }\n\nReturns:\n * self",
+        "examples": [],
+        "file": "Source/MouseScrollTweaks.spoon//init.lua",
+        "lineno": "828",
+        "name": "bindHotkeys",
+        "notes": [],
+        "parameters": [
+          " * mapping - table like { toggle = {{\"ctrl\",\"cmd\"}, \"m\"} }"
+        ],
+        "returns": [
+          " * self"
+        ],
+        "signature": "MouseScrollTweaks:bindHotkeys(mapping)",
+        "stripped_doc": "",
+        "type": "Method"
+      }
+    ],
+    "Variable": [
+      {
+        "def": "MouseScrollTweaks.invertVertical",
+        "desc": "If true (default), the vertical mouse-wheel direction is flipped.",
+        "doc": "If true (default), the vertical mouse-wheel direction is flipped. Affects only discrete (non-continuous) scroll events - trackpads and Magic Mouse are unaffected.",
+        "file": "Source/MouseScrollTweaks.spoon//init.lua",
+        "lineno": "29",
+        "name": "invertVertical",
+        "signature": "MouseScrollTweaks.invertVertical",
+        "stripped_doc": "",
+        "type": "Variable"
+      },
+      {
+        "def": "MouseScrollTweaks.invertHorizontal",
+        "desc": "If true (default), the horizontal (tilt-wheel) direction is flipped.",
+        "doc": "If true (default), the horizontal (tilt-wheel) direction is flipped. Affects only discrete scroll events.",
+        "file": "Source/MouseScrollTweaks.spoon//init.lua",
+        "lineno": "36",
+        "name": "invertHorizontal",
+        "signature": "MouseScrollTweaks.invertHorizontal",
+        "stripped_doc": "",
+        "type": "Variable"
+      },
+      {
+        "def": "MouseScrollTweaks.smoothness",
+        "desc": "Smoothing intensity for discrete wheel ticks, integer in [0, 20]. 0 (default) means passthrough.",
+        "doc": "Smoothing intensity for discrete wheel ticks, integer in [0, 20]. 0 (default) means passthrough - only inversion applies. Higher values primarily tune the momentum tail length and per-tick acceleration multiplier; the per-tick base buffer stays small, so single isolated clicks remain modest at any grade. Magnitude on rapid scrolling comes from the MMF-style two-level acceleration inside _enqueueAxis. Mid grades (5-10) feel subtle; 10-15 approximates MMF; 15-20 leans further into long glides. Read live at each tick, so it can be retuned via :configure({smoothness=N}) without restarting the spoon.",
+        "file": "Source/MouseScrollTweaks.spoon//init.lua",
+        "lineno": "42",
+        "name": "smoothness",
+        "signature": "MouseScrollTweaks.smoothness",
+        "stripped_doc": "",
+        "type": "Variable"
+      },
+      {
+        "def": "MouseScrollTweaks.logger",
+        "desc": "Logger object used within the Spoon. Set its level to control verbosity.",
+        "doc": "Logger object used within the Spoon. Set its level (e.g. spoon.MouseScrollTweaks.logger.setLogLevel(\"debug\")) to see the decision trace.",
+        "file": "Source/MouseScrollTweaks.spoon//init.lua",
+        "lineno": "56",
+        "name": "logger",
+        "signature": "MouseScrollTweaks.logger",
+        "stripped_doc": "",
+        "type": "Variable"
+      }
+    ],
+    "desc": "Tweaks for traditional mouse wheels on macOS, without touching the trackpad or Magic Mouse.",
+    "doc": "Tweaks for traditional mouse wheels on macOS, without touching the trackpad or Magic Mouse:\n\n1. Per-axis direction inversion - flip the vertical and/or horizontal wheel direction independently of the system \"Natural scrolling\" toggle (which on macOS ties trackpad and mouse-wheel direction together).\n2. Smoothness - interpolate each discrete wheel tick into a short sequence of small continuous pixel events, exposed as a grade from 0 (off / passthrough) to 10 (longest, smoothest glide).\n\nTrackpads and Magic Mouse produce continuous scroll events and are passed through untouched, distinguished via the scrollWheelEventIsContinuous property.",
+    "items": [],
+    "name": "MouseScrollTweaks",
+    "stripped_doc": "",
+    "submodules": [],
+    "type": "Module"
+  },
+  {
+    "Command": [],
+    "Constant": [],
+    "Constructor": [],
+    "Deprecated": [],
+    "Field": [],
+    "Function": [],
+    "Method": [
+      {
+        "def": "MouseTrackpadTweaks:configure(configuration)",
+        "desc": "Deep-merges configuration values into the spoon. Partial sub-tables merge recursively so partial overrides leave the rest of the defaults intact.",
+        "doc": "Deep-merges configuration values into the spoon. Accepts any of the public variables; nested sub-tables (e.g. middleClick.multiFinger.fingerCount) merge recursively, so partial overrides leave the rest of the defaults intact.\n\nParameters:\n * configuration - a table of configuration values to merge into the spoon\n\nReturns:\n * self",
+        "examples": [],
+        "file": "Source/MouseTrackpadTweaks.spoon//init.lua",
+        "lineno": "195",
+        "name": "configure",
+        "notes": [],
+        "parameters": [
+          " * configuration - a table of configuration values to merge into the spoon"
+        ],
+        "returns": [
+          " * self"
+        ],
+        "signature": "MouseTrackpadTweaks:configure(configuration)",
+        "stripped_doc": "",
+        "type": "Method"
+      },
+      {
+        "def": "MouseTrackpadTweaks:start()",
+        "desc": "Installs the eventtap and (if the native module is available) starts the multitouch callback.",
+        "doc": "Installs the eventtap and (if available) starts the multitouch callback. Errors if Hammerspoon does not have Accessibility permission. Idempotent.\n\nReturns:\n * self",
+        "examples": [],
+        "file": "Source/MouseTrackpadTweaks.spoon//init.lua",
+        "lineno": "776",
+        "name": "start",
+        "notes": [],
+        "parameters": [],
+        "returns": [
+          " * self"
+        ],
+        "signature": "MouseTrackpadTweaks:start()",
+        "stripped_doc": "",
+        "type": "Method"
+      },
+      {
+        "def": "MouseTrackpadTweaks:stop()",
+        "desc": "Stops the eventtap and the multitouch callback, and clears all per-device touch state.",
+        "doc": "Stops the eventtap and the multitouch callback, and clears all per-device touch state.\n\nReturns:\n * self",
+        "examples": [],
+        "file": "Source/MouseTrackpadTweaks.spoon//init.lua",
+        "lineno": "822",
+        "name": "stop",
+        "notes": [],
+        "parameters": [],
+        "returns": [
+          " * self"
+        ],
+        "signature": "MouseTrackpadTweaks:stop()",
+        "stripped_doc": "",
+        "type": "Method"
+      },
+      {
+        "def": "MouseTrackpadTweaks:toggle()",
+        "desc": "Toggles the Spoon on/off and shows a brief hs.alert banner.",
+        "doc": "Toggles the Spoon on/off and shows a brief hs.alert banner.",
+        "examples": [],
+        "file": "Source/MouseTrackpadTweaks.spoon//init.lua",
+        "lineno": "843",
+        "name": "toggle",
+        "notes": [],
+        "parameters": [],
+        "returns": [],
+        "signature": "MouseTrackpadTweaks:toggle()",
+        "stripped_doc": "",
+        "type": "Method"
+      },
+      {
+        "def": "MouseTrackpadTweaks:toggleInvertScroll()",
+        "desc": "Toggles only the Magic Mouse vertical scroll inversion and shows an hs.alert banner.",
+        "doc": "Toggles only the Magic Mouse vertical scroll inversion and shows an hs.alert banner.",
+        "examples": [],
+        "file": "Source/MouseTrackpadTweaks.spoon//init.lua",
+        "lineno": "856",
+        "name": "toggleInvertScroll",
+        "notes": [],
+        "parameters": [],
+        "returns": [],
+        "signature": "MouseTrackpadTweaks:toggleInvertScroll()",
+        "stripped_doc": "",
+        "type": "Method"
+      },
+      {
+        "def": "MouseTrackpadTweaks:toggleMiddleClick()",
+        "desc": "Toggles middle-click synthesis (both modes) and shows an hs.alert banner.",
+        "doc": "Toggles middle-click synthesis (both modes) and shows an hs.alert banner.",
+        "examples": [],
+        "file": "Source/MouseTrackpadTweaks.spoon//init.lua",
+        "lineno": "866",
+        "name": "toggleMiddleClick",
+        "notes": [],
+        "parameters": [],
+        "returns": [],
+        "signature": "MouseTrackpadTweaks:toggleMiddleClick()",
+        "stripped_doc": "",
+        "type": "Method"
+      },
+      {
+        "def": "MouseTrackpadTweaks:bindHotkeys(mapping)",
+        "desc": "Binds (or rebinds) keyboard shortcuts. Supported actions: toggle, toggleInvertScroll, toggleMiddleClick.",
+        "doc": "Binds (or rebinds) keyboard shortcuts. Supported actions: toggle, toggleInvertScroll, toggleMiddleClick. Each value is a {mods, key} pair compatible with hs.hotkey.bindSpec. Calling bindHotkeys again clears prior bindings first.\n\nParameters:\n * mapping - table like { toggle = {{\"ctrl\",\"cmd\"}, \"m\"} }\n\nReturns:\n * self",
+        "examples": [],
+        "file": "Source/MouseTrackpadTweaks.spoon//init.lua",
+        "lineno": "876",
+        "name": "bindHotkeys",
+        "notes": [],
+        "parameters": [
+          " * mapping - table like { toggle = {{\"ctrl\",\"cmd\"}, \"m\"} }"
+        ],
+        "returns": [
+          " * self"
+        ],
+        "signature": "MouseTrackpadTweaks:bindHotkeys(mapping)",
+        "stripped_doc": "",
+        "type": "Method"
+      }
+    ],
+    "Variable": [
+      {
+        "def": "MouseTrackpadTweaks.invertVertical",
+        "desc": "If true (default), Magic Mouse vertical scroll direction is flipped.",
+        "doc": "If true (default), Magic Mouse vertical scroll direction is flipped. Trackpad scrolling is unaffected.",
+        "file": "Source/MouseTrackpadTweaks.spoon//init.lua",
+        "lineno": "45",
+        "name": "invertVertical",
+        "signature": "MouseTrackpadTweaks.invertVertical",
+        "stripped_doc": "",
+        "type": "Variable"
+      },
+      {
+        "def": "MouseTrackpadTweaks.invertHorizontal",
+        "desc": "If true, Magic Mouse horizontal scroll direction is flipped. Defaults to false.",
+        "doc": "If true, Magic Mouse horizontal scroll direction is flipped. Defaults to false.",
+        "file": "Source/MouseTrackpadTweaks.spoon//init.lua",
+        "lineno": "51",
+        "name": "invertHorizontal",
+        "signature": "MouseTrackpadTweaks.invertHorizontal",
+        "stripped_doc": "",
+        "type": "Variable"
+      },
+      {
+        "def": "MouseTrackpadTweaks.middleClick",
+        "desc": "Middle-click synthesis configuration. Two trigger modes (multiFinger and topCenter), each with an independently-configurable trigger type (tap | click | either).",
+        "doc": "Middle-click synthesis configuration. Two trigger modes, each with an independently-configurable trigger type:\n\nmiddleClick = {\n  enabled = true,\n\n  multiFinger = {\n    enabled     = true,\n    fingerCount = 3,            -- >= this many fingers fires middle-click\n    trigger     = \"either\",     -- \"tap\" | \"click\" | \"either\"\n    maxAgeMs    = 1500,         -- a touch only counts toward fingerCount if it BEGAN this recently before the click\n  },\n\n  topCenter = {\n    enabled = true,\n    devices = { magicMouse = true, trackpad = true },\n    trigger = \"either\",         -- \"tap\" | \"click\" | \"either\"\n    xMin = 0.30, xMax = 0.70,   -- normalized fractions of the\n    yMin = 0.00, yMax = 0.30,   -- device surface (0,0 = top-left)\n    maxAgeMs = 1500,            -- a touch only counts as a deliberate placement if it ENTERED the region this recently\n  },\n\n  tap = {                       -- shared tap-validity thresholds\n    maxDurationMs    = 200,\n    maxTravelPx      = 12,      -- max cursor travel during the tap\n    maxSurfaceTravel = 0.05,    -- max normalized surface travel of any touch in the session\n  },\n}",
+        "file": "Source/MouseTrackpadTweaks.spoon//init.lua",
+        "lineno": "57",
+        "name": "middleClick",
+        "signature": "MouseTrackpadTweaks.middleClick",
+        "stripped_doc": "",
+        "type": "Variable"
+      },
+      {
+        "def": "MouseTrackpadTweaks.logger",
+        "desc": "Logger object used within the Spoon. Set its level to trace touch sessions and middle-click decisions.",
+        "doc": "Logger object used within the Spoon. Set its level (e.g. spoon.MouseTrackpadTweaks.logger.setLogLevel(\"debug\")) to trace touch sessions and middle-click decisions.",
+        "file": "Source/MouseTrackpadTweaks.spoon//init.lua",
+        "lineno": "124",
+        "name": "logger",
+        "signature": "MouseTrackpadTweaks.logger",
+        "stripped_doc": "",
+        "type": "Variable"
+      }
+    ],
+    "desc": "Per-device input tweaks for Magic Mouse and the built-in Trackpad that macOS doesn't expose itself.",
+    "doc": "Per-device input tweaks for Magic Mouse and the built-in Trackpad that macOS doesn't expose itself:\n\n1. Magic-Mouse-only scroll inversion. Flips vertical (and optionally horizontal) scroll for the Magic Mouse without touching trackpad scrolling - useful when the trackpad is set to \"Natural\" and the mouse should scroll the other way.\n2. Middle-click synthesis. Fires a middle-click on either (a) >= N-finger tap or click, or (b) 1-finger tap or click inside a configurable top-center region of the device surface. Both the Magic Mouse and the Trackpad are supported. Each trigger mode's tap-vs-click can be configured independently.\n\nAttribution of scroll events to a specific physical device, and multi-finger touch counting, are not exposed by Hammerspoon's pure Lua API. Both features depend on an optional native module, hs._ckol.multitouch, that wraps MultitouchSupport.framework. When the module is not installed, the Spoon loads cleanly, logs a warning, and lets all events pass through unmodified.\n\nCoexists with MouseScrollTweaks.spoon: that Spoon ignores continuous-scroll events (trackpad / Magic Mouse) via scrollWheelEventIsContinuous, and this Spoon ignores discrete wheel events, so the two do not interact. Each stamps its own sentinel on synthetic events to prevent self re-entry, and the family uses a shared sentinel-prefix convention so siblings can recognise each other's synthetic events.",
+    "items": [],
+    "name": "MouseTrackpadTweaks",
+    "stripped_doc": "",
+    "submodules": [],
+    "type": "Module"
+  },
+  {
+    "Command": [],
+    "Constant": [],
+    "Constructor": [],
+    "Deprecated": [],
+    "Field": [],
+    "Function": [],
+    "Method": [
+      {
+        "def": "MoveSpaces:bindHotkeys(mapping)",
+        "desc": "Binds (or rebinds) keyboard shortcuts for left/right window moves.",
+        "doc": "Binds (or rebinds) keyboard shortcuts. The mapping table accepts space_left and space_right keys, each a {mods, key} pair compatible with hs.hotkey.bindSpec. Either may be omitted to leave that direction unbound. Calling bindHotkeys again clears prior bindings first.\n\nParameters:\n * mapping - table like { space_left = {{\"shift\",\"ctrl\"}, \"left\"}, space_right = {{\"shift\",\"ctrl\"}, \"right\"} }\n\nReturns:\n * self",
+        "examples": [],
+        "file": "Source/MoveSpaces.spoon//init.lua",
+        "lineno": "147",
+        "name": "bindHotkeys",
+        "notes": [],
+        "parameters": [
+          " * mapping - table like { space_left = {{\"shift\",\"ctrl\"}, \"left\"}, space_right = {{\"shift\",\"ctrl\"}, \"right\"} }"
+        ],
+        "returns": [
+          " * self"
+        ],
+        "signature": "MoveSpaces:bindHotkeys(mapping)",
+        "stripped_doc": "",
+        "type": "Method"
+      },
+      {
+        "def": "MoveSpaces:moveFocusedWindowLeft()",
+        "desc": "Moves the focused window to the Space immediately to the left.",
+        "doc": "Moves the currently-focused window to the Space immediately to the left of the current Space, on the same screen.",
+        "examples": [],
+        "file": "Source/MoveSpaces.spoon//init.lua",
+        "lineno": "127",
+        "name": "moveFocusedWindowLeft",
+        "notes": [],
+        "parameters": [],
+        "returns": [],
+        "signature": "MoveSpaces:moveFocusedWindowLeft()",
+        "stripped_doc": "",
+        "type": "Method"
+      },
+      {
+        "def": "MoveSpaces:moveFocusedWindowRight()",
+        "desc": "Moves the focused window to the Space immediately to the right.",
+        "doc": "Moves the currently-focused window to the Space immediately to the right of the current Space, on the same screen.",
+        "examples": [],
+        "file": "Source/MoveSpaces.spoon//init.lua",
+        "lineno": "135",
+        "name": "moveFocusedWindowRight",
+        "notes": [],
+        "parameters": [],
+        "returns": [],
+        "signature": "MoveSpaces:moveFocusedWindowRight()",
+        "stripped_doc": "",
+        "type": "Method"
+      }
+    ],
+    "Variable": [
+      {
+        "def": "MoveSpaces.followWindow",
+        "desc": "If true, after moving the window also switch the viewer to the destination Space.",
+        "doc": "If true, after moving the window also switch the viewer to the destination Space (via hs.spaces.gotoSpace). Default false so the move is silent; enabling this causes one Mission Control transition per invocation.",
+        "file": "Source/MoveSpaces.spoon//init.lua",
+        "lineno": "33",
+        "name": "followWindow",
+        "signature": "MoveSpaces.followWindow",
+        "stripped_doc": "",
+        "type": "Variable"
+      },
+      {
+        "def": "MoveSpaces.wrap",
+        "desc": "If true, moving past the leftmost/rightmost Space wraps around.",
+        "doc": "If true, moving past the leftmost/rightmost Space wraps around to the opposite end of the same screen's Space list. Default false (silent no-op at edges).",
+        "file": "Source/MoveSpaces.spoon//init.lua",
+        "lineno": "40",
+        "name": "wrap",
+        "signature": "MoveSpaces.wrap",
+        "stripped_doc": "",
+        "type": "Variable"
+      },
+      {
+        "def": "MoveSpaces.skipFullScreenSpaces",
+        "desc": "If true, fullscreen-app Spaces are stepped over when finding the destination Space.",
+        "doc": "If true, fullscreen-app Spaces are stepped over when looking for the destination Space (a window can't be moved into a fullscreen Space anyway). Default true.",
+        "file": "Source/MoveSpaces.spoon//init.lua",
+        "lineno": "47",
+        "name": "skipFullScreenSpaces",
+        "signature": "MoveSpaces.skipFullScreenSpaces",
+        "stripped_doc": "",
+        "type": "Variable"
+      },
+      {
+        "def": "MoveSpaces.logger",
+        "desc": "Logger object used within the Spoon.",
+        "doc": "Logger object used within the Spoon. Set its level to control verbosity.",
+        "file": "Source/MoveSpaces.spoon//init.lua",
+        "lineno": "52",
+        "name": "logger",
+        "signature": "MoveSpaces.logger",
+        "stripped_doc": "",
+        "type": "Variable"
+      }
+    ],
+    "desc": "Move the focused window to the adjacent macOS Space, on the same screen.",
+    "doc": "Move the currently-focused window to the macOS Space immediately to the left or right of the current Space, on the same screen.\n\nUses Hammerspoon's official hs.spaces API. The window move itself is silent — no Mission Control flicker. Setting followWindow = true makes the viewer follow the window to its new Space (at the cost of one Mission Control transition).\n\nInspired by an earlier MoveSpaces.spoon by Tyler Thrailkill, itself based on code by Szymon Kaliski. That implementation simulated a title-bar drag against the now-deprecated hs._asm.undocumented.spaces; this is a clean rewrite against hs.spaces.",
+    "items": [],
+    "name": "MoveSpaces",
+    "stripped_doc": "",
+    "submodules": [],
+    "type": "Module"
+  },
+  {
+    "Command": [],
+    "Constant": [],
+    "Constructor": [],
+    "Deprecated": [],
+    "Field": [],
+    "Function": [],
+    "Method": [
+      {
+        "def": "SpotifyPlayPause:configure(configuration)",
+        "desc": "Configures the spoon. Accepts any of the public variables (preferredDevices, autoSwitchOutput, respectManualPause, pauseHoursMenu, pauseHoursOptions, speak).",
+        "doc": "Configures the spoon. Accepts any of the public variables (preferredDevices, autoSwitchOutput, respectManualPause, pauseHoursMenu, pauseHoursOptions, speak).\n\nParameters:\n * configuration - a table of configuration values to merge into the spoon",
+        "examples": [],
+        "file": "Source/SpotifyPlayPause.spoon//init.lua",
+        "lineno": "118",
+        "name": "configure",
+        "notes": [],
+        "parameters": [
+          " * configuration - a table of configuration values to merge into the spoon"
+        ],
+        "returns": [],
+        "signature": "SpotifyPlayPause:configure(configuration)",
+        "stripped_doc": "",
+        "type": "Method"
+      },
+      {
+        "def": "SpotifyPlayPause:start()",
+        "desc": "Starts the watchers and shows the menubar dropdown (if enabled). Idempotent.",
+        "doc": "Starts the watchers and shows the menubar dropdown (if enabled). Idempotent.\n\nParameters:\n * None",
+        "examples": [],
+        "file": "Source/SpotifyPlayPause.spoon//init.lua",
+        "lineno": "285",
+        "name": "start",
+        "notes": [],
+        "parameters": [
+          " * None"
+        ],
+        "returns": [],
+        "signature": "SpotifyPlayPause:start()",
+        "stripped_doc": "",
+        "type": "Method"
+      },
+      {
+        "def": "SpotifyPlayPause:stop()",
+        "desc": "Stops the watchers, cancels any armed pause-hours timer, and removes the menubar dropdown.",
+        "doc": "Stops the watchers, cancels any armed pause-hours timer, and removes the menubar dropdown.\n\nParameters:\n * None",
+        "examples": [],
+        "file": "Source/SpotifyPlayPause.spoon//init.lua",
+        "lineno": "326",
+        "name": "stop",
+        "notes": [],
+        "parameters": [
+          " * None"
+        ],
+        "returns": [],
+        "signature": "SpotifyPlayPause:stop()",
+        "stripped_doc": "",
+        "type": "Method"
+      }
+    ],
+    "Variable": [
+      {
+        "def": "SpotifyPlayPause.preferredDevices",
+        "desc": "List of audio output device-name substrings (case-insensitive) treated as \"headphones\" for the play/pause logic and as candidates for autoSwitchOutput.",
+        "doc": "List of audio output device-name substrings (case-insensitive) treated as \"headphones\" for the play/pause logic and as candidates for autoSwitchOutput. Matched against the device's name(). Default: { \"usb audio\", \"airpods\", \"Headphone\", \"plantronics\", \"jabra\" }.",
+        "file": "Source/SpotifyPlayPause.spoon//init.lua",
+        "lineno": "32",
+        "name": "preferredDevices",
+        "signature": "SpotifyPlayPause.preferredDevices",
+        "stripped_doc": "",
+        "type": "Variable"
+      },
+      {
+        "def": "SpotifyPlayPause.autoSwitchOutput",
+        "desc": "If true (default), whenever the audio device list changes the spoon switches the default output to the first preferred device.",
+        "doc": "If true (default), whenever the audio device list changes the spoon looks for the first preferred device (in preferredDevices order) that is currently available, and makes it the default output - unless the current default already matches one of the preferred substrings.",
+        "file": "Source/SpotifyPlayPause.spoon//init.lua",
+        "lineno": "40",
+        "name": "autoSwitchOutput",
+        "signature": "SpotifyPlayPause.autoSwitchOutput",
+        "stripped_doc": "",
+        "type": "Variable"
+      },
+      {
+        "def": "SpotifyPlayPause.respectManualPause",
+        "desc": "If true (default), Spotify is only auto-resumed on screen wake if this spoon was the one that paused it.",
+        "doc": "If true (default), Spotify is only auto-resumed on screen wake if this spoon was the one that paused it (i.e. the user did not manually pause in the meantime). Set to false to mirror the original AppleScript behaviour of always resuming on wake when a preferred device is present.",
+        "file": "Source/SpotifyPlayPause.spoon//init.lua",
+        "lineno": "48",
+        "name": "respectManualPause",
+        "signature": "SpotifyPlayPause.respectManualPause",
+        "stripped_doc": "",
+        "type": "Variable"
+      },
+      {
+        "def": "SpotifyPlayPause.pauseHoursMenu",
+        "desc": "If true (default), a menubar dropdown is shown with \"Pause Spotify for N hour(s)\" entries.",
+        "doc": "If true (default), a menubar dropdown is shown with \"Pause Spotify for N hour(s)\" entries. Set to false to suppress the menubar entirely.",
+        "file": "Source/SpotifyPlayPause.spoon//init.lua",
+        "lineno": "57",
+        "name": "pauseHoursMenu",
+        "signature": "SpotifyPlayPause.pauseHoursMenu",
+        "stripped_doc": "",
+        "type": "Variable"
+      },
+      {
+        "def": "SpotifyPlayPause.pauseHoursOptions",
+        "desc": "Number of hour entries offered in the menubar pause dropdown. Set to n to get entries for 1..n hours. Default 4 → 1, 2, 3, 4 hours.",
+        "doc": "Number of hour entries offered in the menubar pause dropdown. Set to n to get entries for 1..n hours. Default 4 → 1, 2, 3, 4 hours.",
+        "file": "Source/SpotifyPlayPause.spoon//init.lua",
+        "lineno": "63",
+        "name": "pauseHoursOptions",
+        "signature": "SpotifyPlayPause.pauseHoursOptions",
+        "stripped_doc": "",
+        "type": "Variable"
+      },
+      {
+        "def": "SpotifyPlayPause.speak",
+        "desc": "If true, spoken feedback is produced via hs.speech on key transitions. Default false.",
+        "doc": "If true, spoken feedback is produced via hs.speech on key transitions (pause / resume / pause-hours arm / expire). Default false.",
+        "file": "Source/SpotifyPlayPause.spoon//init.lua",
+        "lineno": "69",
+        "name": "speak",
+        "signature": "SpotifyPlayPause.speak",
+        "stripped_doc": "",
+        "type": "Variable"
+      },
+      {
+        "def": "SpotifyPlayPause.logger",
+        "desc": "Logger object used within the Spoon. Can be accessed to set the default log level for the messages coming from the Spoon.",
+        "doc": "Logger object used within the Spoon. Can be accessed to set the default log level for the messages coming from the Spoon.",
+        "file": "Source/SpotifyPlayPause.spoon//init.lua",
+        "lineno": "75",
+        "name": "logger",
+        "signature": "SpotifyPlayPause.logger",
+        "stripped_doc": "",
+        "type": "Variable"
+      }
+    ],
+    "desc": "Auto play / pause Spotify based on screen state and audio output device.",
+    "doc": "Auto play / pause Spotify based on screen state and audio output device.\n\nWhen a preferred audio output device (e.g. headphones, AirPods) is connected and the screen goes to sleep - or the screensaver starts - Spotify is paused. When the screen wakes again, Spotify resumes (only if this spoon was the one that paused it).\n\nWhen no preferred audio device is present at all, Spotify is paused regardless of screen state.\n\nOptionally, the macOS default audio output is auto-switched to the first matching preferred device whenever the audio device list changes.\n\nA menubar dropdown offers \"Pause Spotify for N hour(s)\" entries with an automatic resume timer.",
+    "items": [],
+    "name": "SpotifyPlayPause",
+    "stripped_doc": "",
+    "submodules": [],
+    "type": "Module"
+  }
+]
