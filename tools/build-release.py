@@ -78,6 +78,14 @@ def deterministic_zip(spoon_dir: Path, out_path: Path):
     out_path.parent.mkdir(parents=True, exist_ok=True)
     tmp = out_path.with_suffix(out_path.suffix + ".tmp")
     with zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as zf:
+        # Top-level `<Name>.spoon/` directory entry. SpoonInstall's
+        # post-download validation runs `unzip -l <zip> '*.spoon/'` and
+        # rejects the archive if no directory entries match — file-only
+        # zips fail with "should contain exactly one spoon".
+        dir_zi = zipfile.ZipInfo(f"{spoon_name}/", date_time=fixed_dt)
+        dir_zi.external_attr = (0o040755 << 16) | 0x10  # S_IFDIR + MS-DOS dir bit
+        dir_zi.compress_type = zipfile.ZIP_STORED
+        zf.writestr(dir_zi, b"")
         for arcname, src in files:
             zi = zipfile.ZipInfo(arcname, date_time=fixed_dt)
             zi.external_attr = 0o644 << 16
