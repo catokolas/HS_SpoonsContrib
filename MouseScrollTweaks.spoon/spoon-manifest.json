@@ -45,5 +45,14 @@
       "label": "Toggle on/off",
       "default": { "mods": ["ctrl", "cmd"], "key": "m" }
     }
+  ],
+  "optionalModules": [
+    {
+      "name":          "hs._ckol.smoothscroll",
+      "repo":          "catokolas/HS_ModulesContrib-smoothscroll",
+      "installSubdir": "hs/_ckol/smoothscroll",
+      "assetPattern":  "smoothscroll-*-macos-universal.zip",
+      "description":   "Posts continuous-scroll CGEvents from a CVDisplayLink — the same shape macOS trackpads emit, so receiving apps treat the whole momentum tail as one logical scroll. Without it the Spoon falls back to an inline pure-Lua smoothing engine."
+    }
   ]
 }

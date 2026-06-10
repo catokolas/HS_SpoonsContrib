@@ -40,5 +40,14 @@
       "label": "Toggle on/off",
       "default": { "mods": ["shift", "ctrl", "cmd"], "key": "f" }
     }
+  ],
+  "optionalModules": [
+    {
+      "name":          "hs._ckol.sloppyfocus",
+      "repo":          "catokolas/HS_ModulesContrib-sloppyfocus",
+      "installSubdir": "hs/_ckol/sloppyfocus",
+      "assetPattern":  "sloppyfocus-*-macos-universal.zip",
+      "description":   "Focus-without-raise via macOS SkyLight private APIs. Works on Chromium-based PWAs where pure hs.window:focus() raises the window. Without it the Spoon falls back to win:focus()."
+    }
   ]
 }

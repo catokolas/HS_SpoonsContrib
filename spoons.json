@@ -1,6 +1,6 @@
 {
-  "commit": "d1df4f0cadd5236dae73e1b246b0833919197ff7",
-  "generatedAt": "2026-06-10T16:20:29Z",
+  "commit": "9c15bbbebaa86f10439ee5835e5435f9a2f8294e",
+  "generatedAt": "2026-06-10T20:51:03Z",
   "overrides": {},
   "repo": "catokolas/HS_SpoonsContrib",
   "schemaVersion": 1,
@@ -53,6 +53,15 @@
         "hasToggle": true
       },
       "name": "FocusFollowsMouse",
+      "optionalModules": [
+        {
+          "assetPattern": "sloppyfocus-*-macos-universal.zip",
+          "description": "Focus-without-raise via macOS SkyLight private APIs. Works on Chromium-based PWAs where pure hs.window:focus() raises the window. Without it the Spoon falls back to win:focus().",
+          "installSubdir": "hs/_ckol/sloppyfocus",
+          "name": "hs._ckol.sloppyfocus",
+          "repo": "catokolas/HS_ModulesContrib-sloppyfocus"
+        }
+      ],
       "schemaVersion": 1,
       "version": "0.1"
     },
@@ -211,6 +220,15 @@
         "hasToggle": true
       },
       "name": "MouseScrollTweaks",
+      "optionalModules": [
+        {
+          "assetPattern": "smoothscroll-*-macos-universal.zip",
+          "description": "Posts continuous-scroll CGEvents from a CVDisplayLink — the same shape macOS trackpads emit, so receiving apps treat the whole momentum tail as one logical scroll. Without it the Spoon falls back to an inline pure-Lua smoothing engine.",
+          "installSubdir": "hs/_ckol/smoothscroll",
+          "name": "hs._ckol.smoothscroll",
+          "repo": "catokolas/HS_ModulesContrib-smoothscroll"
+        }
+      ],
       "schemaVersion": 1,
       "version": "0.1"
     },
@@ -497,6 +515,15 @@
         "hasToggle": true
       },
       "name": "MouseTrackpadTweaks",
+      "optionalModules": [
+        {
+          "assetPattern": "multitouch-*-macos-universal.zip",
+          "description": "Streams per-touch events (finger count, surface position, phase) from Magic Mouse / Trackpad via Apple's private MultitouchSupport framework. Unlocks scroll inversion and middle-click synthesis. Without it the Spoon loads cleanly with those features disabled.",
+          "installSubdir": "hs/_ckol/multitouch",
+          "name": "hs._ckol.multitouch",
+          "repo": "catokolas/HS_ModulesContrib-multitouch"
+        }
+      ],
       "schemaVersion": 1,
       "version": "0.1"
     },
@@ -560,6 +587,15 @@
         "hasToggle": false
       },
       "name": "MoveSpaces",
+      "optionalModules": [
+        {
+          "assetPattern": "movetospace-*-macos-universal.zip",
+          "description": "Moves windows to a specific Space via SkyLight private APIs. Bypasses hs.spaces.moveWindowToSpace, which silently no-ops on macOS 26+ for most windows. Without it the Spoon falls back to a Ctrl+arrow drag simulation.",
+          "installSubdir": "hs/_ckol/movetospace",
+          "name": "hs._ckol.movetospace",
+          "repo": "catokolas/HS_ModulesContrib-movetospace"
+        }
+      ],
       "schemaVersion": 1,
       "version": "0.1"
     },

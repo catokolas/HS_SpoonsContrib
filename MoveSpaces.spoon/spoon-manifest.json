@@ -41,5 +41,14 @@
       "default": { "mods": ["shift", "ctrl"], "key": "left" } },
     { "action": "space_right", "label": "Move window one Space right",
       "default": { "mods": ["shift", "ctrl"], "key": "right" } }
+  ],
+  "optionalModules": [
+    {
+      "name":          "hs._ckol.movetospace",
+      "repo":          "catokolas/HS_ModulesContrib-movetospace",
+      "installSubdir": "hs/_ckol/movetospace",
+      "assetPattern":  "movetospace-*-macos-universal.zip",
+      "description":   "Moves windows to a specific Space via SkyLight private APIs. Bypasses hs.spaces.moveWindowToSpace, which silently no-ops on macOS 26+ for most windows. Without it the Spoon falls back to a Ctrl+arrow drag simulation."
+    }
   ]
 }
