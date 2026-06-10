@@ -1,6 +1,6 @@
 {
-  "commit": "30c045fe7123fc632b49303752c9fb46339df261",
-  "generatedAt": "2026-06-07T21:30:59Z",
+  "commit": "d1df4f0cadd5236dae73e1b246b0833919197ff7",
+  "generatedAt": "2026-06-10T16:20:29Z",
   "overrides": {},
   "repo": "catokolas/HS_SpoonsContrib",
   "schemaVersion": 1,
@@ -22,7 +22,7 @@
         {
           "default": [],
           "description": "App names or bundle IDs whose windows should never be auto-focused.",
-          "itemPlaceholder": "Notification Center  or  org.keepassxc.keepassxc",
+          "itemPlaceholder": "e.g. Safari, Notification Center, org.keepassxc.keepassxc",
           "key": "excludedApps",
           "label": "Excluded apps",
           "type": "stringList"
@@ -36,6 +36,7 @@
           "default": {
             "key": "f",
             "mods": [
+              "shift",
               "ctrl",
               "cmd"
             ]
@@ -224,7 +225,7 @@
           "type": "bool"
         },
         {
-          "default": false,
+          "default": true,
           "description": "Flip horizontal scroll for the Magic Mouse only.",
           "key": "invertHorizontal",
           "label": "Invert Magic Mouse horizontal scroll",
@@ -308,7 +309,7 @@
                   "type": "bool"
                 },
                 {
-                  "default": "either",
+                  "default": "click",
                   "enum": [
                     {
                       "label": "Tap",
@@ -467,6 +468,7 @@
           "default": {
             "key": "i",
             "mods": [
+              "shift",
               "ctrl",
               "cmd"
             ]
@@ -478,6 +480,7 @@
           "default": {
             "key": "k",
             "mods": [
+              "shift",
               "ctrl",
               "cmd"
             ]

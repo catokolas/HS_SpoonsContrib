@@ -31,7 +31,7 @@
       "description": "App names or bundle IDs whose windows should never be auto-focused.",
       "type": "stringList",
       "default": [],
-      "itemPlaceholder": "Notification Center  or  org.keepassxc.keepassxc"
+      "itemPlaceholder": "e.g. Safari, Notification Center, org.keepassxc.keepassxc"
     }
   ],
   "hotkeys": [
