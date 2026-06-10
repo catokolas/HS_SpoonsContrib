@@ -1,6 +1,6 @@
 {
-  "commit": "9cadc9c0b2ea3f2a4c0fd5a4b91e9fd9156f0ced",
-  "generatedAt": "2026-06-10T21:14:50Z",
+  "commit": "8292d7305365a84ba749f5158ea2c76664900762",
+  "generatedAt": "2026-06-10T21:39:08Z",
   "overrides": {},
   "repo": "catokolas/HS_SpoonsContrib",
   "schemaVersion": 1,
@@ -243,7 +243,7 @@
           "type": "bool"
         },
         {
-          "default": true,
+          "default": false,
           "description": "Flip horizontal scroll for the Magic Mouse only.",
           "key": "invertHorizontal",
           "label": "Invert Magic Mouse horizontal scroll",
@@ -327,7 +327,7 @@
                   "type": "bool"
                 },
                 {
-                  "default": "click",
+                  "default": "either",
                   "enum": [
                     {
                       "label": "Tap",

@@ -26,7 +26,7 @@
       "label": "Invert Magic Mouse horizontal scroll",
       "description": "Flip horizontal scroll for the Magic Mouse only.",
       "type": "bool",
-      "default": true
+      "default": false
     },
     {
       "key": "middleClick",
@@ -74,7 +74,7 @@
           "fields": [
             { "key": "enabled", "label": "Enable", "type": "bool", "default": true },
             {
-              "key": "trigger", "label": "Trigger on", "type": "enum", "default": "click",
+              "key": "trigger", "label": "Trigger on", "type": "enum", "default": "either",
               "enum": [
                 { "value": "tap",    "label": "Tap" },
                 { "value": "click",  "label": "Click" },
