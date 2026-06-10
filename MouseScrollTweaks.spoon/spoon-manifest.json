@@ -33,7 +33,7 @@
       "label": "Smoothness",
       "description": "Smoothing intensity (0 = passthrough, only inversion applies). Mid grades (5–10) feel subtle; 10–15 approximates mac-mouse-fix; 15–20 leans into long glides.",
       "type": "int",
-      "default": 0,
+      "default": 15,
       "min": 0,
       "max": 20,
       "step": 1

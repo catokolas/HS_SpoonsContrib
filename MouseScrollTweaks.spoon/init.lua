@@ -51,7 +51,7 @@ obj.invertHorizontal = true
 --- approximates MMF; 15–20 leans further into long glides. Read live
 --- at each tick, so it can be retuned via `:configure({smoothness=N})`
 --- without restarting the spoon.
-obj.smoothness = 0
+obj.smoothness = 15
 
 --- MouseScrollTweaks.logger
 --- Variable

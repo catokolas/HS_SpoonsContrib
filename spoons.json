@@ -1,6 +1,6 @@
 {
-  "commit": "9c15bbbebaa86f10439ee5835e5435f9a2f8294e",
-  "generatedAt": "2026-06-10T20:51:03Z",
+  "commit": "9cadc9c0b2ea3f2a4c0fd5a4b91e9fd9156f0ced",
+  "generatedAt": "2026-06-10T21:14:50Z",
   "overrides": {},
   "repo": "catokolas/HS_SpoonsContrib",
   "schemaVersion": 1,
@@ -186,7 +186,7 @@
           "type": "bool"
         },
         {
-          "default": 0,
+          "default": 15,
           "description": "Smoothing intensity (0 = passthrough, only inversion applies). Mid grades (5–10) feel subtle; 10–15 approximates mac-mouse-fix; 15–20 leans into long glides.",
           "key": "smoothness",
           "label": "Smoothness",
