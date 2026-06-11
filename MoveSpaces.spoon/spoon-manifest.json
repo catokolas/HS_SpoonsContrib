@@ -50,5 +50,15 @@
       "assetPattern":  "movetospace-*-macos-universal.zip",
       "description":   "Moves windows to a specific Space via SkyLight private APIs. Bypasses hs.spaces.moveWindowToSpace, which silently no-ops on macOS 26+ for most windows. Without it the Spoon falls back to a Ctrl+arrow drag simulation."
     }
+  ],
+  "knownIssues": [
+    {
+      "title":       "Limited on macOS 26+",
+      "description": "Apple's WindowServer in macOS 26 (Sonoma's successor track) gates cross-process Space moves at the system level. hs.spaces.moveWindowToSpace silently no-ops for most windows, and the Ctrl+arrow drag fallback also stops working reliably. Install the optional hs._ckol.movetospace native helper for the best chance of moving windows — though on macOS 26.5 even the helper only moves Hammerspoon's own windows."
+    },
+    {
+      "title":       "Ctrl+arrow fallback may collide with system shortcuts",
+      "description": "Without the hs._ckol.movetospace native helper, the Spoon simulates the system Ctrl+left / Ctrl+right Space-switch shortcuts to move the window. If you've remapped those in System Settings → Keyboard → Shortcuts → Mission Control, the fallback will misbehave. The native helper bypasses this entirely."
+    }
   ]
 }
