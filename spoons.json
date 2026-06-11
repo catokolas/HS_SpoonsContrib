@@ -1,6 +1,6 @@
 {
-  "commit": "565ef6e6108bbaa8b5ed80c5f4a9ed319d9fda2f",
-  "generatedAt": "2026-06-11T19:59:23Z",
+  "commit": "f52fedc9809f6a4b889656cf11da0d9056f204f8",
+  "generatedAt": "2026-06-11T20:06:28Z",
   "overrides": {},
   "repo": "catokolas/HS_SpoonsContrib",
   "schemaVersion": 1,
@@ -582,10 +582,6 @@
         {
           "description": "Apple's WindowServer in macOS 26 (Sonoma's successor track) gates cross-process Space moves at the system level. hs.spaces.moveWindowToSpace silently no-ops for most windows, and the Ctrl+arrow drag fallback also stops working reliably. Install the optional hs._ckol.movetospace native helper for the best chance of moving windows — though on macOS 26.5 even the helper only moves Hammerspoon's own windows.",
           "title": "Limited on macOS 26+"
-        },
-        {
-          "description": "Without the hs._ckol.movetospace native helper, the Spoon simulates the system Ctrl+left / Ctrl+right Space-switch shortcuts to move the window. If you've remapped those in System Settings → Keyboard → Shortcuts → Mission Control, the fallback will misbehave. The native helper bypasses this entirely.",
-          "title": "Ctrl+arrow fallback may collide with system shortcuts"
         }
       ],
       "license": "MIT",
