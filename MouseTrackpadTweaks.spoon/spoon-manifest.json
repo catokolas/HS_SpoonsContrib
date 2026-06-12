@@ -112,14 +112,7 @@
       ]
     }
   ],
-  "hotkeys": [
-    { "action": "toggle",             "label": "Toggle on/off",
-      "default": { "mods": ["shift", "ctrl", "cmd"], "key": "m" } },
-    { "action": "toggleInvertScroll", "label": "Toggle scroll inversion",
-      "default": { "mods": ["shift", "ctrl", "cmd"], "key": "i" } },
-    { "action": "toggleMiddleClick",  "label": "Toggle middle-click synthesis",
-      "default": { "mods": ["shift", "ctrl", "cmd"], "key": "k" } }
-  ],
+  "activateHotkey": { "mods": ["shift", "ctrl", "cmd"], "key": "m" },
   "optionalModules": [
     {
       "name":          "hs._ckol.multitouch",

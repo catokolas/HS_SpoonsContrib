@@ -34,13 +34,7 @@
       "itemPlaceholder": "e.g. Safari, Notification Center, org.keepassxc.keepassxc"
     }
   ],
-  "hotkeys": [
-    {
-      "action": "toggle",
-      "label": "Toggle on/off",
-      "default": { "mods": ["shift", "ctrl", "cmd"], "key": "f" }
-    }
-  ],
+  "activateHotkey": { "mods": ["shift", "ctrl", "cmd"], "key": "f" },
   "optionalModules": [
     {
       "name":          "hs._ckol.sloppyfocus",

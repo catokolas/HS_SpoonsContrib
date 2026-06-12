@@ -183,6 +183,44 @@ for _, entry in ipairs(list_dir(ROOT)) do
       end
 
       walk_fields(spoon, manifest.config or {}, obj, "")
+
+      -- activateHotkey shape check. Optional field — Spoons without
+      -- a meaningful on/off (MoveSpaces, SpotifyPlayPause) omit it.
+      -- When present it must be a `{ mods = {strings...}, key = string }`
+      -- table; the chord must not also appear in `hotkeys[]` for the
+      -- same Spoon (avoid the snippet binding the same chord twice).
+      local ah = manifest.activateHotkey
+      if ah ~= nil then
+        if type(ah) ~= "table" then
+          fail(spoon, "activateHotkey",
+            "expected object, got " .. type(ah))
+        else
+          if type(ah.mods) ~= "table" then
+            fail(spoon, "activateHotkey.mods",
+              "expected array of strings, got " .. type(ah.mods))
+          else
+            for i, m in ipairs(ah.mods) do
+              if type(m) ~= "string" then
+                fail(spoon, "activateHotkey.mods["..i.."]",
+                  "expected string, got " .. type(m))
+              end
+            end
+          end
+          if type(ah.key) ~= "string" then
+            fail(spoon, "activateHotkey.key",
+              "expected string, got " .. type(ah.key))
+          end
+          -- Collision check against hotkeys[].default.
+          for _, h in ipairs(manifest.hotkeys or {}) do
+            local d = h.default
+            if d and type(d) == "table" and d.key == ah.key
+               and deep_equal(d.mods, ah.mods) then
+              fail(spoon, "activateHotkey",
+                "chord collides with hotkeys[]."..tostring(h.action))
+            end
+          end
+        end
+      end
     end
   end
 end

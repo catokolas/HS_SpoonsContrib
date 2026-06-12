@@ -24,6 +24,7 @@ commit**:
 | Remove one of those methods                                  | Flip the matching `lifecycle.has<X>` to `false`               |
 | Add a `:bindHotkeys` action                                  | Append the action name to `hotkeys[].action`                  |
 | Remove a `:bindHotkeys` action                               | Remove the matching `hotkeys[]` entry                         |
+| Spoon has meaningful active/inactive state (`:start`/`:stop`) | Set top-level `activateHotkey: { mods, key }` — the chord MacSpoonsTweaks binds to call `:start`/`:stop` from outside `bindHotkeys`. Spoons whose hotkeys are pure operations (e.g. MoveSpaces) skip this field and keep their `hotkeys[]` entries instead. |
 | Change `obj.name` / `obj.version`                            | Update `name` / `version` at the top of the manifest          |
 
 Nested config (e.g. `MouseTrackpadTweaks.middleClick`) follows the

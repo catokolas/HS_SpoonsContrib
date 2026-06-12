@@ -15,6 +15,18 @@ focus.
 > helper is installed, this spoon uses it to focus without raising; otherwise
 > it falls back to `hs.window:focus()`.
 
+## Activate hotkey
+
+Default chord: **⇧⌃⌘F**. Press it to toggle the Spoon on/off; an
+`hs.alert` banner confirms the new state. Persists across Hammerspoon
+reloads.
+
+The chord is declared in `spoon-manifest.json` as `activateHotkey` and
+bound automatically when you install via
+[MacSpoonsTweaks](https://github.com/catokolas/MacSpoonsTweaks). Users
+who wire the Spoon up by hand can bind any chord to `:toggle()` via
+`:bindHotkeys` (see below).
+
 ## Installation
 
 Clone, then symlink into `~/.hammerspoon/Spoons`:
@@ -136,9 +148,9 @@ dismissed when the cursor settles, FFM's menu-detection probes didn't
 recognise the popup's `AXRole` and treated the underlying window as a
 normal focus target. To learn which role the popup actually exposes:
 
-1. **Turn FFM off first** — via your `toggle` hotkey (default
-   `ctrl+cmd+f` in the usage example above) or
-   `spoon.FocusFollowsMouse:stop()` in the Console. Otherwise FFM
+1. **Turn FFM off first** — via your activate hotkey (default
+   `⇧⌃⌘F`) or `spoon.FocusFollowsMouse:stop()` in the Console.
+   Otherwise FFM
    dismisses the popup before you can inspect it.
 2. Open the popup and rest the cursor over it.
 3. Bind the snippet below to a hotkey (e.g. `ctrl+alt+cmd+D`) ahead

@@ -7,8 +7,16 @@ analogue) so your real Cmd+C / Cmd+V clipboard is never disturbed; set
 `useSeparateSelectionBuffer = false` for the legacy shared-clipboard
 model. Optional middle-click-to-paste at the cursor location
 (`enableMiddleClickPaste = true`) reads from whichever buffer is
-active. A toggle on|off hotkey shows an `hs.alert` banner for visual
-feedback.
+active.
+
+## Activate hotkey
+
+Default chord: **⇧⌃⌘P**. Press it to toggle the Spoon on/off; an
+`hs.alert` banner confirms the new state. Persists across Hammerspoon
+reloads. Declared as `activateHotkey` in `spoon-manifest.json` and
+bound automatically by
+[MacSpoonsTweaks](https://github.com/catokolas/MacSpoonsTweaks).
+Standalone users can bind any chord to `:toggle()` via `:bindHotkeys`.
 
 | User action | Buffer used (default mode) |
 |---|---|

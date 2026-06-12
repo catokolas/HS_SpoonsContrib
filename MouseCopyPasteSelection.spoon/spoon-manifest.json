@@ -87,11 +87,5 @@
       "advanced": true
     }
   ],
-  "hotkeys": [
-    {
-      "action": "toggle",
-      "label": "Toggle on/off",
-      "default": { "mods": ["ctrl", "alt"], "key": "p" }
-    }
-  ]
+  "activateHotkey": { "mods": ["shift", "ctrl", "cmd"], "key": "p" }
 }

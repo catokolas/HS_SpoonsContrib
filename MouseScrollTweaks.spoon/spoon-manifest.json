@@ -39,13 +39,7 @@
       "step": 1
     }
   ],
-  "hotkeys": [
-    {
-      "action": "toggle",
-      "label": "Toggle on/off",
-      "default": { "mods": ["ctrl", "cmd"], "key": "m" }
-    }
-  ],
+  "activateHotkey": { "mods": ["shift", "ctrl", "cmd"], "key": "s" },
   "optionalModules": [
     {
       "name":          "hs._ckol.smoothscroll",

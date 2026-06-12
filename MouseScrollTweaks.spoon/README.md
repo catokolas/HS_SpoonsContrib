@@ -23,6 +23,15 @@ optional [smoothscroll module](#optional-install-the-smoothscroll-module-for-tra
 can be installed alongside to get a trackpad-style glide-to-stop feel;
 without it the Spoon works on its own.
 
+## Activate hotkey
+
+Default chord: **⇧⌃⌘S**. Press it to toggle the Spoon on/off; an
+`hs.alert` banner confirms the new state. Persists across Hammerspoon
+reloads. Declared as `activateHotkey` in `spoon-manifest.json` and
+bound automatically by
+[MacSpoonsTweaks](https://github.com/catokolas/MacSpoonsTweaks).
+Standalone users can bind any chord to `:toggle()` via `:bindHotkeys`.
+
 ## Installation
 
 Clone, then symlink into `~/.hammerspoon/Spoons`:

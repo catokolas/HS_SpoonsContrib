@@ -19,6 +19,18 @@ that macOS doesn't expose itself:
 > Without it, the Spoon loads cleanly, logs a warning, and lets all
 > events pass through unmodified.
 
+## Activate hotkey
+
+Default chord: **⇧⌃⌘M**. Press it to toggle the Spoon on/off; an
+`hs.alert` banner confirms the new state. Persists across Hammerspoon
+reloads. Declared as `activateHotkey` in `spoon-manifest.json` and
+bound automatically by
+[MacSpoonsTweaks](https://github.com/catokolas/MacSpoonsTweaks). The
+two finer-grained sub-toggles (scroll inversion, middle-click
+synthesis) are now configured via MacSpoonsTweaks's typed config form
+rather than via dedicated hotkeys. Standalone users can still bind
+`:toggleInvertScroll()` / `:toggleMiddleClick()` via `:bindHotkeys`.
+
 ## Installation
 
 Clone, then symlink into `~/.hammerspoon/Spoons`:
