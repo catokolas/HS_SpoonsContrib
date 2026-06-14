@@ -4,6 +4,23 @@ Personal [Hammerspoon](https://www.hammerspoon.org/) configuration and shareable
 
 [Learn Hammerspoon](https://learnhammerspoon.com/chapters/02-setup-hammerspoon/) - installation instruction and nice learning course.
 
+## Install + configure with one click
+
+[**Mac Spoons Tweaks**](https://github.com/catokolas/MacSpoonsTweaks)
+is a SwiftUI macOS app that installs and configures the Spoons in
+this repo — and any third-party catalog that publishes a compatible
+`spoons.json`. It reads each Spoon's `spoon-manifest.json` to render
+a typed config form, then writes a managed `init.lua` snippet and
+applies changes live through the `hs` CLI. No hand-editing your
+Hammerspoon config.
+
+```sh
+brew install --cask catokolas/tap/macspoonstweaks
+```
+
+Standalone clone + symlink instructions for each Spoon are below if
+you'd rather wire things up manually.
+
 ## What's here
 
 ### Spoons
