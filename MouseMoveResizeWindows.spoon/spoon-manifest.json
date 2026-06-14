@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "name": "MouseMoveResizeWindows",
+  "version": "0.1",
+  "description": "Modifier + mouse drag to move/resize the focused window from anywhere in its rect — no need to aim for the title bar or a corner. Right-drag resizes the closest edge.",
+  "author": "Cato Kolås <cato.kolas@gmail.com>",
+  "homepage": "https://github.com/catokolas/HS_SpoonsContrib",
+  "license": "MIT",
+  "lifecycle": {
+    "hasStart": true,
+    "hasStop": true,
+    "hasToggle": true,
+    "hasConfigure": true,
+    "eventDriven": false
+  },
+  "config": [
+    {
+      "key": "modifiers",
+      "label": "Drag modifier",
+      "description": "Hold these modifiers and left-drag to move the window, right-drag to resize the closest edge.",
+      "type": "modifierCombo",
+      "default": ["alt"]
+    },
+    {
+      "key": "firstRaise",
+      "label": "Raise window first",
+      "description": "Focus and raise the target window at the start of each drag.",
+      "type": "bool",
+      "default": true
+    }
+  ],
+  "activateHotkey": { "mods": ["shift", "ctrl", "cmd"], "key": "w" }
+}

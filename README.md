@@ -85,6 +85,22 @@ Personal [Hammerspoon](https://www.hammerspoon.org/) configuration and shareable
   `followWindow` setting can make the viewer follow the window. Uses the companion
   native helper `HS_ModulesContrib-movetospace` if available (see below).
 
+- **[`MouseMoveResizeWindows.spoon/`](MouseMoveResizeWindows.spoon/)** —
+  hold a configurable modifier chord and drag anywhere inside a window
+  to move or resize it — no need to aim for the title bar or a corner.
+  The Mutter / GNOME "Super+drag" muscle memory, ported to macOS with
+  a modifier that doesn't fight the system shortcuts (Option by
+  default). Left-drag moves the window tracking the cursor;
+  right-drag resizes by moving the **closest edge** (left, right, top,
+  or bottom — picked once at mouse-down from the four edge-distances).
+  Releasing the modifier mid-drag aborts cleanly; clicks without the
+  modifier pass through untouched. Resize is throttled to ~30Hz with a
+  flush on mouse-up so terminal-grid-heavy apps (iTerm + tmux) stay
+  responsive without losing precision. The modifier chord is exposed
+  to MacSpoonsTweaks via a new `modifierCombo` field type — any subset
+  of `ctrl`, `alt`, `shift`, `cmd`, `fn`, set by the user with the
+  same recorder-style picker the app uses for hotkeys.
+
 ## Companion repos
 
 - **[`HS_ModulesContrib-sloppyfocus`](https://github.com/catokolas/HS_ModulesContrib-sloppyfocus)**

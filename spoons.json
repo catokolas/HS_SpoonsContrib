@@ -1,6 +1,6 @@
 {
-  "commit": "10ada65d54a022d0092654aa40b641adb745f3e9",
-  "generatedAt": "2026-06-12T17:15:49Z",
+  "commit": "8fb4da6c4bfd809492a84c22b7053595a25d57c9",
+  "generatedAt": "2026-06-14T05:25:08Z",
   "overrides": {},
   "repo": "catokolas/HS_SpoonsContrib",
   "schemaVersion": 1,
@@ -154,6 +154,48 @@
         "hasToggle": true
       },
       "name": "MouseCopyPasteSelection",
+      "schemaVersion": 1,
+      "version": "0.1"
+    },
+    {
+      "activateHotkey": {
+        "key": "w",
+        "mods": [
+          "shift",
+          "ctrl",
+          "cmd"
+        ]
+      },
+      "author": "Cato Kolås <cato.kolas@gmail.com>",
+      "config": [
+        {
+          "default": [
+            "alt"
+          ],
+          "description": "Hold these modifiers and left-drag to move the window, right-drag to resize the closest edge.",
+          "key": "modifiers",
+          "label": "Drag modifier",
+          "type": "modifierCombo"
+        },
+        {
+          "default": true,
+          "description": "Focus and raise the target window at the start of each drag.",
+          "key": "firstRaise",
+          "label": "Raise window first",
+          "type": "bool"
+        }
+      ],
+      "description": "Modifier + mouse drag to move/resize the focused window from anywhere in its rect — no need to aim for the title bar or a corner. Right-drag resizes the closest edge.",
+      "homepage": "https://github.com/catokolas/HS_SpoonsContrib",
+      "license": "MIT",
+      "lifecycle": {
+        "eventDriven": false,
+        "hasConfigure": true,
+        "hasStart": true,
+        "hasStop": true,
+        "hasToggle": true
+      },
+      "name": "MouseMoveResizeWindows",
       "schemaVersion": 1,
       "version": "0.1"
     },
