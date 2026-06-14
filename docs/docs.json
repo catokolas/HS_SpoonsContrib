@@ -339,6 +339,145 @@
     "Function": [],
     "Method": [
       {
+        "def": "MouseMoveResizeWindows:configure(configuration)",
+        "desc": "Shallow-merges configuration values into the Spoon.",
+        "doc": "Shallow-merge configuration values into the Spoon. Accepts any of the public variables (modifiers, firstRaise).\n\nParameters:\n * configuration - a table of configuration values to merge into the spoon\n\nReturns:\n * self",
+        "examples": [],
+        "file": "Source/MouseMoveResizeWindows.spoon//init.lua",
+        "lineno": "100",
+        "name": "configure",
+        "notes": [],
+        "parameters": [
+          " * configuration - a table of configuration values to merge into the spoon"
+        ],
+        "returns": [
+          " * self"
+        ],
+        "signature": "MouseMoveResizeWindows:configure(configuration)",
+        "stripped_doc": "",
+        "type": "Method"
+      },
+      {
+        "def": "MouseMoveResizeWindows:start()",
+        "desc": "Installs the eventtap that watches for modifier + mouse drags.",
+        "doc": "Installs the eventtap. Errors if Hammerspoon does not have Accessibility permission. Idempotent.\n\nReturns:\n * self",
+        "examples": [],
+        "file": "Source/MouseMoveResizeWindows.spoon//init.lua",
+        "lineno": "238",
+        "name": "start",
+        "notes": [],
+        "parameters": [],
+        "returns": [
+          " * self"
+        ],
+        "signature": "MouseMoveResizeWindows:start()",
+        "stripped_doc": "",
+        "type": "Method"
+      },
+      {
+        "def": "MouseMoveResizeWindows:stop()",
+        "desc": "Stops the eventtap and clears any in-progress drag.",
+        "doc": "Stops the eventtap and clears any in-progress drag.\n\nReturns:\n * self",
+        "examples": [],
+        "file": "Source/MouseMoveResizeWindows.spoon//init.lua",
+        "lineno": "264",
+        "name": "stop",
+        "notes": [],
+        "parameters": [],
+        "returns": [
+          " * self"
+        ],
+        "signature": "MouseMoveResizeWindows:stop()",
+        "stripped_doc": "",
+        "type": "Method"
+      },
+      {
+        "def": "MouseMoveResizeWindows:toggle()",
+        "desc": "Toggles the Spoon on/off and shows a brief hs.alert banner.",
+        "doc": "Toggles the Spoon on/off and shows a brief hs.alert banner.",
+        "examples": [],
+        "file": "Source/MouseMoveResizeWindows.spoon//init.lua",
+        "lineno": "275",
+        "name": "toggle",
+        "notes": [],
+        "parameters": [],
+        "returns": [],
+        "signature": "MouseMoveResizeWindows:toggle()",
+        "stripped_doc": "",
+        "type": "Method"
+      },
+      {
+        "def": "MouseMoveResizeWindows:bindHotkeys(mapping)",
+        "desc": "Binds (or rebinds) keyboard shortcuts. Supported action: toggle.",
+        "doc": "Binds (or rebinds) keyboard shortcuts. Supported action: toggle. Calling bindHotkeys again clears prior bindings first.\n\nParameters:\n * mapping - table like { toggle = {{\"shift\",\"ctrl\",\"cmd\"}, \"w\"} }\n\nReturns:\n * self",
+        "examples": [],
+        "file": "Source/MouseMoveResizeWindows.spoon//init.lua",
+        "lineno": "287",
+        "name": "bindHotkeys",
+        "notes": [],
+        "parameters": [
+          " * mapping - table like { toggle = {{\"shift\",\"ctrl\",\"cmd\"}, \"w\"} }"
+        ],
+        "returns": [
+          " * self"
+        ],
+        "signature": "MouseMoveResizeWindows:bindHotkeys(mapping)",
+        "stripped_doc": "",
+        "type": "Method"
+      }
+    ],
+    "Variable": [
+      {
+        "def": "MouseMoveResizeWindows.modifiers",
+        "desc": "Modifier-only chord that arms the drag.",
+        "doc": "Modifier-only chord that arms the drag. Any subset of {\"ctrl\", \"alt\", \"shift\", \"cmd\", \"fn\"}. Default: {\"alt\"}. Match is exact: holding extra modifiers won't arm the gesture.",
+        "file": "Source/MouseMoveResizeWindows.spoon//init.lua",
+        "lineno": "53",
+        "name": "modifiers",
+        "signature": "MouseMoveResizeWindows.modifiers",
+        "stripped_doc": "",
+        "type": "Variable"
+      },
+      {
+        "def": "MouseMoveResizeWindows.firstRaise",
+        "desc": "If true (default), the target window is focused and raised at the start of each drag.",
+        "doc": "If true (default), the target window is focused and raised at the start of each drag — handy when you grab a half-occluded background window. Set false to move/resize without changing focus order.",
+        "file": "Source/MouseMoveResizeWindows.spoon//init.lua",
+        "lineno": "61",
+        "name": "firstRaise",
+        "signature": "MouseMoveResizeWindows.firstRaise",
+        "stripped_doc": "",
+        "type": "Variable"
+      },
+      {
+        "def": "MouseMoveResizeWindows.logger",
+        "desc": "Logger object used within the Spoon.",
+        "doc": "Logger object used within the Spoon. Set its level to trace gesture decisions.",
+        "file": "Source/MouseMoveResizeWindows.spoon//init.lua",
+        "lineno": "68",
+        "name": "logger",
+        "signature": "MouseMoveResizeWindows.logger",
+        "stripped_doc": "",
+        "type": "Variable"
+      }
+    ],
+    "desc": "Modifier + mouse drag to move/resize the focused window from anywhere in its rect.",
+    "doc": "Hold a configurable modifier chord and drag anywhere inside a window to move or resize it — no need to aim for the title bar or a corner. Modifier + left-drag moves the window; modifier + right-drag resizes by moving the closest edge.",
+    "items": [],
+    "name": "MouseMoveResizeWindows",
+    "stripped_doc": "",
+    "submodules": [],
+    "type": "Module"
+  },
+  {
+    "Command": [],
+    "Constant": [],
+    "Constructor": [],
+    "Deprecated": [],
+    "Field": [],
+    "Function": [],
+    "Method": [
+      {
         "def": "MouseScrollTweaks:configure(configuration)",
         "desc": "Merges configuration values into the spoon. Accepts any of the public variables (invertVertical, invertHorizontal, smoothness).",
         "doc": "Merges configuration values into the spoon. Accepts any of the public variables (invertVertical, invertHorizontal, smoothness). smoothness is clamped to [0, 20] and rounded to the nearest integer.\n\nParameters:\n * configuration - a table of configuration values to merge into the spoon\n\nReturns:\n * self",
