@@ -263,6 +263,21 @@ function obj:_commit(pt)
   else
     newFrame = resizedFrame(d.startFrame, d.edge, dx, dy)
   end
+  -- Don't ask macOS to put the window's top above the cursor's
+  -- current screen's visible area. The WindowServer interprets that
+  -- as the "drag to throw the window to the next display" gesture
+  -- and teleports the window to that display's centre, ignoring
+  -- subsequent setFrame calls. Clamping keeps us in bounds; the user
+  -- can still drag a window to another display by moving their
+  -- cursor onto that display — `getCurrentScreen()` follows the
+  -- cursor, so the clamp follows the new screen's top edge.
+  if d.mode == "move" then
+    local cursorScreen = hs.mouse.getCurrentScreen()
+    if cursorScreen then
+      local sf = cursorScreen:frame()
+      if newFrame.y < sf.y then newFrame.y = sf.y end
+    end
+  end
   -- Integer-pixel rounding avoids sub-pixel jitter.
   newFrame.x = roundPx(newFrame.x)
   newFrame.y = roundPx(newFrame.y)
