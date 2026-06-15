@@ -1,0 +1,111 @@
+[
+  {
+    "name": "ModelsUsage",
+    "type": "Module",
+    "desc": "Menubar launcher + webview dashboard for KIX Models Manager /api/usage.",
+    "doc": "Menubar launcher + webview dashboard for KIX Models Manager /api/usage. Fetches usage with bearer auth and renders controls and usage metrics in a dedicated dashboard window.",
+    "Variable": [
+      {
+        "name": "apiBaseUrl",
+        "type": "Variable",
+        "def": "ModelsUsage.apiBaseUrl",
+        "desc": "Base URL for the usage API.",
+        "signature": "ModelsUsage.apiBaseUrl"
+      },
+      {
+        "name": "usagePath",
+        "type": "Variable",
+        "def": "ModelsUsage.usagePath",
+        "desc": "Relative API path used for usage requests.",
+        "signature": "ModelsUsage.usagePath"
+      },
+      {
+        "name": "refreshSeconds",
+        "type": "Variable",
+        "def": "ModelsUsage.refreshSeconds",
+        "desc": "Periodic refresh interval in seconds.",
+        "signature": "ModelsUsage.refreshSeconds"
+      },
+      {
+        "name": "defaultGranularity",
+        "type": "Variable",
+        "def": "ModelsUsage.defaultGranularity",
+        "desc": "Default granularity when none is persisted.",
+        "signature": "ModelsUsage.defaultGranularity"
+      },
+      {
+        "name": "logger",
+        "type": "Variable",
+        "def": "ModelsUsage.logger",
+        "desc": "Logger object used within the Spoon. Set its level (e.g. spoon.ModelsUsage.logger.setLogLevel(\"debug\")) to see request/response traces.",
+        "signature": "ModelsUsage.logger"
+      }
+    ],
+    "Method": [
+      {
+        "name": "configure",
+        "type": "Method",
+        "def": "ModelsUsage:configure(configuration)",
+        "desc": "Merge configuration values into the spoon.",
+        "signature": "ModelsUsage:configure(configuration)"
+      },
+      {
+        "name": "setToken",
+        "type": "Method",
+        "def": "ModelsUsage:setToken(token)",
+        "desc": "Persist bearer token used for API calls.",
+        "signature": "ModelsUsage:setToken(token)"
+      },
+      {
+        "name": "setDefaultKey",
+        "type": "Method",
+        "def": "ModelsUsage:setDefaultKey(uuid)",
+        "desc": "Persist default key UUID used as key filter.",
+        "signature": "ModelsUsage:setDefaultKey(uuid)"
+      },
+      {
+        "name": "setGranularity",
+        "type": "Method",
+        "def": "ModelsUsage:setGranularity(granularity)",
+        "desc": "Set granularity and refresh immediately.",
+        "signature": "ModelsUsage:setGranularity(granularity)"
+      },
+      {
+        "name": "setDateRange",
+        "type": "Method",
+        "def": "ModelsUsage:setDateRange(fromIso, toIso)",
+        "desc": "Set date bounds and refresh immediately.",
+        "signature": "ModelsUsage:setDateRange(fromIso, toIso)"
+      },
+      {
+        "name": "refresh",
+        "type": "Method",
+        "def": "ModelsUsage:refresh()",
+        "desc": "Trigger asynchronous API refresh.",
+        "signature": "ModelsUsage:refresh()"
+      },
+      {
+        "name": "start",
+        "type": "Method",
+        "def": "ModelsUsage:start()",
+        "desc": "Create menubar item, schedule timer, and fetch data.",
+        "signature": "ModelsUsage:start()"
+      },
+      {
+        "name": "stop",
+        "type": "Method",
+        "def": "ModelsUsage:stop()",
+        "desc": "Stop timer and remove menubar item.",
+        "signature": "ModelsUsage:stop()"
+      }
+    ],
+    "Command": [],
+    "Constant": [],
+    "Constructor": [],
+    "Deprecated": [],
+    "Field": [],
+    "Function": [],
+    "items": [],
+    "submodules": []
+  }
+]
