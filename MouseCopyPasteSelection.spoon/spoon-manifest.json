@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "name": "MouseCopyPasteSelection",
   "version": "0.1",
-  "description": "X11-style copy-on-select for macOS. Releasing the mouse after dragging across text — or double-clicking a word — copies the selection automatically. Middle-click pastes at the cursor; the handler gates on the I-beam cursor so it never fires outside text.",
+  "description": "X11-style copy-on-select for macOS. Releasing the mouse after dragging across text — or double-clicking a word — copies the selection automatically. Middle-click pastes at the cursor; only fires inside text, never on other UI.",
   "author": "Cato Kolås <cato.kolas@gmail.com>",
   "homepage": "https://github.com/catokolas/HS_SpoonsContrib",
   "license": "Unlicense",
@@ -28,7 +28,7 @@
     {
       "key": "enableMiddleClickPaste",
       "label": "Enable middle-click paste",
-      "description": "Middle-click pastes the clipboard at the click point — X11-style. The handler only fires when the OS cursor is the I-beam, so the synthesised focus-click can only ever land on a text-editable region.",
+      "description": "Middle-click pastes the clipboard at the click point — X11-style. Only fires when the cursor is over text; never on buttons, links, or other UI.",
       "type": "bool",
       "default": true
     },
