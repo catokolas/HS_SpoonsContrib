@@ -2,8 +2,8 @@
   {
     "name": "ModelsUsage",
     "type": "Module",
-    "desc": "Menubar launcher + webview dashboard for KIX Models Manager /api/usage.",
-    "doc": "Menubar launcher + webview dashboard for KIX Models Manager /api/usage. Fetches usage with bearer auth and renders controls and usage metrics in a dedicated dashboard window.",
+    "desc": "Menubar launcher + webview dashboard for AI model usage, tabbed per source.",
+    "doc": "Menubar launcher + webview dashboard for AI model usage. Supports a tab per source: KIX (HTTP /api/usage with bearer auth) and Claude Code (walks ~/.claude/projects/*/*.jsonl session logs). Same date-range + granularity controls apply to whichever tab is active; the dashboard remembers the last-selected tab across reloads.",
     "Variable": [
       {
         "name": "apiBaseUrl",
@@ -53,15 +53,29 @@
         "name": "setToken",
         "type": "Method",
         "def": "ModelsUsage:setToken(token)",
-        "desc": "Persist bearer token used for API calls.",
+        "desc": "Persist bearer token used for KIX /api/usage calls.",
         "signature": "ModelsUsage:setToken(token)"
+      },
+      {
+        "name": "setKeys",
+        "type": "Method",
+        "def": "ModelsUsage:setKeys(keys)",
+        "desc": "Set the list of KIX API key UUIDs the spoon will pass as repeated &key= query parameters on each refresh. Accepts a Lua table of strings or a comma-separated string.",
+        "signature": "ModelsUsage:setKeys(keys)"
       },
       {
         "name": "setDefaultKey",
         "type": "Method",
         "def": "ModelsUsage:setDefaultKey(uuid)",
-        "desc": "Persist default key UUID used as key filter.",
+        "desc": "Backward-compatible single-key setter; wraps the UUID into a one-element KIX keys list. Prefer :setKeys({...}) for new code.",
         "signature": "ModelsUsage:setDefaultKey(uuid)"
+      },
+      {
+        "name": "setActiveSource",
+        "type": "Method",
+        "def": "ModelsUsage:setActiveSource(id)",
+        "desc": "Switch the dashboard tab and the periodic refresh target to the named source. Valid ids: \"kix\", \"claudecode\". Invalid ids are ignored.",
+        "signature": "ModelsUsage:setActiveSource(id)"
       },
       {
         "name": "setGranularity",
@@ -81,7 +95,7 @@
         "name": "refresh",
         "type": "Method",
         "def": "ModelsUsage:refresh()",
-        "desc": "Trigger asynchronous API refresh.",
+        "desc": "Trigger an asynchronous refresh of the active source (KIX → HTTP, Claude Code → JSONL walk).",
         "signature": "ModelsUsage:refresh()"
       },
       {

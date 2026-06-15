@@ -1,19 +1,31 @@
 # ModelsUsage.spoon
 
-Menubar launcher + webview dashboard for the KIX Models Manager usage API (`/api/usage`).
+Menubar launcher + webview dashboard for AI model usage. Tab-per-source:
+
+| Source       | What it reads                                                     |
+| ------------ | ----------------------------------------------------------------- |
+| **KIX**      | KIX Models Manager `/api/usage` (HTTP, bearer-token authenticated) |
+| **Claude Code** | `~/.claude/projects/<slug>/*.jsonl` session logs (local files) |
+
+The same date range + granularity + presets apply to whichever tab is
+active. The dashboard remembers the last-selected tab across reloads.
 
 ## Features
 
-- Bearer-authenticated usage fetches (`Authorization: Bearer ...`)
 - Dashboard window (HTML/webview) with:
+  - tab strip — click to switch source
   - granularity: `day`, `month`, `year`
   - explicit `from` / `to` ISO fields
-  - optional key filter (one or many UUIDs; emitted as repeated `&key=` params)
-  - refresh interval control
   - preset ranges (`Today`, `Last 7d`, `Last 30d`, `MTD`, `YTD`)
-- Request/response debug logging (URL, redacted auth header, status, elapsed, response headers)
-- Periodic background refresh
-- Persistent settings via `hs.settings`
+  - refresh interval control
+  - KIX-only: optional key filter (one or many UUIDs; emitted as
+    repeated `&key=` params on the HTTP request)
+- Periodic background refresh of the active source
+- Persistent settings (per-source token / keys, active source,
+  granularity, range, interval)
+- Bearer-authenticated KIX fetches (`Authorization: Bearer ...`)
+- Async, non-blocking Claude Code log walk (batched per runloop tick)
+- Request/response debug logging
 
 ## Install
 
@@ -31,30 +43,57 @@ spoon.ModelsUsage:configure({
   topModelsLimit = 10,
 })
 
+-- KIX source config (only needed if you actually use the KIX tab):
 spoon.ModelsUsage:setToken("<bearer-token>")
--- One or many key UUIDs; the spoon emits `&key=` once per entry.
--- Pass a list or a comma-separated string. Empty / nil clears all keys.
-spoon.ModelsUsage:setKeys({ "<uuid-a>", "<uuid-b>" })            -- optional
--- spoon.ModelsUsage:setKeys("<uuid-a>, <uuid-b>")               -- equivalent
--- spoon.ModelsUsage:setDefaultKey("<uuid-key>")                 -- back-compat single-key shim
+spoon.ModelsUsage:setKeys({ "<uuid-a>", "<uuid-b>" })             -- optional
+-- spoon.ModelsUsage:setKeys("<uuid-a>, <uuid-b>")                -- equivalent
+-- spoon.ModelsUsage:setDefaultKey("<uuid>")                      -- back-compat shim
+
+-- Choose which tab opens first (persisted across reloads):
+spoon.ModelsUsage:setActiveSource("kix")                          -- or "claudecode"
+
 spoon.ModelsUsage:start()
 ```
 
 Open the dashboard from the menubar item: `Open Usage Dashboard`.
 
+## Sources
+
+### KIX
+
+HTTP client for KIX Models Manager `/api/usage`. Requires a bearer
+token (`:setToken`) and optionally one or more key UUIDs to filter on
+(`:setKeys`). The dashboard's "Key UUIDs" input is only visible while
+the KIX tab is active.
+
+### Claude Code
+
+Walks `~/.claude/projects/<sanitized-project-path>/*.jsonl` — one file
+per Claude Code session. Every line where `message.role == "assistant"`
+contributes its `message.usage` counts (`input_tokens`, `output_tokens`,
+plus `cache_read_input_tokens` + `cache_creation_input_tokens` summed
+into `cached_tokens`) into the matching (date, model) bucket. The walk
+is batched (a few files per runloop tick) so an idle Hammerspoon
+doesn't beachball even on multi-hundred-session corpora.
+
+No configuration needed. If `~/.claude/projects/` doesn't exist (you
+don't use Claude Code), the source reports zero rows.
+
 ## Persisted settings
 
-- `modelsUsage.token`
-- `modelsUsage.keys` — list of UUID strings (migrated one-way from the
-  older `modelsUsage.defaultKey` single-string setting on first load)
-- `modelsUsage.granularity`
-- `modelsUsage.from`
-- `modelsUsage.to`
-- `modelsUsage.refreshSeconds`
+- `modelsUsage.activeSource` — `"kix"` or `"claudecode"`
+- `modelsUsage.granularity`, `modelsUsage.from`, `modelsUsage.to`,
+  `modelsUsage.refreshSeconds`, `modelsUsage.windowFrame` — global
+- `modelsUsage.kix.token`, `modelsUsage.kix.keys` — KIX source config
 
-## API expectations
+On first load, the legacy single-source keys (`modelsUsage.token`,
+`modelsUsage.keys`, `modelsUsage.defaultKey`) are migrated one-way into
+the new per-source slots and then cleared. Rolling back to a previous
+spoon version reads nothing from the new keys.
 
-The dashboard expects `/api/usage` to return:
+## API expectations (KIX)
+
+The KIX `/api/usage` endpoint should return:
 
 - `keys`
 - `granularity`
@@ -68,17 +107,16 @@ Totals are computed client-side from `series`.
 ## Debugging
 
 ```lua
-hs.loadSpoon("ModelsUsage")
-spoon.ModelsUsage:start()
 spoon.ModelsUsage.logger.setLogLevel("debug")
 spoon.ModelsUsage:refresh()
 ```
 
-Set log level before `start()` if you also want startup traces.
+Key log lines (prefix `ModelsUsag:`):
 
-Key log lines:
+- `refresh start #N source=<id> ...`
+- `refresh response #N source=<id> status=… elapsed=… …`
+- `refresh timeout #N ...` (KIX only — local sources don't time out)
+- `refresh failed #N: ...`
 
-- `refresh start #... method=GET url=... headers=...`
-- `refresh response #... status=... elapsed=... bytes=... responseHeaders=...`
-- `refresh timeout #...`
-- `refresh failed #...`
+Right-click → Inspect Element in the dashboard window opens Web
+Inspector for performance / DOM debugging.

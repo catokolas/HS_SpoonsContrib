@@ -27,35 +27,59 @@ obj.windowHeight = 720
 obj.logger = hs.logger.new("ModelsUsage")
 
 local SETTINGS = {
-  token = "modelsUsage.token",
-  keys = "modelsUsage.keys",
-  legacyDefaultKey = "modelsUsage.defaultKey",  -- read for one-way migration; no longer written
-  granularity = "modelsUsage.granularity",
-  from = "modelsUsage.from",
-  to = "modelsUsage.to",
-  refreshSeconds = "modelsUsage.refreshSeconds",
-  windowFrame = "modelsUsage.windowFrame",
+  -- Global (apply to the active source)
+  activeSource    = "modelsUsage.activeSource",
+  granularity     = "modelsUsage.granularity",
+  from            = "modelsUsage.from",
+  to              = "modelsUsage.to",
+  refreshSeconds  = "modelsUsage.refreshSeconds",
+  windowFrame     = "modelsUsage.windowFrame",
+  -- Per-source: KIX
+  kixToken        = "modelsUsage.kix.token",
+  kixKeys         = "modelsUsage.kix.keys",
+  -- Legacy (read-once for one-way migration; no longer written)
+  legacyToken        = "modelsUsage.token",
+  legacyKeys         = "modelsUsage.keys",
+  legacyDefaultKey   = "modelsUsage.defaultKey",
 }
 
 obj._state = {
+  -- UI / system
   menubar = nil,
   themeWatcher = nil,
-  timer = nil,
-  timeoutTimer = nil,
+  timer = nil,            -- periodic refresh timer (global)
+  window = nil,
+  usesIcon = false,
+
+  -- Active in-flight request (only one refresh at a time, shared across sources)
   requestSeq = 0,
   inFlight = false,
-  lastError = nil,
-  lastStatus = nil,
-  lastRefreshAt = nil,
-  lastData = nil,
-  token = nil,
-  keys = {},
+  timeoutTimer = nil,
+
+  -- Globals (apply to the currently active source)
   granularity = nil,
   from = nil,
   to = nil,
   refreshSeconds = nil,
-  window = nil,
-  usesIcon = false,
+
+  -- Multi-source bookkeeping
+  activeSource = "kix",
+  sources = {
+    kix = {
+      config = { token = nil, keys = {} },
+      lastData = nil,
+      lastError = nil,
+      lastStatus = nil,
+      lastRefreshAt = nil,
+    },
+    claudecode = {
+      config = {},
+      lastData = nil,
+      lastError = nil,
+      lastStatus = nil,
+      lastRefreshAt = nil,
+    },
+  },
 }
 
 local APPEARANCE_NOTE = "AppleInterfaceThemeChangedNotification"
@@ -160,6 +184,53 @@ local function parseKeysCsv(s)
     if trimmed ~= "" then out[#out + 1] = trimmed end
   end
   return out
+end
+
+-- ISO-8601 timestamp ("YYYY-MM-DDThh:mm:ss[.fff][Z|+hh:mm]") → epoch
+-- seconds. The Z / offset is ignored: we treat both the input and the
+-- range bounds with the same convention, so the offset cancels out
+-- when comparing them. Returns nil on shapes we don't recognise.
+local function isoToEpoch(iso)
+  if type(iso) ~= "string" then return nil end
+  local y, mo, d, h, mi, s = iso:match("^(%d%d%d%d)%-(%d%d)%-(%d%d)T(%d%d):(%d%d):(%d%d)")
+  if not y then return nil end
+  return os.time({ year = tonumber(y), month = tonumber(mo), day = tonumber(d),
+                   hour = tonumber(h), min  = tonumber(mi), sec = tonumber(s) })
+end
+
+-- ISO timestamp → date bucket string at the requested granularity.
+local function bucketDate(iso, granularity)
+  if type(iso) ~= "string" then return nil end
+  if granularity == "year"  then return iso:sub(1, 4) end
+  if granularity == "month" then return iso:sub(1, 7) end
+  return iso:sub(1, 10)  -- day (default)
+end
+
+-- Registry of supported data sources, in display order. Adding a new
+-- source means appending an entry here (with id, displayName,
+-- refreshMethod) and implementing obj:<refreshMethod>(requestSeq) below.
+-- The dashboard's tab strip is rendered from this list, the persisted
+-- activeSource setting is validated against it, and the dispatch in
+-- obj:refresh() looks up the per-source refresh method by name.
+local SOURCES = {
+  kix = {
+    id = "kix",
+    displayName = "KIX",
+    refreshMethod = "_refreshKix",
+  },
+  claudecode = {
+    id = "claudecode",
+    displayName = "Claude Code",
+    refreshMethod = "_refreshClaudeCode",
+  },
+}
+local SOURCE_ORDER = { "kix", "claudecode" }
+
+-- Get the runtime slot for whichever source is currently active.
+-- Falls back to KIX if the configured `activeSource` is unknown, so an
+-- old/garbled settings value can't strand the spoon with no data path.
+local function activeSourceState(state)
+  return state.sources[state.activeSource] or state.sources.kix
 end
 
 -- Normalize anything-key-like (string, table, nil) into a clean list of
@@ -303,14 +374,35 @@ local function getDerived(data, topModelsLimit, seriesRowsLimit)
   return derived
 end
 
-local function buildViewModel(state, topModelsLimit, seriesRowsLimit)
-  local data = state.lastData or {}
-  local derived = getDerived(state.lastData, topModelsLimit, seriesRowsLimit)
+-- Build the tab strip's per-source descriptors, in display order.
+-- Each entry is what the JS-side tab renderer needs to draw + label a tab.
+local function buildSourceTabs(state, sourcesRegistry, sourceOrder)
+  local tabs = {}
+  for _, id in ipairs(sourceOrder) do
+    local def = sourcesRegistry[id]
+    local slot = state.sources[id] or {}
+    if def then
+      tabs[#tabs + 1] = {
+        id = id,
+        displayName = def.displayName,
+        hasError = slot.lastError and true or false,
+        hasData = slot.lastData and true or false,
+      }
+    end
+  end
+  return tabs
+end
+
+local function buildViewModel(state, topModelsLimit, seriesRowsLimit,
+                              sourcesRegistry, sourceOrder)
+  local active = activeSourceState(state)
+  local data = active.lastData or {}
+  local derived = getDerived(active.lastData, topModelsLimit, seriesRowsLimit)
 
   local statusText
-  if state.lastError then
+  if active.lastError then
     statusText = "Error"
-  elseif state.inFlight and state.lastData then
+  elseif state.inFlight and active.lastData then
     statusText = "Refreshing"
   elseif state.inFlight then
     statusText = "Loading"
@@ -318,13 +410,18 @@ local function buildViewModel(state, topModelsLimit, seriesRowsLimit)
     statusText = "OK"
   end
 
+  local kixCfg = state.sources.kix.config
   return {
     status = statusText,
-    lastError = state.lastError,
-    lastStatus = state.lastStatus,
-    lastRefreshAt = state.lastRefreshAt,
-    tokenSet = state.token and true or false,
-    keys = (state.keys and #state.keys > 0) and state.keys
+    lastError = active.lastError,
+    lastStatus = active.lastStatus,
+    lastRefreshAt = active.lastRefreshAt,
+    activeSource = state.activeSource,
+    sources = buildSourceTabs(state, sourcesRegistry, sourceOrder),
+    -- Token presence is only meaningful for KIX; surface that flag so the
+    -- dashboard could later show a "missing token" hint when KIX is active.
+    tokenSet = kixCfg.token and true or false,
+    keys = (kixCfg.keys and #kixCfg.keys > 0) and kixCfg.keys
         or (type(data.keys) == "table" and data.keys)
         or {},
     granularity = state.granularity,
@@ -421,6 +518,27 @@ local function htmlTemplate()
     button.primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
     button.primary:active:not(:disabled) { background: var(--accent-press); border-color: var(--accent-press); transform: scale(0.97); }
     button.is-selected { background: var(--select); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+    .tabs {
+      display: flex; gap: 2px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 4px;
+    }
+    .tab {
+      border: none;
+      background: transparent;
+      padding: 8px 16px;
+      border-radius: 8px 8px 0 0;
+      border-bottom: 2px solid transparent;
+      color: var(--muted);
+      font-weight: 500;
+      cursor: pointer;
+      transition: color 0.12s ease, border-color 0.12s ease, background-color 0.12s ease;
+      margin-bottom: -1px;
+    }
+    .tab:hover:not(.is-active) { background: var(--hover); color: var(--text); }
+    .tab.is-active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+    .tab.has-error { color: var(--error); }
+    .tab.has-error.is-active { border-bottom-color: var(--error); }
     .status-pill {
       display: inline-flex; align-items: center; gap: 8px;
       padding: 4px 12px; border-radius: 999px;
@@ -482,6 +600,8 @@ local function htmlTemplate()
 <body>
   <div class="progressbar" id="progress"></div>
   <div class="wrap">
+    <div class="tabs" id="tabs" role="tablist"></div>
+
     <div class="card">
       <div class="row" style="justify-content:space-between; align-items:center;">
         <div>
@@ -511,7 +631,7 @@ local function htmlTemplate()
           <label for="to">To (ISO)</label>
           <input id="to" placeholder="2026-06-30T23:59:59Z" />
         </div>
-        <div class="cell">
+        <div class="cell" data-only-for="kix">
           <label for="key">Key UUIDs (comma-separated)</label>
           <input id="key" placeholder="78f9ff16-…, 4a2c-…" />
         </div>
@@ -601,6 +721,40 @@ local function htmlTemplate()
     function paintPresetSelection() {
       document.querySelectorAll('button[data-preset]').forEach(b => {
         b.classList.toggle('is-selected', b.dataset.preset === activePreset);
+      });
+    }
+
+    let lastTabsKey = null;
+    function renderTabs(sources, activeId) {
+      sources = Array.isArray(sources) ? sources : [];
+      // Stable key so we only touch the DOM when the tab set or active
+      // tab actually changes (re-renders kill hover state, focus, etc).
+      const key = activeId + '|' + sources.map(s =>
+        s.id + ':' + (s.hasError ? 'e' : '_')).join(',');
+      if (key === lastTabsKey) return;
+      lastTabsKey = key;
+      const root = document.getElementById('tabs');
+      root.innerHTML = sources.map(s => {
+        const cls = ['tab'];
+        if (s.id === activeId) cls.push('is-active');
+        if (s.hasError)         cls.push('has-error');
+        return '<button class="' + cls.join(' ')
+             + '" data-source="' + s.id + '"'
+             + ' onclick="pickSource(this)" role="tab">'
+             + (s.displayName || s.id) + '</button>';
+      }).join('');
+    }
+
+    function pickSource(btn) {
+      if (btn.classList.contains('is-active')) return;
+      send('setSource', { id: btn.dataset.source });
+    }
+
+    function applySourceVisibility(activeId) {
+      document.querySelectorAll('[data-only-for]').forEach(el => {
+        const wanted = el.dataset.onlyFor === activeId;
+        if (el.style.display === (wanted ? '' : 'none')) return;
+        el.style.display = wanted ? '' : 'none';
       });
     }
 
@@ -697,6 +851,9 @@ local function htmlTemplate()
     let lastDataSig = null;
 
     window.ModelsUsageRender = function(payload) {
+      renderTabs(payload.sources, payload.activeSource);
+      applySourceVisibility(payload.activeSource);
+
       setStatus(payload.status);
       setProgress(payload.status === 'Loading' || payload.status === 'Refreshing');
       setError(payload.lastError);
@@ -708,7 +865,11 @@ local function htmlTemplate()
       setInputIfChanged('key', (Array.isArray(payload.keys) ? payload.keys : []).join(', '));
       setInputIfChanged('interval', payload.refreshSeconds || 300);
 
+      // Data signature includes activeSource so switching tabs forces a
+      // table re-render even when the new source's data happens to hash
+      // the same as the old one's (e.g., both empty).
       const sig = JSON.stringify([
+        payload.activeSource,
         payload.totals || {},
         payload.topModels || [],
         payload.series || [],
@@ -761,17 +922,35 @@ local function htmlTemplate()
 end
 
 function obj:_loadSettings()
-  self._state.token = hs.settings.get(SETTINGS.token)
-  -- Prefer the new list-shaped `keys` setting. If absent, migrate from
-  -- the legacy single-string `defaultKey` setting (one-way: subsequent
-  -- saves write only the new key).
-  local storedKeys = hs.settings.get(SETTINGS.keys)
-  if type(storedKeys) == "table" then
-    self._state.keys = normalizeKeys(storedKeys)
-  else
-    local legacy = hs.settings.get(SETTINGS.legacyDefaultKey)
-    self._state.keys = (type(legacy) == "string" and legacy ~= "") and { legacy } or {}
+  -- KIX token: new key first, fall back to legacy modelsUsage.token.
+  local kixToken = hs.settings.get(SETTINGS.kixToken)
+  if type(kixToken) ~= "string" or kixToken == "" then
+    kixToken = hs.settings.get(SETTINGS.legacyToken)
   end
+  self._state.sources.kix.config.token = (type(kixToken) == "string" and kixToken ~= "") and kixToken or nil
+
+  -- KIX keys: new key first, fall back to legacy list, fall back to legacy
+  -- single-string defaultKey wrapped in a one-element list.
+  local kixKeys = hs.settings.get(SETTINGS.kixKeys)
+  if type(kixKeys) == "table" then
+    self._state.sources.kix.config.keys = normalizeKeys(kixKeys)
+  else
+    local legacyList = hs.settings.get(SETTINGS.legacyKeys)
+    if type(legacyList) == "table" then
+      self._state.sources.kix.config.keys = normalizeKeys(legacyList)
+    else
+      local legacySingle = hs.settings.get(SETTINGS.legacyDefaultKey)
+      self._state.sources.kix.config.keys =
+        (type(legacySingle) == "string" and legacySingle ~= "") and { legacySingle } or {}
+    end
+  end
+
+  -- Active source: validated against the actual sources table on load.
+  local activeStored = hs.settings.get(SETTINGS.activeSource)
+  if type(activeStored) == "string" and self._state.sources[activeStored] then
+    self._state.activeSource = activeStored
+  end
+
   self._state.granularity = clampGranularity(hs.settings.get(SETTINGS.granularity) or self.defaultGranularity)
   self._state.from = hs.settings.get(SETTINGS.from)
   self._state.to = hs.settings.get(SETTINGS.to)
@@ -779,15 +958,19 @@ function obj:_loadSettings()
 end
 
 function obj:_saveSettingsImmediate()
-  hs.settings.set(SETTINGS.token, self._state.token)
-  hs.settings.set(SETTINGS.keys, self._state.keys)
-  -- Clear the legacy single-string setting once we've started writing the
-  -- list form, so a future load doesn't see a stale value if the list
-  -- gets emptied.
+  hs.settings.set(SETTINGS.kixToken, self._state.sources.kix.config.token)
+  hs.settings.set(SETTINGS.kixKeys,  self._state.sources.kix.config.keys)
+  -- Clear legacy single-source settings the first time we save; the new
+  -- per-source keys above are authoritative from now on. (No-op once
+  -- they've already been cleared.)
+  hs.settings.set(SETTINGS.legacyToken,      nil)
+  hs.settings.set(SETTINGS.legacyKeys,       nil)
   hs.settings.set(SETTINGS.legacyDefaultKey, nil)
-  hs.settings.set(SETTINGS.granularity, self._state.granularity)
-  hs.settings.set(SETTINGS.from, self._state.from)
-  hs.settings.set(SETTINGS.to, self._state.to)
+
+  hs.settings.set(SETTINGS.activeSource,   self._state.activeSource)
+  hs.settings.set(SETTINGS.granularity,    self._state.granularity)
+  hs.settings.set(SETTINGS.from,           self._state.from)
+  hs.settings.set(SETTINGS.to,             self._state.to)
   hs.settings.set(SETTINGS.refreshSeconds, self._state.refreshSeconds)
 end
 
@@ -836,8 +1019,11 @@ function obj:configure(configuration)
   return self
 end
 
+-- All token / key setters now write into the KIX source's config slot.
+-- They keep their original names + signatures for backward compatibility
+-- with existing init.lua snippets — only the storage location changed.
 function obj:setToken(token)
-  self._state.token = token and tostring(token) or nil
+  self._state.sources.kix.config.token = token and tostring(token) or nil
   self:_saveSettings()
   self:_renderWindow()
   return self
@@ -845,12 +1031,12 @@ end
 
 --- ModelsUsage:setKeys(keys)
 --- Method
---- Set the list of API key UUIDs the spoon will pass as repeated
+--- Set the list of API key UUIDs the KIX source will pass as repeated
 --- `&key=` query parameters on each refresh. Accepts a Lua table of
 --- strings (`{ "uuid-a", "uuid-b" }`) or a comma-separated string
 --- (`"uuid-a, uuid-b"`). Passing nil / empty clears the list.
 function obj:setKeys(keys)
-  self._state.keys = normalizeKeys(keys)
+  self._state.sources.kix.config.keys = normalizeKeys(keys)
   self:_saveSettings()
   self:_renderWindow()
   return self
@@ -859,15 +1045,31 @@ end
 --- ModelsUsage:setDefaultKey(uuid)
 --- Method
 --- Backward-compatible single-key setter. Wraps the given UUID into a
---- one-element keys list; prefer `:setKeys({...})` for new code.
+--- one-element keys list on the KIX source; prefer `:setKeys({...})`
+--- for new code.
 function obj:setDefaultKey(uuid)
   if uuid and tostring(uuid) ~= "" then
-    self._state.keys = { tostring(uuid) }
+    self._state.sources.kix.config.keys = { tostring(uuid) }
   else
-    self._state.keys = {}
+    self._state.sources.kix.config.keys = {}
   end
   self:_saveSettings()
   self:_renderWindow()
+  return self
+end
+
+--- ModelsUsage:setActiveSource(id)
+--- Method
+--- Switch the dashboard tab + the periodic refresh target to the named
+--- source. Triggers a refresh of the new source. Valid ids are `"kix"`
+--- and `"claudecode"`. Invalid ids are ignored.
+function obj:setActiveSource(id)
+  if type(id) ~= "string" or not self._state.sources[id] then return self end
+  if self._state.activeSource == id then return self end
+  self._state.activeSource = id
+  self:_saveSettings()
+  self:_publishToWindow()
+  self:refresh()
   return self
 end
 
@@ -940,7 +1142,8 @@ function obj:_updateMenubarIcon()
 end
 
 function obj:_buildUrlAndHeaders()
-  local token = self._state.token
+  local kixCfg = self._state.sources.kix.config
+  local token = kixCfg.token
   if not token or token == "" then
     return nil, nil, "Missing token. Use setToken(...)"
   end
@@ -960,8 +1163,8 @@ function obj:_buildUrlAndHeaders()
 
   -- The API accepts the `key` query param repeated for multi-key filters
   -- (`&key=a&key=b`). Emit one entry per configured key.
-  if type(self._state.keys) == "table" then
-    for _, k in ipairs(self._state.keys) do
+  if type(kixCfg.keys) == "table" then
+    for _, k in ipairs(kixCfg.keys) do
       if type(k) == "string" and k ~= "" then
         table.insert(queryParts, "key=" .. hs.http.encodeForQuery(k))
       end
@@ -995,7 +1198,7 @@ function obj:_publishToWindow()
     if not self._state._publishDirty then return end
     self._state._publishDirty = false
     if not self._state.window then return end
-    local viewModel = buildViewModel(self._state, self.topModelsLimit, self.seriesRowsLimit)
+    local viewModel = buildViewModel(self._state, self.topModelsLimit, self.seriesRowsLimit, SOURCES, SOURCE_ORDER)
     local payload = hs.json.encode(viewModel)
     if not payload then return end
     local js = "window.ModelsUsageRender && window.ModelsUsageRender(" .. payload .. ");"
@@ -1010,8 +1213,8 @@ end
 function obj:refresh()
   -- Publish current state first so optimistic UI changes (e.g. preset
   -- clicks that updated from/to while a previous request is still in
-  -- flight) appear immediately instead of waiting for the in-flight
-  -- request to settle.
+  -- flight, or a tab switch that should snap inputs immediately)
+  -- appear without waiting for the in-flight request to settle.
   self:_publishToWindow()
 
   if self._state.inFlight then
@@ -1019,20 +1222,39 @@ function obj:refresh()
     return
   end
 
-  local url, headers, preflightErr = self:_buildUrlAndHeaders()
-  if preflightErr then
-    self.logger.ef("refresh preflight failed: %s", preflightErr)
-    self._state.lastError = preflightErr
-    self._state.lastStatus = nil
-    self:_setMenubarStatus(self._state.lastError, true)
-    self:_publishToWindow()
+  local id = self._state.activeSource
+  local def = SOURCES[id]
+  if not def then
+    self.logger.ef("refresh: unknown active source %q", tostring(id))
+    return
+  end
+  local method = self[def.refreshMethod]
+  if type(method) ~= "function" then
+    self.logger.ef("refresh: source %q has no refresh method %s", id, def.refreshMethod)
     return
   end
 
   self._state.requestSeq = (self._state.requestSeq or 0) + 1
   local requestSeq = self._state.requestSeq
-  local startedAt = hs.timer.secondsSinceEpoch()
+  method(self, requestSeq)
+end
 
+-- Per-source refresh: KIX. Hits /api/usage with the configured bearer
+-- token + key list, parses the JSON response, writes to
+-- state.sources.kix.{lastData, lastError, lastStatus, lastRefreshAt}.
+function obj:_refreshKix(requestSeq)
+  local slot = self._state.sources.kix
+  local url, headers, preflightErr = self:_buildUrlAndHeaders()
+  if preflightErr then
+    self.logger.ef("refresh preflight failed: %s", preflightErr)
+    slot.lastError = preflightErr
+    slot.lastStatus = nil
+    self:_setMenubarStatus(slot.lastError, true)
+    self:_publishToWindow()
+    return
+  end
+
+  local startedAt = hs.timer.secondsSinceEpoch()
   self._state.inFlight = true
   self:_setMenubarStatus("Loading...", false)
   self:_publishToWindow()
@@ -1042,18 +1264,20 @@ function obj:refresh()
     self._state.timeoutTimer = nil
   end
 
-  self.logger.df("refresh start #%d method=GET url=%s headers=%s", requestSeq, url, formatHeadersForLog(headers))
+  self.logger.df("refresh start #%d source=kix method=GET url=%s headers=%s",
+    requestSeq, url, formatHeadersForLog(headers))
 
   self._state.timeoutTimer = hs.timer.doAfter(self.timeoutSeconds, function()
     if self._state.inFlight and self._state.requestSeq == requestSeq then
       local elapsed = hs.timer.secondsSinceEpoch() - startedAt
-      self.logger.ef("refresh timeout #%d after %.3fs (limit=%ds)", requestSeq, elapsed, self.timeoutSeconds)
+      self.logger.ef("refresh timeout #%d after %.3fs (limit=%ds)",
+        requestSeq, elapsed, self.timeoutSeconds)
       self._state.inFlight = false
-      self._state.lastStatus = nil
-      self._state.lastRefreshAt = os.time()
-      self._state.lastError = "Request timed out after " .. tostring(self.timeoutSeconds) .. "s"
+      slot.lastStatus = nil
+      slot.lastRefreshAt = os.time()
+      slot.lastError = "Request timed out after " .. tostring(self.timeoutSeconds) .. "s"
       self._state.timeoutTimer = nil
-      self:_setMenubarStatus(self._state.lastError, true)
+      self:_setMenubarStatus(slot.lastError, true)
       self:_publishToWindow()
     end
   end)
@@ -1070,12 +1294,13 @@ function obj:refresh()
     end
 
     self._state.inFlight = false
-    self._state.lastStatus = status
-    self._state.lastRefreshAt = os.time()
+    slot.lastStatus = status
+    slot.lastRefreshAt = os.time()
 
     local elapsed = hs.timer.secondsSinceEpoch() - startedAt
     local bodyLen = (type(body) == "string") and #body or 0
-    self.logger.df("refresh response #%d status=%s elapsed=%.3fs bytes=%d responseHeaders=%s", requestSeq, tostring(status), elapsed, bodyLen, formatHeadersForLog(responseHeaders))
+    self.logger.df("refresh response #%d source=kix status=%s elapsed=%.3fs bytes=%d responseHeaders=%s",
+      requestSeq, tostring(status), elapsed, bodyLen, formatHeadersForLog(responseHeaders))
 
     if status < 200 or status >= 300 then
       local msg = "HTTP " .. tostring(status)
@@ -1087,7 +1312,7 @@ function obj:refresh()
       elseif type(body) == "string" and #body > 0 then
         msg = msg .. ": " .. body:sub(1, 200)
       end
-      self._state.lastError = msg
+      slot.lastError = msg
       self.logger.ef("refresh failed #%d: %s", requestSeq, msg)
       self:_setMenubarStatus(msg, true)
       self:_publishToWindow()
@@ -1096,15 +1321,16 @@ function obj:refresh()
 
     local data, decodeErr = parseJson(body)
     if not data then
-      self._state.lastError = decodeErr
-      self.logger.ef("refresh parse error #%d: %s body=%s", requestSeq, tostring(decodeErr), tostring(body):sub(1, 200))
-      self:_setMenubarStatus(self._state.lastError, true)
+      slot.lastError = decodeErr
+      self.logger.ef("refresh parse error #%d: %s body=%s",
+        requestSeq, tostring(decodeErr), tostring(body):sub(1, 200))
+      self:_setMenubarStatus(slot.lastError, true)
       self:_publishToWindow()
       return
     end
 
-    self._state.lastData = data
-    self._state.lastError = nil
+    slot.lastData = data
+    slot.lastError = nil
 
     if data.from then self._state.from = tostring(data.from) end
     if data.to then self._state.to = tostring(data.to) end
@@ -1112,15 +1338,203 @@ function obj:refresh()
     -- Only auto-populate keys from the server when the user hasn't set
     -- any themselves — useful for first-run discovery, but otherwise
     -- preserves the user's explicit intent.
-    if (not self._state.keys or #self._state.keys == 0)
+    local kixCfg = self._state.sources.kix.config
+    if (not kixCfg.keys or #kixCfg.keys == 0)
        and type(data.keys) == "table" and #data.keys > 0 then
-      self._state.keys = normalizeKeys(data.keys)
+      kixCfg.keys = normalizeKeys(data.keys)
     end
 
     self:_saveSettings()
     self:_setMenubarStatus("OK", false)
     self:_publishToWindow()
   end)
+end
+
+-- Claude Code: list every per-session JSONL file under
+-- ~/.claude/projects/*/*.jsonl. Returns a (possibly empty) list of
+-- absolute paths. No I/O beyond directory listing.
+local function listClaudeCodeFiles()
+  local home = os.getenv("HOME")
+  if not home or home == "" then return {} end
+  local projectsRoot = home .. "/.claude/projects"
+  local rootAttr = hs.fs.attributes(projectsRoot)
+  if not rootAttr or rootAttr.mode ~= "directory" then return {} end
+  local files = {}
+  for projectName in hs.fs.dir(projectsRoot) do
+    if projectName ~= "." and projectName ~= ".." and projectName:sub(1, 1) ~= "." then
+      local projDir = projectsRoot .. "/" .. projectName
+      local projAttr = hs.fs.attributes(projDir)
+      if projAttr and projAttr.mode == "directory" then
+        for entry in hs.fs.dir(projDir) do
+          if entry:match("%.jsonl$") then
+            files[#files + 1] = projDir .. "/" .. entry
+          end
+        end
+      end
+    end
+  end
+  return files
+end
+
+-- Parse one JSONL file and fold its assistant-role usage records into
+-- `agg`, keyed by `<bucketDate>\0<model>`. Lines that fail to parse or
+-- don't match the assistant-usage shape are skipped silently — partial
+-- writes mid-session are normal.
+local function foldClaudeCodeFile(filepath, fromEpoch, toEpoch, granularity, agg)
+  local f = io.open(filepath, "r")
+  if not f then return end
+  for line in f:lines() do
+    if line and line ~= "" then
+      local ok, evt = pcall(hs.json.decode, line)
+      if ok and type(evt) == "table" then
+        local msg = evt.message
+        local tsStr = evt.timestamp
+        if type(msg) == "table" and msg.role == "assistant"
+           and type(msg.usage) == "table" and type(tsStr) == "string" then
+          local epoch = isoToEpoch(tsStr)
+          if epoch
+             and (not fromEpoch or epoch >= fromEpoch)
+             and (not toEpoch   or epoch <= toEpoch) then
+            local bucket = bucketDate(tsStr, granularity)
+            local model = tostring(msg.model or "unknown")
+            local key = bucket .. "\0" .. model
+            local row = agg[key]
+            if not row then
+              row = { date = bucket, model = model,
+                      requests = 0, input_tokens = 0, output_tokens = 0,
+                      cached_tokens = 0, reasoning_tokens = 0 }
+              agg[key] = row
+            end
+            local u = msg.usage
+            row.requests      = row.requests      + 1
+            row.input_tokens  = row.input_tokens  + (tonumber(u.input_tokens)  or 0)
+            row.output_tokens = row.output_tokens + (tonumber(u.output_tokens) or 0)
+            -- Sum read-cache + write-cache as "cached tokens". Cache
+            -- writes (creation) and cache reads are billed differently
+            -- but for the at-a-glance dashboard "tokens that touched
+            -- the cache" is the useful aggregate.
+            row.cached_tokens = row.cached_tokens
+                              + (tonumber(u.cache_read_input_tokens)     or 0)
+                              + (tonumber(u.cache_creation_input_tokens) or 0)
+            -- Anthropic doesn't break out reasoning tokens in
+            -- message.usage; extended-thinking is counted toward
+            -- output_tokens. Leave the column at 0.
+          end
+        end
+      end
+    end
+  end
+  f:close()
+end
+
+-- Turn the aggregation map into the {series, by_model, ...} shape that
+-- buildViewModel + computeDerived already consume for KIX.
+local function buildClaudeCodeData(agg, fromIso, toIso, granularity)
+  local series = {}
+  local perModel = {}
+  for _, row in pairs(agg) do
+    series[#series + 1] = row
+    local bm = perModel[row.model]
+    if not bm then
+      bm = { model = row.model,
+             requests = 0, input_tokens = 0, output_tokens = 0,
+             cached_tokens = 0, reasoning_tokens = 0 }
+      perModel[row.model] = bm
+    end
+    bm.requests      = bm.requests      + row.requests
+    bm.input_tokens  = bm.input_tokens  + row.input_tokens
+    bm.output_tokens = bm.output_tokens + row.output_tokens
+    bm.cached_tokens = bm.cached_tokens + row.cached_tokens
+  end
+  table.sort(series, function(a, b)
+    if a.date ~= b.date then return a.date < b.date end
+    return a.model < b.model
+  end)
+  local by_model = {}
+  for _, bm in pairs(perModel) do by_model[#by_model + 1] = bm end
+  table.sort(by_model, function(a, b) return a.input_tokens > b.input_tokens end)
+  return {
+    keys = {},
+    granularity = granularity,
+    from = fromIso,
+    to = toIso,
+    series = series,
+    by_model = by_model,
+  }
+end
+
+-- Per-source refresh: Claude Code. Walks ~/.claude/projects/*/*.jsonl
+-- in batched ticks (BATCH files per tick, then `hs.timer.doAfter(0)`)
+-- so a large session corpus doesn't peg the main thread + beachball
+-- Hammerspoon. Writes to state.sources.claudecode.{lastData, ...}.
+function obj:_refreshClaudeCode(requestSeq)
+  local slot = self._state.sources.claudecode
+  local startedAt = hs.timer.secondsSinceEpoch()
+
+  self._state.inFlight = true
+  self:_setMenubarStatus("Loading...", false)
+  self:_publishToWindow()
+
+  -- Snapshot filter params so a subsequent state change (preset click,
+  -- granularity change) that bumps requestSeq cleanly supersedes this run.
+  local granularity = self._state.granularity or self.defaultGranularity
+  local fromIso = self._state.from
+  local toIso   = self._state.to
+  local fromEpoch = fromIso and isoToEpoch(fromIso) or nil
+  local toEpoch   = toIso   and isoToEpoch(toIso)   or nil
+
+  local files = listClaudeCodeFiles()
+  self.logger.df("refresh start #%d source=claudecode files=%d granularity=%s",
+    requestSeq, #files, granularity)
+
+  if #files == 0 then
+    self._state.inFlight = false
+    slot.lastData = buildClaudeCodeData({}, fromIso, toIso, granularity)
+    slot.lastError = nil
+    slot.lastStatus = 200
+    slot.lastRefreshAt = os.time()
+    self:_setMenubarStatus("OK", false)
+    self:_publishToWindow()
+    return
+  end
+
+  local agg = {}
+  local idx = 0
+  local BATCH = 4  -- files per runloop tick
+
+  local function step()
+    if requestSeq ~= self._state.requestSeq then
+      self.logger.wf("stale claudecode run #%d superseded", requestSeq)
+      return
+    end
+    local processedThisTick = 0
+    while processedThisTick < BATCH and idx < #files do
+      idx = idx + 1
+      local ok, err = pcall(foldClaudeCodeFile,
+        files[idx], fromEpoch, toEpoch, granularity, agg)
+      if not ok then
+        self.logger.wf("claudecode parse error in %s: %s", files[idx], tostring(err))
+      end
+      processedThisTick = processedThisTick + 1
+    end
+
+    if idx >= #files then
+      self._state.inFlight = false
+      slot.lastData = buildClaudeCodeData(agg, fromIso, toIso, granularity)
+      slot.lastError = nil
+      slot.lastStatus = 200
+      slot.lastRefreshAt = os.time()
+      local elapsed = hs.timer.secondsSinceEpoch() - startedAt
+      self.logger.df("refresh response #%d source=claudecode elapsed=%.3fs files=%d rows=%d",
+        requestSeq, elapsed, #files, #slot.lastData.series)
+      self:_setMenubarStatus("OK", false)
+      self:_publishToWindow()
+    else
+      hs.timer.doAfter(0, step)
+    end
+  end
+
+  step()
 end
 
 function obj:_handleAction(params)
@@ -1141,8 +1555,10 @@ function obj:_handleAction(params)
     if params.granularity then self._state.granularity = clampGranularity(params.granularity) end
     self._state.from = params.from and params.from ~= "" and params.from or nil
     self._state.to = params.to and params.to ~= "" and params.to or nil
-    -- params.key is a comma-separated UUID list from the input field.
-    self._state.keys = parseKeysCsv(params.key or "")
+    -- params.key is a comma-separated UUID list from the input field;
+    -- only meaningful for the KIX source (the input is hidden on other
+    -- tabs by the JS-side render).
+    self._state.sources.kix.config.keys = parseKeysCsv(params.key or "")
     if params.interval and params.interval ~= "" then
       self:setRefreshSeconds(params.interval)
     end
@@ -1153,6 +1569,11 @@ function obj:_handleAction(params)
 
   if action == "preset" and params.name then
     self:_applyPreset(params.name)
+    return
+  end
+
+  if action == "setSource" and params.id then
+    self:setActiveSource(params.id)
     return
   end
 end
@@ -1261,20 +1682,30 @@ function obj:_restartTimer()
 end
 
 function obj:_makeMenu()
-  local menu = {
-    { title = "Open Usage Dashboard", fn = function() self:_openWindow() end },
-    { title = "Refresh now", fn = function() self:refresh() end },
-    { title = "-" },
+  local activeId = self._state.activeSource
+  local sourcesSubmenu = {}
+  for _, id in ipairs(SOURCE_ORDER) do
+    local def = SOURCES[id]
+    sourcesSubmenu[#sourcesSubmenu + 1] = {
+      title = def.displayName .. (id == activeId and "  ✓" or ""),
+      fn = function() self:setActiveSource(id) end,
+    }
+  end
+
+  local kixCfg = self._state.sources.kix.config
+  local kixSubmenu = {
     { title = "Set token...", fn = function()
-      local btn, text = hs.dialog.textPrompt("Bearer token", "Enter bearer token:", self._state.token or "", "Save", "Cancel")
+      local btn, text = hs.dialog.textPrompt(
+        "Bearer token", "Enter bearer token:",
+        kixCfg.token or "", "Save", "Cancel")
       if btn == "Save" then self:setToken(text); self:refresh() end
     end },
     { title = "Set keys...", fn = function()
-      local current = (type(self._state.keys) == "table" and #self._state.keys > 0)
-        and table.concat(self._state.keys, ", ")
+      local current = (type(kixCfg.keys) == "table" and #kixCfg.keys > 0)
+        and table.concat(kixCfg.keys, ", ")
         or ""
       local btn, text = hs.dialog.textPrompt(
-        "Keys",
+        "KIX keys",
         "Enter key UUIDs, comma-separated (leave empty for none):",
         current, "Save", "Cancel")
       if btn == "Save" then
@@ -1282,8 +1713,17 @@ function obj:_makeMenu()
         self:refresh()
       end
     end },
+  }
+
+  local menu = {
+    { title = "Open Usage Dashboard", fn = function() self:_openWindow() end },
+    { title = "Refresh now", fn = function() self:refresh() end },
+    { title = "-" },
+    { title = "Active source", menu = sourcesSubmenu },
+    { title = "Configure KIX",  menu = kixSubmenu },
     { title = "Set interval (seconds)...", fn = function()
-      local btn, text = hs.dialog.textPrompt("Refresh interval", "Seconds:", tostring(self._state.refreshSeconds), "Save", "Cancel")
+      local btn, text = hs.dialog.textPrompt("Refresh interval", "Seconds:",
+        tostring(self._state.refreshSeconds), "Save", "Cancel")
       if btn == "Save" then self:setRefreshSeconds(text) end
     end },
     { title = "-" },
