@@ -8,7 +8,7 @@ Menubar launcher + webview dashboard for the KIX Models Manager usage API (`/api
 - Dashboard window (HTML/webview) with:
   - granularity: `day`, `month`, `year`
   - explicit `from` / `to` ISO fields
-  - optional key filter
+  - optional key filter (one or many UUIDs; emitted as repeated `&key=` params)
   - refresh interval control
   - preset ranges (`Today`, `Last 7d`, `Last 30d`, `MTD`, `YTD`)
 - Request/response debug logging (URL, redacted auth header, status, elapsed, response headers)
@@ -32,7 +32,11 @@ spoon.ModelsUsage:configure({
 })
 
 spoon.ModelsUsage:setToken("<bearer-token>")
-spoon.ModelsUsage:setDefaultKey("<uuid-key>") -- optional
+-- One or many key UUIDs; the spoon emits `&key=` once per entry.
+-- Pass a list or a comma-separated string. Empty / nil clears all keys.
+spoon.ModelsUsage:setKeys({ "<uuid-a>", "<uuid-b>" })            -- optional
+-- spoon.ModelsUsage:setKeys("<uuid-a>, <uuid-b>")               -- equivalent
+-- spoon.ModelsUsage:setDefaultKey("<uuid-key>")                 -- back-compat single-key shim
 spoon.ModelsUsage:start()
 ```
 
@@ -41,7 +45,8 @@ Open the dashboard from the menubar item: `Open Usage Dashboard`.
 ## Persisted settings
 
 - `modelsUsage.token`
-- `modelsUsage.defaultKey`
+- `modelsUsage.keys` — list of UUID strings (migrated one-way from the
+  older `modelsUsage.defaultKey` single-string setting on first load)
 - `modelsUsage.granularity`
 - `modelsUsage.from`
 - `modelsUsage.to`

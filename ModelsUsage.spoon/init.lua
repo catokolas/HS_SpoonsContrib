@@ -28,7 +28,8 @@ obj.logger = hs.logger.new("ModelsUsage")
 
 local SETTINGS = {
   token = "modelsUsage.token",
-  defaultKey = "modelsUsage.defaultKey",
+  keys = "modelsUsage.keys",
+  legacyDefaultKey = "modelsUsage.defaultKey",  -- read for one-way migration; no longer written
   granularity = "modelsUsage.granularity",
   from = "modelsUsage.from",
   to = "modelsUsage.to",
@@ -48,7 +49,7 @@ obj._state = {
   lastRefreshAt = nil,
   lastData = nil,
   token = nil,
-  defaultKey = nil,
+  keys = {},
   granularity = nil,
   from = nil,
   to = nil,
@@ -147,6 +148,38 @@ local function coercePositiveNumber(n, fallback)
   local v = tonumber(n)
   if not v or v <= 0 then return fallback end
   return v
+end
+
+-- Parse comma-separated key UUIDs from a string. Whitespace around each
+-- entry is trimmed; empty entries are dropped. Always returns a table.
+local function parseKeysCsv(s)
+  local out = {}
+  if type(s) ~= "string" or s == "" then return out end
+  for part in string.gmatch(s, "[^,]+") do
+    local trimmed = part:gsub("^%s+", ""):gsub("%s+$", "")
+    if trimmed ~= "" then out[#out + 1] = trimmed end
+  end
+  return out
+end
+
+-- Normalize anything-key-like (string, table, nil) into a clean list of
+-- non-empty trimmed strings.
+local function normalizeKeys(value)
+  if type(value) == "string" then
+    return parseKeysCsv(value)
+  elseif type(value) == "table" then
+    local clean = {}
+    for _, k in ipairs(value) do
+      if type(k) == "string" then
+        local trimmed = k:gsub("^%s+", ""):gsub("%s+$", "")
+        if trimmed ~= "" then clean[#clean + 1] = trimmed end
+      elseif type(k) == "number" then
+        clean[#clean + 1] = tostring(k)
+      end
+    end
+    return clean
+  end
+  return {}
 end
 
 local function buildUsageIcon()
@@ -291,7 +324,9 @@ local function buildViewModel(state, topModelsLimit, seriesRowsLimit)
     lastStatus = state.lastStatus,
     lastRefreshAt = state.lastRefreshAt,
     tokenSet = state.token and true or false,
-    keys = type(data.keys) == "table" and data.keys or (state.defaultKey and { state.defaultKey } or {}),
+    keys = (state.keys and #state.keys > 0) and state.keys
+        or (type(data.keys) == "table" and data.keys)
+        or {},
     granularity = state.granularity,
     from = state.from,
     to = state.to,
@@ -477,8 +512,8 @@ local function htmlTemplate()
           <input id="to" placeholder="2026-06-30T23:59:59Z" />
         </div>
         <div class="cell">
-          <label for="key">Default key UUID</label>
-          <input id="key" placeholder="78f9ff16-..." />
+          <label for="key">Key UUIDs (comma-separated)</label>
+          <input id="key" placeholder="78f9ff16-…, 4a2c-…" />
         </div>
         <div class="cell">
           <label for="interval">Interval (seconds)</label>
@@ -631,7 +666,7 @@ local function htmlTemplate()
       const parts = [];
       if (payload.lastStatus) parts.push('HTTP ' + payload.lastStatus);
       if (payload.lastRefreshAt) parts.push('updated ' + new Date(payload.lastRefreshAt * 1000).toLocaleString());
-      const keys = (payload.keys || []).filter(Boolean);
+      const keys = (Array.isArray(payload.keys) ? payload.keys : []).filter(Boolean);
       if (keys.length) parts.push('keys: ' + keys.join(', '));
       setTextIfChanged('meta', parts.join('  ·  '));
     }
@@ -670,7 +705,7 @@ local function htmlTemplate()
       setInputIfChanged('granularity', payload.granularity || 'month');
       setInputIfChanged('from', payload.from || '');
       setInputIfChanged('to', payload.to || '');
-      setInputIfChanged('key', (payload.keys && payload.keys[0]) || '');
+      setInputIfChanged('key', (Array.isArray(payload.keys) ? payload.keys : []).join(', '));
       setInputIfChanged('interval', payload.refreshSeconds || 300);
 
       const sig = JSON.stringify([
@@ -727,7 +762,16 @@ end
 
 function obj:_loadSettings()
   self._state.token = hs.settings.get(SETTINGS.token)
-  self._state.defaultKey = hs.settings.get(SETTINGS.defaultKey)
+  -- Prefer the new list-shaped `keys` setting. If absent, migrate from
+  -- the legacy single-string `defaultKey` setting (one-way: subsequent
+  -- saves write only the new key).
+  local storedKeys = hs.settings.get(SETTINGS.keys)
+  if type(storedKeys) == "table" then
+    self._state.keys = normalizeKeys(storedKeys)
+  else
+    local legacy = hs.settings.get(SETTINGS.legacyDefaultKey)
+    self._state.keys = (type(legacy) == "string" and legacy ~= "") and { legacy } or {}
+  end
   self._state.granularity = clampGranularity(hs.settings.get(SETTINGS.granularity) or self.defaultGranularity)
   self._state.from = hs.settings.get(SETTINGS.from)
   self._state.to = hs.settings.get(SETTINGS.to)
@@ -736,7 +780,11 @@ end
 
 function obj:_saveSettingsImmediate()
   hs.settings.set(SETTINGS.token, self._state.token)
-  hs.settings.set(SETTINGS.defaultKey, self._state.defaultKey)
+  hs.settings.set(SETTINGS.keys, self._state.keys)
+  -- Clear the legacy single-string setting once we've started writing the
+  -- list form, so a future load doesn't see a stale value if the list
+  -- gets emptied.
+  hs.settings.set(SETTINGS.legacyDefaultKey, nil)
   hs.settings.set(SETTINGS.granularity, self._state.granularity)
   hs.settings.set(SETTINGS.from, self._state.from)
   hs.settings.set(SETTINGS.to, self._state.to)
@@ -795,8 +843,29 @@ function obj:setToken(token)
   return self
 end
 
+--- ModelsUsage:setKeys(keys)
+--- Method
+--- Set the list of API key UUIDs the spoon will pass as repeated
+--- `&key=` query parameters on each refresh. Accepts a Lua table of
+--- strings (`{ "uuid-a", "uuid-b" }`) or a comma-separated string
+--- (`"uuid-a, uuid-b"`). Passing nil / empty clears the list.
+function obj:setKeys(keys)
+  self._state.keys = normalizeKeys(keys)
+  self:_saveSettings()
+  self:_renderWindow()
+  return self
+end
+
+--- ModelsUsage:setDefaultKey(uuid)
+--- Method
+--- Backward-compatible single-key setter. Wraps the given UUID into a
+--- one-element keys list; prefer `:setKeys({...})` for new code.
 function obj:setDefaultKey(uuid)
-  self._state.defaultKey = uuid and tostring(uuid) or nil
+  if uuid and tostring(uuid) ~= "" then
+    self._state.keys = { tostring(uuid) }
+  else
+    self._state.keys = {}
+  end
   self:_saveSettings()
   self:_renderWindow()
   return self
@@ -889,8 +958,14 @@ function obj:_buildUrlAndHeaders()
   end
   table.insert(queryParts, "to=" .. hs.http.encodeForQuery(toValue))
 
-  if self._state.defaultKey and self._state.defaultKey ~= "" then
-    table.insert(queryParts, "key=" .. hs.http.encodeForQuery(self._state.defaultKey))
+  -- The API accepts the `key` query param repeated for multi-key filters
+  -- (`&key=a&key=b`). Emit one entry per configured key.
+  if type(self._state.keys) == "table" then
+    for _, k in ipairs(self._state.keys) do
+      if type(k) == "string" and k ~= "" then
+        table.insert(queryParts, "key=" .. hs.http.encodeForQuery(k))
+      end
+    end
   end
 
   local url = self.apiBaseUrl .. self.usagePath
@@ -1034,8 +1109,12 @@ function obj:refresh()
     if data.from then self._state.from = tostring(data.from) end
     if data.to then self._state.to = tostring(data.to) end
     if data.granularity then self._state.granularity = clampGranularity(data.granularity) end
-    if type(data.keys) == "table" and #data.keys > 0 then
-      self._state.defaultKey = tostring(data.keys[1])
+    -- Only auto-populate keys from the server when the user hasn't set
+    -- any themselves — useful for first-run discovery, but otherwise
+    -- preserves the user's explicit intent.
+    if (not self._state.keys or #self._state.keys == 0)
+       and type(data.keys) == "table" and #data.keys > 0 then
+      self._state.keys = normalizeKeys(data.keys)
     end
 
     self:_saveSettings()
@@ -1062,7 +1141,8 @@ function obj:_handleAction(params)
     if params.granularity then self._state.granularity = clampGranularity(params.granularity) end
     self._state.from = params.from and params.from ~= "" and params.from or nil
     self._state.to = params.to and params.to ~= "" and params.to or nil
-    self._state.defaultKey = params.key and params.key ~= "" and params.key or nil
+    -- params.key is a comma-separated UUID list from the input field.
+    self._state.keys = parseKeysCsv(params.key or "")
     if params.interval and params.interval ~= "" then
       self:setRefreshSeconds(params.interval)
     end
@@ -1189,11 +1269,16 @@ function obj:_makeMenu()
       local btn, text = hs.dialog.textPrompt("Bearer token", "Enter bearer token:", self._state.token or "", "Save", "Cancel")
       if btn == "Save" then self:setToken(text); self:refresh() end
     end },
-    { title = "Set default key...", fn = function()
-      local btn, text = hs.dialog.textPrompt("Default key", "Enter key UUID (optional):", self._state.defaultKey or "", "Save", "Cancel")
+    { title = "Set keys...", fn = function()
+      local current = (type(self._state.keys) == "table" and #self._state.keys > 0)
+        and table.concat(self._state.keys, ", ")
+        or ""
+      local btn, text = hs.dialog.textPrompt(
+        "Keys",
+        "Enter key UUIDs, comma-separated (leave empty for none):",
+        current, "Save", "Cancel")
       if btn == "Save" then
-        if text == "" then text = nil end
-        self:setDefaultKey(text)
+        self:setKeys(text or "")
         self:refresh()
       end
     end },
