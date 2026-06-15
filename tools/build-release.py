@@ -51,8 +51,15 @@ def _excluded(rel_path: Path) -> bool:
 
 
 def find_spoons():
+    # Only ship spoons that have a spoon-manifest.json. Same gate as
+    # tools/build-manifest.lua and tools/validate-manifest.lua, so
+    # "no manifest = not a shipping spoon" is a uniform repo-wide
+    # convention. WIP / private spoon dirs without a manifest stay
+    # out of Spoons/*.zip and docs/docs.json automatically.
     return sorted(p for p in REPO.iterdir()
-                  if p.is_dir() and p.name.endswith(".spoon"))
+                  if p.is_dir()
+                  and p.name.endswith(".spoon")
+                  and (p / "spoon-manifest.json").exists())
 
 
 def deterministic_zip(spoon_dir: Path, out_path: Path):
