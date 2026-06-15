@@ -127,6 +127,44 @@ local _sloppy = (function()
   return ok and m or nil
 end)()
 
+-- Cached list of Hammerspoon-owned window frames, used by `_maybeFocus`
+-- to detect "cursor over our own UI" without paying any AX cost on the
+-- poll hot path. The cache is refreshed at most once per second; the
+-- per-poll cost of `findHsWindowAt` is pure Lua arithmetic against the
+-- cached rects. See `_maybeFocus` for the full rationale.
+local _hsApp = nil
+local _hsFrames = {}
+local _hsFramesAt = 0
+local HS_FRAMES_TTL_NS = 1e9
+
+local function refreshHsFrames()
+  if not _hsApp then
+    _hsApp = hs.application.applicationForPID(hs.processInfo.processID)
+  end
+  if not _hsApp then _hsFrames = {}; return end
+  local fresh = {}
+  for _, win in ipairs(_hsApp:allWindows()) do
+    local f = win:frame()
+    if f then fresh[#fresh + 1] = f end
+  end
+  _hsFrames = fresh
+end
+
+local function findHsWindowAt(point)
+  local now = hs.timer.absoluteTime()
+  if now - _hsFramesAt >= HS_FRAMES_TTL_NS then
+    refreshHsFrames()
+    _hsFramesAt = now
+  end
+  for _, f in ipairs(_hsFrames) do
+    if point.x >= f.x and point.x < f.x + f.w
+       and point.y >= f.y and point.y < f.y + f.h then
+      return true
+    end
+  end
+  return false
+end
+
 -- AXRoles of open menus. When the cursor is over one of these, focusing
 -- the window behind would dismiss the menu, so we bail.
 local MENU_ROLES = {
@@ -191,8 +229,34 @@ end
 function obj:_maybeFocus()
   if #hs.mouse.getButtons() ~= 0 then return end
   local point = hs.mouse.absolutePosition()
-  -- Skip focus shifts while an open menu is involved; otherwise the
-  -- focus call dismisses it. Two probes:
+
+  -- Bail (no auto-focus, no AX) when the cursor is over a
+  -- Hammerspoon-owned window.
+  --
+  -- Why: every AX-touching path on a WKWebView-backed HS window
+  -- (allWindows enumeration, win:frame(), win:focus()) can route
+  -- through accessibility surface that synchronously waits on the
+  -- WebKit content process. When that process is busy (paint, JS, even
+  -- responding to the user's own click), the wait can be **seconds**
+  -- — long enough to peg Hammerspoon's main thread, raise the
+  -- macOS beachball, and queue every subsequent input event (drags
+  -- replay as one motion, clicks land late).
+  --
+  -- Mitigation strategy:
+  --   1. Hit-test against a *cached* list of HS-owned window frames
+  --      so the per-poll cost is pure Lua arithmetic. Refresh happens
+  --      at most once per second.
+  --   2. If the cursor is over any HS window, return — don't attempt
+  --      win:focus(). The user focuses HS windows by clicking them
+  --      (which already activates them via macOS click-to-activate).
+  --      This trades auto-focus-on-hover for HS windows in exchange
+  --      for no beachball, which is the right call when one of those
+  --      windows is a busy WKWebView dashboard.
+  if findHsWindowAt(point) then return end
+
+  -- Other apps' windows: the AX cascade is needed to skip focus shifts
+  -- while an open menu / floating popup is involved (otherwise the
+  -- focus call dismisses them). Two probes:
   --   1. Element at cursor (catches most apps; menu may be a nested
   --      child so we walk the parent chain).
   --   2. Frontmost app's AXFocusedUIElement (catches popups that
@@ -227,12 +291,38 @@ end
 --- Parameters:
 ---  * None
 function obj:start()
-  self.timer = hs.timer.delayed.new(self.delay, function() self:_maybeFocus() end)
-  self.eventtap = hs.eventtap.new(
-    {hs.eventtap.event.types.mouseMoved},
-    function() self.timer:start(); return false end
-  )
-  self.eventtap:start()
+  -- Poll mouse position instead of tapping mouseMoved events.
+  --
+  -- An eventtap on mouseMoved fires the Lua callback for every mouse
+  -- event (~60 Hz), and that callback has to acquire the Hammerspoon
+  -- Lua VM lock. When another spoon is doing main-thread work — most
+  -- notably WKWebView IPC for a dashboard webview (e.g. ModelsUsage) —
+  -- mouse events block in the kernel queue until the lock frees, then
+  -- replay all at once. Visible symptom: dragging a webview window's
+  -- title bar gets queued and replayed as one motion, clicks land late.
+  --
+  -- Polling decouples mouse delivery from Lua entirely. We sample
+  -- position at `self.delay` and only invoke `_maybeFocus` when the
+  -- cursor has settled at a new spot (one tick of unchanged position
+  -- after a tick of motion). That preserves "focus the window after
+  -- ~delay of no movement" behaviour without paying per-event lock
+  -- contention.
+  self._pollLastPoint = nil
+  self._pollFiredHere = false
+  self.timer = hs.timer.doEvery(self.delay, function()
+    local p = hs.mouse.absolutePosition()
+    if self._pollLastPoint
+       and self._pollLastPoint.x == p.x
+       and self._pollLastPoint.y == p.y then
+      if not self._pollFiredHere then
+        self._pollFiredHere = true
+        self:_maybeFocus()
+      end
+    else
+      self._pollLastPoint = p
+      self._pollFiredHere = false
+    end
+  end)
   return self
 end
 
@@ -243,8 +333,9 @@ end
 --- Parameters:
 ---  * None
 function obj:stop()
-  if self.eventtap then self.eventtap:stop(); self.eventtap = nil end
   if self.timer then self.timer:stop(); self.timer = nil end
+  self._pollLastPoint = nil
+  self._pollFiredHere = false
   return self
 end
 
@@ -255,7 +346,7 @@ end
 --- Useful as a hotkey binding for apps where focus-follows-mouse would
 --- get in the way (full-screen video, games).
 function obj:toggle()
-  if self.eventtap and self.eventtap:isEnabled() then
+  if self.timer then
     self:stop()
     hs.alert.show("FocusFollowsMouse: off")
   else

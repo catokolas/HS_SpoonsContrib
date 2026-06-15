@@ -15,6 +15,17 @@ focus.
 > helper is installed, this spoon uses it to focus without raising; otherwise
 > it falls back to `hs.window:focus()`.
 
+> **Note** — Hammerspoon's own windows (Console, alerts, webview-based
+> spoon UIs like `ModelsUsage.spoon`'s dashboard) are **not** auto-focused
+> on hover. Any AX-touching call (`win:focus()`, `app:allWindows()`,
+> `win:frame()`) against a WKWebView-backed Hammerspoon window can
+> synchronously wait on WebKit's content process; when that process is
+> busy painting/running JS/handling clicks, the wait can stretch into
+> seconds, beachballing Hammerspoon and queueing every input event. To
+> stay snappy, FFM hit-tests against a cached list of Hammerspoon-owned
+> window frames and bails (no focus) when the cursor is over one. Focus
+> those windows by clicking them.
+
 ## Activate hotkey
 
 Default chord: **⇧⌃⌘F**. Press it to toggle the Spoon on/off; an
