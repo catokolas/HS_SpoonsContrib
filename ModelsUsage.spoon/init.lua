@@ -1093,10 +1093,14 @@ end
 function obj:_openWindow()
   if self._state.window then
     -- deleteOnClose(false) means the X button only hides the webview, so
-    -- the reference is still valid — but bringToFront alone won't
-    -- re-show a hidden webview; show() is required.
+    -- the reference is still valid — but show() is required to make it
+    -- visible again. Use hs.window:focus() (not webview:bringToFront(true))
+    -- to make it key, because the latter bumps the window level above
+    -- normal app windows and the dashboard then floats over other apps'
+    -- windows persistently.
     self._state.window:show()
-    self._state.window:bringToFront(true)
+    local win = self._state.window:hswindow()
+    if win then win:focus() end
     self:_publishToWindow()
     return
   end
@@ -1138,16 +1142,18 @@ function obj:_openWindow()
 
   w:html(htmlTemplate())
   w:show()
-  -- Promote to keyWindow so the very first click on an input focuses it
-  -- instead of just activating the window (macOS click-to-activate).
-  w:bringToFront(true)
 
   self._state.window = w
   self:_publishToWindow()
 
-  -- Defensive re-focus: bringToFront(true) sometimes loses the race with
-  -- WebKit finishing initial layout, leaving the window visible but not
-  -- key. A short delayed hs.window:focus() catches that case.
+  -- Make the dashboard the key window via hs.window:focus(), not
+  -- webview:bringToFront(true). bringToFront(true) bumps the window
+  -- level above NSNormalWindowLevel, which makes the dashboard float
+  -- above other apps' windows persistently — dragging an underlying
+  -- window's title bar won't bring it above the dashboard. focus()
+  -- routes through normal app activation and leaves the level alone.
+  -- The 0.08s deferral catches the case where show() hasn't completed
+  -- WebKit's initial layout by the time we ask for focus.
   hs.timer.doAfter(0.08, function()
     if not self._state.window then return end
     local win = self._state.window:hswindow()
