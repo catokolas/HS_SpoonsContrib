@@ -50,9 +50,10 @@ obj.invertVertical = true
 
 --- MouseTrackpadTweaks.invertHorizontal
 --- Variable
---- If true, Magic Mouse horizontal scroll direction is flipped.
---- Defaults to `false`.
-obj.invertHorizontal = false
+--- If true (default), Magic Mouse horizontal scroll direction is flipped
+--- — matching the vertical default so the mouse scrolls "Traditional"
+--- on both axes regardless of the system's "Natural" trackpad setting.
+obj.invertHorizontal = true
 
 --- MouseTrackpadTweaks.middleClick
 --- Variable

@@ -1,6 +1,6 @@
 {
-  "commit": "def35201d7b9d5e5e5f084aef39f7db175ea1dca",
-  "generatedAt": "2026-06-14T06:10:03Z",
+  "commit": "86a3a33ad1f3b1826f189df7ad19bdc3a86bdbb5",
+  "generatedAt": "2026-06-15T07:14:49Z",
   "overrides": {},
   "repo": "catokolas/HS_SpoonsContrib",
   "schemaVersion": 1,
@@ -277,8 +277,8 @@
           "type": "bool"
         },
         {
-          "default": false,
-          "description": "Flip horizontal scroll for the Magic Mouse only.",
+          "default": true,
+          "description": "Flip horizontal scroll for the Magic Mouse only. Defaults on to match the vertical default — Magic Mouse scrolls Traditional on both axes regardless of the trackpad's Natural setting.",
           "key": "invertHorizontal",
           "label": "Invert Magic Mouse horizontal scroll",
           "type": "bool"

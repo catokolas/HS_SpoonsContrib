@@ -24,9 +24,9 @@
     {
       "key": "invertHorizontal",
       "label": "Invert Magic Mouse horizontal scroll",
-      "description": "Flip horizontal scroll for the Magic Mouse only.",
+      "description": "Flip horizontal scroll for the Magic Mouse only. Defaults on to match the vertical default — Magic Mouse scrolls Traditional on both axes regardless of the trackpad's Natural setting.",
       "type": "bool",
-      "default": false
+      "default": true
     },
     {
       "key": "middleClick",
