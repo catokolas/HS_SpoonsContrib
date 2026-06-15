@@ -38,10 +38,11 @@ you'd rather wire things up manually.
   default it goes into a **private selection buffer** (the X11 PRIMARY
   analogue) so your real Cmd+C / Cmd+V clipboard is never disturbed; set
   `useSeparateSelectionBuffer = false` for the legacy shared-clipboard
-  model. Optional middle-click-to-paste at the cursor location
-  (`enableMiddleClickPaste = true`) reads from whichever buffer is
-  active. A toggle on|off hotkey shows an `hs.alert` banner for visual
-  feedback.
+  model. Middle-click pastes the active buffer at the cursor location;
+  the handler gates on the OS reporting the I-beam cursor, so it only
+  ever fires inside text. Set `enableMiddleClickPaste = false` to
+  disable. A toggle on|off hotkey shows an `hs.alert` banner for
+  visual feedback.
 
 - **[`MouseScrollTweaks.spoon/`](MouseScrollTweaks.spoon/)** — tweaks for
   traditional mouse wheels on macOS, leaving trackpad / Magic Mouse

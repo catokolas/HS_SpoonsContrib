@@ -5,9 +5,10 @@ across text, or double-clicking a word, captures the selection. By
 default it goes into a **private selection buffer** (the X11 PRIMARY
 analogue) so your real Cmd+C / Cmd+V clipboard is never disturbed; set
 `useSeparateSelectionBuffer = false` for the legacy shared-clipboard
-model. Optional middle-click-to-paste at the cursor location
-(`enableMiddleClickPaste = true`) reads from whichever buffer is
-active.
+model. Middle-click pastes the active buffer at the cursor location
+— the handler gates on the OS reporting the I-beam cursor, so it
+only ever fires inside text. Set `enableMiddleClickPaste = false`
+to turn that off entirely.
 
 ## Activate hotkey
 

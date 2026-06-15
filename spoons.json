@@ -1,6 +1,6 @@
 {
-  "commit": "085867377d75875c3b92275522be26d7977bcc5c",
-  "generatedAt": "2026-06-15T07:15:26Z",
+  "commit": "9f75a6509b3f4a7e1044b5ba83aeb45d082efe2d",
+  "generatedAt": "2026-06-15T07:58:42Z",
   "overrides": {},
   "repo": "catokolas/HS_SpoonsContrib",
   "schemaVersion": 1,
@@ -82,8 +82,8 @@
           "unit": "ms"
         },
         {
-          "default": false,
-          "description": "If on, middle-clicking inside a text field pastes the clipboard at the click point.",
+          "default": true,
+          "description": "Middle-click pastes the clipboard at the click point — X11-style. The handler only fires when the OS cursor is the I-beam, so the synthesised focus-click can only ever land on a text-editable region.",
           "key": "enableMiddleClickPaste",
           "label": "Enable middle-click paste",
           "type": "bool"
@@ -143,7 +143,7 @@
           "unit": "μs"
         }
       ],
-      "description": "X11-style copy-on-select for macOS. Releasing the mouse after dragging across text — or double-clicking a word — copies the selection automatically. Optional middle-click paste.",
+      "description": "X11-style copy-on-select for macOS. Releasing the mouse after dragging across text — or double-clicking a word — copies the selection automatically. Middle-click pastes at the cursor; the handler gates on the I-beam cursor so it never fires outside text.",
       "homepage": "https://github.com/catokolas/HS_SpoonsContrib",
       "license": "Unlicense",
       "lifecycle": {

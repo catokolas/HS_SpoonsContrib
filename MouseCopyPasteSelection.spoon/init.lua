@@ -36,11 +36,13 @@ obj.doubleClickMs = 400
 
 --- MouseCopyPasteSelection.enableMiddleClickPaste
 --- Variable
---- If true, middle-clicking (mouse button 2) while the cursor is the
---- I-beam pastes the clipboard at the click location. Default `false`
---- (the synthesised left-click that focuses the field before pasting can
---- trigger unintended actions in some apps).
-obj.enableMiddleClickPaste = false
+--- If true (default), middle-clicking (mouse button 2) pastes the
+--- clipboard at the click location — X11-style. The handler gates on
+--- `hs.mouse.currentCursorType()` returning an I-beam, so the
+--- synthesised focus-click can only ever land on a text-editable
+--- region the OS itself reports as such; it positions the caret and
+--- nothing else. Set false to ignore middle-click events entirely.
+obj.enableMiddleClickPaste = true
 
 --- MouseCopyPasteSelection.pasteClickDelayUs
 --- Variable
