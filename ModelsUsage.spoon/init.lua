@@ -1826,22 +1826,23 @@ function obj:_parseActionUrl(url)
   return out
 end
 
-function obj:_openWindow()
-  if self._state.window then
-    -- deleteOnClose(false) means the X button only hides the webview, so
-    -- the reference is still valid — but show() is required to make it
-    -- visible again. Use hs.window:focus() (not webview:bringToFront(true))
-    -- to make it key, because the latter bumps the window level above
-    -- normal app windows and the dashboard then floats over other apps'
-    -- windows persistently.
-    self._state.window:show()
-    local win = self._state.window:hswindow()
-    if win then win:focus() end
-    self:_publishToWindow()
-    return
-  end
+-- Off-screen frame used for pre-warming. The window is shown there
+-- with alpha 0 so the user never sees it; on user-initiated open we
+-- promote it to the saved frame + full alpha. Far-off-screen
+-- coordinates avoid any chance of bleed onto a real display.
+local PREWARM_FRAME = { x = -32000, y = -32000, w = 100, h = 100 }
 
-  local frame = self:_loadWindowFrame()
+-- Lazy create-only helper. `visible` true → create the window at the
+-- user's saved frame + alpha 1 + focus, ready to interact with.
+-- `visible` false → pre-warm: create off-screen at alpha 0 so the
+-- WebKit content-process spawn + initial HTML/JS parse run
+-- *invisibly*, paid by Hammerspoon's main thread before the user
+-- clicks the menubar. `_openWindow` then promotes it to the user's
+-- frame with no further spawn cost.
+function obj:_createWindow(visible)
+  if self._state.window then return end
+
+  local frame = visible and self:_loadWindowFrame() or PREWARM_FRAME
 
   -- WKWebView message bridge: replaces URL-hijack RPC. Each JS-side
   -- send() posts a structured table here without triggering a
@@ -1884,26 +1885,71 @@ function obj:_openWindow()
   -- no file:// permissions) and WebKit treats it as a real navigation
   -- target, so reload re-fetches it cleanly.
   w:url("data:text/html;charset=utf-8;base64," .. hs.base64.encode(htmlTemplate()))
+
+  if not visible then w:alpha(0) end
   w:show()
 
   self._state.window = w
+  self._state.windowPrewarmed = not visible
   self:_publishToWindow()
 
-  -- Make the dashboard the key window via hs.window:focus(), not
-  -- webview:bringToFront(true). bringToFront(true) bumps the window
-  -- level above NSNormalWindowLevel, which makes the dashboard float
-  -- above other apps' windows persistently — dragging an underlying
-  -- window's title bar won't bring it above the dashboard. focus()
-  -- routes through normal app activation and leaves the level alone.
-  -- The 0.08s deferral catches the case where show() hasn't completed
-  -- WebKit's initial layout by the time we ask for focus.
+  if visible then
+    -- Make the dashboard the key window via hs.window:focus(), not
+    -- webview:bringToFront(true). bringToFront(true) bumps the level
+    -- above NSNormalWindowLevel, making the dashboard float over
+    -- other apps' windows persistently. focus() routes through
+    -- normal app activation and leaves the level alone. The 0.08s
+    -- deferral catches the case where show() hasn't completed
+    -- WebKit's initial layout by the time we ask for focus.
+    hs.timer.doAfter(0.08, function()
+      if not self._state.window then return end
+      local win = self._state.window:hswindow()
+      if win then win:focus() end
+    end)
+    hs.timer.doAfter(0, function() self:refresh() end)
+  end
+end
+
+-- Promote a pre-warmed window from its off-screen alpha-0 home to the
+-- user's saved frame with full alpha + focus. Cheap: just a frame
+-- change and alpha bump — no WebKit work because the content process
+-- is already running and the page is already rendered.
+function obj:_promotePrewarmedWindow()
+  if not (self._state.window and self._state.windowPrewarmed) then return end
+  self._state.window:frame(self:_loadWindowFrame())
+  self._state.window:alpha(1.0)
+  self._state.windowPrewarmed = false
   hs.timer.doAfter(0.08, function()
     if not self._state.window then return end
     local win = self._state.window:hswindow()
     if win then win:focus() end
   end)
+end
 
-  hs.timer.doAfter(0, function() self:refresh() end)
+function obj:_openWindow()
+  if not self._state.window then
+    -- No window at all — first open from menubar before pre-warm fired,
+    -- or after stop()/start(). Create visible (pays WebKit spawn cost
+    -- inline; we tried to avoid this via pre-warm but it's the
+    -- correct fallback path).
+    self:_createWindow(true)
+    return
+  end
+
+  if self._state.windowPrewarmed then
+    self:_promotePrewarmedWindow()
+    self:_publishToWindow()
+    return
+  end
+
+  -- Existing visible window (was just closed via X with
+  -- deleteOnClose(false), so the reference is still live). show() is
+  -- required to make it visible again; focus() promotes it to key
+  -- without changing window level.
+  self._state.window:show()
+  local win = self._state.window:hswindow()
+  if win then win:focus() end
+  self:_publishToWindow()
 end
 
 function obj:_closeWindow()
@@ -2003,6 +2049,20 @@ function obj:start()
   self:_setMenubarStatus("Starting", false)
   self:_restartTimer()
   self:refresh()
+
+  -- Pre-warm the dashboard webview a few seconds after start. The first
+  -- WKWebView in the Hammerspoon process pays a 3-5s content-process
+  -- spawn + initial HTML/JS parse on the main thread, long enough to
+  -- queue event-tap callbacks in other spoons (MouseScrollTweaks goes
+  -- dead, etc.). Doing it here in the background — once, off-screen,
+  -- at alpha 0 — pays that cost while the user isn't actively scrolling
+  -- or typing, and the menubar-click open is a frame-move + alpha bump.
+  -- A short delay lets `refresh()` finish first so the two main-thread
+  -- workloads don't stack.
+  hs.timer.doAfter(3.0, function()
+    if self._state.window then return end  -- user got there first
+    self:_createWindow(false)
+  end)
 
   return self
 end
