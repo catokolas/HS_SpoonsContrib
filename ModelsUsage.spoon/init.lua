@@ -1619,13 +1619,28 @@ function obj:_openWindow()
     :deleteOnClose(false)
     :level(hs.drawing.windowLevels.normal)
 
-  -- Fallback path: older Hammerspoon builds without messageHandlers
-  -- still drop back to URL hijacking from JS.
+  -- Navigation callback handles two cases:
+  --   1. Older Hammerspoon builds without messageHandlers fall back
+  --      to URL hijacking from JS — `modelsusage://action?…`. Intercept
+  --      those, dispatch, return false to cancel the navigation.
+  --   2. Web Inspector's Reload (or any user-initiated reload) navigates
+  --      to about:blank because `w:html()` injected the page without a
+  --      URL backing — there's nothing for WebKit to refetch, so the
+  --      window goes white. Detect about:blank-or-empty and re-inject
+  --      the HTML on the next tick (re-entering navigationCallback
+  --      synchronously is unsafe).
   w:navigationCallback(function(_, _, navURL)
     local params = self:_parseActionUrl(navURL)
     if params then
       self:_handleAction(params)
       return false
+    end
+    if not navURL or navURL == "" or navURL == "about:blank" then
+      hs.timer.doAfter(0, function()
+        if self._state.window then
+          self._state.window:html(htmlTemplate())
+        end
+      end)
     end
     return true
   end)
