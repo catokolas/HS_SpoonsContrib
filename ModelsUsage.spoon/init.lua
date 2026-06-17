@@ -929,15 +929,45 @@ function obj:_loadSettings()
   -- Restore the active preset and re-evaluate it against today's
   -- clock. This keeps the highlight in the dashboard AND keeps the
   -- date range fresh ("Last 30d" stays last-30-days even across many
-  -- reloads spanning days). If no preset is persisted *and* no
-  -- explicit from is set either, drop a sensible default in so a
-  -- fresh install isn't unbounded (an unbounded Claude Code refresh
-  -- cold-parses every session file the user has ever recorded).
+  -- reloads spanning days). Three cases:
+  --
+  --   1. The preset name is persisted → use it.
+  --   2. No preset persisted AND no from set → fresh install /
+  --      migration target. Default to last30d so the initial Claude
+  --      Code refresh has a bounded scope (an unbounded one
+  --      cold-parses every session file the user has ever recorded).
+  --   3. No preset persisted BUT from IS set → upgrading from an
+  --      older spoon version that didn't persist the preset name.
+  --      Try to backfill the preset by matching the persisted
+  --      from/to (compared via epoch so `+00:00` vs `Z` format
+  --      differences don't matter) against each preset's *current*
+  --      computation. If any matches, the user gets their highlight
+  --      back without having to re-click.
+  local PRESET_NAMES = { "today", "last7d", "last30d", "monthToDate", "yearToDate" }
   local storedPreset = hs.settings.get(SETTINGS.activePreset)
   if type(storedPreset) == "string" and storedPreset ~= "" then
     self._state.activePreset = storedPreset
   elseif not self._state.from then
     self._state.activePreset = "last30d"
+  else
+    local origFrom, origTo = self._state.from, self._state.to
+    local storedFromEpoch = isoToEpoch(origFrom)
+    local storedToEpoch   = origTo and isoToEpoch(origTo) or nil
+    if storedFromEpoch then
+      for _, name in ipairs(PRESET_NAMES) do
+        self:_applyPresetDates(name)
+        local fromMatches = isoToEpoch(self._state.from) == storedFromEpoch
+        local toMatches   = isoToEpoch(self._state.to)   == storedToEpoch
+        if fromMatches and toMatches then
+          self._state.activePreset = name
+          break
+        end
+      end
+    end
+    if not self._state.activePreset then
+      -- No preset matched — restore the user's manually-set range.
+      self._state.from, self._state.to = origFrom, origTo
+    end
   end
   if self._state.activePreset then
     self:_applyPresetDates(self._state.activePreset)
