@@ -539,21 +539,6 @@ local function htmlTemplate()
     .tab.is-active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
     .tab.has-error { color: var(--error); }
     .tab.has-error.is-active { border-bottom-color: var(--error); }
-    .status-pill {
-      display: inline-flex; align-items: center; gap: 8px;
-      padding: 4px 12px; border-radius: 999px;
-      font-size: 13px; font-weight: 600;
-      background: var(--border); color: var(--muted);
-    }
-    .status-pill::before {
-      content: ""; display: block; width: 8px; height: 8px;
-      border-radius: 999px; background: currentColor;
-    }
-    .status-pill.ok    { background: rgba(22, 163, 74, 0.12);  color: var(--ok); }
-    .status-pill.busy  { background: rgba(217, 119, 6, 0.12);  color: var(--warn); }
-    .status-pill.busy::before { animation: pulse 0.9s ease-in-out infinite; }
-    .status-pill.error { background: var(--error-bg); color: var(--error); }
-    @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
     .error-block {
       margin-top: 10px; padding: 10px 12px;
       background: var(--error-bg); border: 1px solid var(--error);
@@ -593,25 +578,13 @@ local function htmlTemplate()
     tbody tr.empty:hover, tbody tr.empty:nth-child(even) { background: transparent; }
     tbody tr.empty td { color: var(--muted); font-style: italic; text-align: center; padding: 16px; }
     .mono { font-family: ui-monospace, Menlo, Monaco, monospace; font-size: 12px; color: var(--muted); }
-    .meta-row { margin-top: 6px; min-height: 16px; }
-    .meta-row:empty { display: none; }
   </style>
 </head>
 <body>
   <div class="progressbar" id="progress"></div>
   <div class="wrap">
     <div class="tabs" id="tabs" role="tablist"></div>
-
-    <div class="card">
-      <div class="row" style="justify-content:space-between; align-items:center;">
-        <div>
-          <span class="status-pill" id="status">Status</span>
-          <div class="mono meta-row" id="meta"></div>
-        </div>
-        <button id="refresh" onclick="send('refresh')" class="primary">Refresh</button>
-      </div>
-      <div id="error" class="error-block"></div>
-    </div>
+    <div id="error" class="error-block"></div>
 
     <div class="card">
       <div class="row">
@@ -767,26 +740,6 @@ local function htmlTemplate()
       el.value = str;
     }
 
-    function setTextIfChanged(id, value) {
-      const el = document.getElementById(id);
-      if (!el) return;
-      const str = (value == null) ? '' : String(value);
-      if (el.textContent === str) return;
-      el.textContent = str;
-    }
-
-    function setStatus(status) {
-      const el = document.getElementById('status');
-      const label = status || 'Unknown';
-      let klass = '';
-      if (label === 'OK') klass = 'ok';
-      else if (label === 'Loading' || label === 'Refreshing') klass = 'busy';
-      else if (label === 'Error') klass = 'error';
-      const wanted = 'status-pill ' + klass;
-      if (el.className !== wanted) el.className = wanted.trim();
-      setTextIfChanged('status', label);
-    }
-
     let progressShownAt = 0;
     let progressHideTimer = null;
     const PROGRESS_MIN_VISIBLE_MS = 400;
@@ -814,15 +767,6 @@ local function htmlTemplate()
       const text = msg || '';
       if (el.textContent !== text) el.textContent = text;
       el.classList.toggle('is-shown', !!text);
-    }
-
-    function setMeta(payload) {
-      const parts = [];
-      if (payload.lastStatus) parts.push('HTTP ' + payload.lastStatus);
-      if (payload.lastRefreshAt) parts.push('updated ' + new Date(payload.lastRefreshAt * 1000).toLocaleString());
-      const keys = (Array.isArray(payload.keys) ? payload.keys : []).filter(Boolean);
-      if (keys.length) parts.push('keys: ' + keys.join(', '));
-      setTextIfChanged('meta', parts.join('  ·  '));
     }
 
     function renderTotals(totals) {
@@ -854,10 +798,8 @@ local function htmlTemplate()
       renderTabs(payload.sources, payload.activeSource);
       applySourceVisibility(payload.activeSource);
 
-      setStatus(payload.status);
       setProgress(payload.status === 'Loading' || payload.status === 'Refreshing');
       setError(payload.lastError);
-      setMeta(payload);
 
       setInputIfChanged('granularity', payload.granularity || 'month');
       setInputIfChanged('from', payload.from || '');
