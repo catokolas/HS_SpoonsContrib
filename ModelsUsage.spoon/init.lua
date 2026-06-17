@@ -1351,8 +1351,10 @@ function obj:_refreshKix(requestSeq)
 end
 
 -- Claude Code: list every per-session JSONL file under
--- ~/.claude/projects/*/*.jsonl. Returns a (possibly empty) list of
--- absolute paths. No I/O beyond directory listing.
+-- ~/.claude/projects/*/*.jsonl as {path, mtime} pairs. The mtime is
+-- used by the refresh step to short-circuit files whose last-write
+-- predates the requested `from` (assistant messages are append-only,
+-- so a stale file can't contain any matching event).
 local function listClaudeCodeFiles()
   local home = os.getenv("HOME")
   if not home or home == "" then return {} end
@@ -1367,7 +1369,9 @@ local function listClaudeCodeFiles()
       if projAttr and projAttr.mode == "directory" then
         for entry in hs.fs.dir(projDir) do
           if entry:match("%.jsonl$") then
-            files[#files + 1] = projDir .. "/" .. entry
+            local path = projDir .. "/" .. entry
+            local attr = hs.fs.attributes(path)
+            files[#files + 1] = { path = path, mtime = attr and attr.modification or 0 }
           end
         end
       end
@@ -1380,11 +1384,22 @@ end
 -- `agg`, keyed by `<bucketDate>\0<model>`. Lines that fail to parse or
 -- don't match the assistant-usage shape are skipped silently — partial
 -- writes mid-session are normal.
+--
+-- Substring pre-filter: assistant-message lines from Claude Code always
+-- carry `"role":"assistant"` and `"usage":` together (compact JSON, no
+-- spaces). Most lines in a session log are user / tool / snapshot
+-- events that don't match — `string.find(..., plain=true)` rejects them
+-- in microseconds so we never pay the `hs.json.decode` cost on them.
+-- This is the single biggest perf knob in the walker — without it,
+-- decode-everything dominates the runtime and stalls Hammerspoon's
+-- main thread long enough to drop event-tap callbacks in other spoons.
 local function foldClaudeCodeFile(filepath, fromEpoch, toEpoch, granularity, agg)
   local f = io.open(filepath, "r")
   if not f then return end
   for line in f:lines() do
-    if line and line ~= "" then
+    if line and line ~= ""
+       and line:find('"role":"assistant"', 1, true)
+       and line:find('"usage":', 1, true) then
       local ok, evt = pcall(hs.json.decode, line)
       if ok and type(evt) == "table" then
         local msg = evt.message
@@ -1464,9 +1479,12 @@ local function buildClaudeCodeData(agg, fromIso, toIso, granularity)
 end
 
 -- Per-source refresh: Claude Code. Walks ~/.claude/projects/*/*.jsonl
--- in batched ticks (BATCH files per tick, then `hs.timer.doAfter(0)`)
--- so a large session corpus doesn't peg the main thread + beachball
--- Hammerspoon. Writes to state.sources.claudecode.{lastData, ...}.
+-- one file per runloop tick (separated by `hs.timer.doAfter(0)`) so
+-- that even a slow individual file only stalls Hammerspoon's main
+-- thread for the duration of that file, not a multi-file batch. Files
+-- whose mtime predates `from` are skipped without opening — session
+-- logs are append-only, so a stale file can't contain any matching
+-- event. Writes to state.sources.claudecode.{lastData, ...}.
 function obj:_refreshClaudeCode(requestSeq)
   local slot = self._state.sources.claudecode
   local startedAt = hs.timer.secondsSinceEpoch()
@@ -1483,9 +1501,22 @@ function obj:_refreshClaudeCode(requestSeq)
   local fromEpoch = fromIso and isoToEpoch(fromIso) or nil
   local toEpoch   = toIso   and isoToEpoch(toIso)   or nil
 
-  local files = listClaudeCodeFiles()
-  self.logger.df("refresh start #%d source=claudecode files=%d granularity=%s",
-    requestSeq, #files, granularity)
+  -- Buffer the mtime cutoff by one day to absorb timezone slop between
+  -- `from` (whose isoToEpoch result depends on the local tz interpretation)
+  -- and file mtimes (which are real UTC seconds). False positives here are
+  -- cheap (one extra file gets walked); a false negative would silently
+  -- drop a session's data.
+  local mtimeCutoff = fromEpoch and (fromEpoch - 86400) or nil
+
+  local allFiles = listClaudeCodeFiles()
+  local files = {}
+  for _, e in ipairs(allFiles) do
+    if not mtimeCutoff or e.mtime >= mtimeCutoff then
+      files[#files + 1] = e
+    end
+  end
+  self.logger.df("refresh start #%d source=claudecode files=%d (of %d, skipped %d via mtime) granularity=%s",
+    requestSeq, #files, #allFiles, #allFiles - #files, granularity)
 
   if #files == 0 then
     self._state.inFlight = false
@@ -1500,22 +1531,19 @@ function obj:_refreshClaudeCode(requestSeq)
 
   local agg = {}
   local idx = 0
-  local BATCH = 4  -- files per runloop tick
 
   local function step()
     if requestSeq ~= self._state.requestSeq then
       self.logger.wf("stale claudecode run #%d superseded", requestSeq)
       return
     end
-    local processedThisTick = 0
-    while processedThisTick < BATCH and idx < #files do
-      idx = idx + 1
-      local ok, err = pcall(foldClaudeCodeFile,
-        files[idx], fromEpoch, toEpoch, granularity, agg)
-      if not ok then
-        self.logger.wf("claudecode parse error in %s: %s", files[idx], tostring(err))
-      end
-      processedThisTick = processedThisTick + 1
+    -- One file per tick: caps the main-thread block duration to whatever
+    -- the slowest single file takes, rather than the sum across a batch.
+    idx = idx + 1
+    local ok, err = pcall(foldClaudeCodeFile,
+      files[idx].path, fromEpoch, toEpoch, granularity, agg)
+    if not ok then
+      self.logger.wf("claudecode parse error in %s: %s", files[idx].path, tostring(err))
     end
 
     if idx >= #files then
