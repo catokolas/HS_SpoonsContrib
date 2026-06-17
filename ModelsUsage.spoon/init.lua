@@ -1619,33 +1619,25 @@ function obj:_openWindow()
     :deleteOnClose(false)
     :level(hs.drawing.windowLevels.normal)
 
-  -- Navigation callback handles two cases:
-  --   1. Older Hammerspoon builds without messageHandlers fall back
-  --      to URL hijacking from JS — `modelsusage://action?…`. Intercept
-  --      those, dispatch, return false to cancel the navigation.
-  --   2. Web Inspector's Reload (or any user-initiated reload) navigates
-  --      to about:blank because `w:html()` injected the page without a
-  --      URL backing — there's nothing for WebKit to refetch, so the
-  --      window goes white. Detect about:blank-or-empty and re-inject
-  --      the HTML on the next tick (re-entering navigationCallback
-  --      synchronously is unsafe).
+  -- URL-hijack fallback for older Hammerspoon builds without
+  -- messageHandlers — JS sets `window.location = modelsusage://action?…`
+  -- which fires here; we dispatch and cancel the navigation.
   w:navigationCallback(function(_, _, navURL)
     local params = self:_parseActionUrl(navURL)
     if params then
       self:_handleAction(params)
       return false
     end
-    if not navURL or navURL == "" or navURL == "about:blank" then
-      hs.timer.doAfter(0, function()
-        if self._state.window then
-          self._state.window:html(htmlTemplate())
-        end
-      end)
-    end
     return true
   end)
 
-  w:html(htmlTemplate())
+  -- Back the page with a data: URL rather than `w:html()`. Inline-
+  -- injected HTML has no URL behind it, so right-click → Reload (or
+  -- any WebKit reload) navigates to about:blank and the dashboard
+  -- goes white. A data:text/html URL is self-contained (no temp file,
+  -- no file:// permissions) and WebKit treats it as a real navigation
+  -- target, so reload re-fetches it cleanly.
+  w:url("data:text/html;charset=utf-8;base64," .. hs.base64.encode(htmlTemplate()))
   w:show()
 
   self._state.window = w
