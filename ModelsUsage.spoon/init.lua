@@ -1826,23 +1826,25 @@ function obj:_parseActionUrl(url)
   return out
 end
 
--- Off-screen frame used for pre-warming. The window is shown there
--- with alpha 0 so the user never sees it; on user-initiated open we
--- promote it to the saved frame + full alpha. Far-off-screen
--- coordinates avoid any chance of bleed onto a real display.
-local PREWARM_FRAME = { x = -32000, y = -32000, w = 100, h = 100 }
+-- Pre-warm alpha. Has to be non-zero — WebKit / Quartz skip the
+-- render path entirely for alpha=0 windows (and for fully off-screen
+-- ones), which means the WKWebView content-process spawn never
+-- happens during pre-warm and the cost just relocates to the user's
+-- menubar click. 0.01 (1% opacity) is enough for the compositor to
+-- treat the window as visible — basically imperceptible against
+-- desktop wallpaper.
+local PREWARM_ALPHA = 0.01
 
 -- Lazy create-only helper. `visible` true → create the window at the
 -- user's saved frame + alpha 1 + focus, ready to interact with.
--- `visible` false → pre-warm: create off-screen at alpha 0 so the
--- WebKit content-process spawn + initial HTML/JS parse run
--- *invisibly*, paid by Hammerspoon's main thread before the user
--- clicks the menubar. `_openWindow` then promotes it to the user's
--- frame with no further spawn cost.
+-- `visible` false → pre-warm: same saved frame, just alpha 0.01, so
+-- the WebKit content-process spawn + initial HTML/JS parse + first
+-- composite all run while the window is essentially imperceptible.
+-- `_openWindow` then bumps alpha to 1 with no further WebKit work.
 function obj:_createWindow(visible)
   if self._state.window then return end
 
-  local frame = visible and self:_loadWindowFrame() or PREWARM_FRAME
+  local frame = self:_loadWindowFrame()
 
   -- WKWebView message bridge: replaces URL-hijack RPC. Each JS-side
   -- send() posts a structured table here without triggering a
@@ -1886,7 +1888,7 @@ function obj:_createWindow(visible)
   -- target, so reload re-fetches it cleanly.
   w:url("data:text/html;charset=utf-8;base64," .. hs.base64.encode(htmlTemplate()))
 
-  if not visible then w:alpha(0) end
+  w:alpha(visible and 1.0 or PREWARM_ALPHA)
   w:show()
 
   self._state.window = w
@@ -1910,13 +1912,13 @@ function obj:_createWindow(visible)
   end
 end
 
--- Promote a pre-warmed window from its off-screen alpha-0 home to the
--- user's saved frame with full alpha + focus. Cheap: just a frame
--- change and alpha bump — no WebKit work because the content process
--- is already running and the page is already rendered.
+-- Promote a pre-warmed window from its alpha 0.01 home to full alpha
+-- and focus. The window is already at the user's saved frame and the
+-- WebKit content process has already done its initial spawn / render
+-- during pre-warm, so this is just an opacity bump + key-window
+-- activation — no thread-blocking WebKit work.
 function obj:_promotePrewarmedWindow()
   if not (self._state.window and self._state.windowPrewarmed) then return end
-  self._state.window:frame(self:_loadWindowFrame())
   self._state.window:alpha(1.0)
   self._state.windowPrewarmed = false
   hs.timer.doAfter(0.08, function()
