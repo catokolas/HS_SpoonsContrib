@@ -1344,76 +1344,111 @@ end
 -- needs re-parsing across refreshes is the currently-active session.
 local _ccFileCache = {}
 
--- Parse one JSONL file end-to-end into a per-day, per-model agg map.
--- Lines that fail the substring pre-filter, fail to parse, or don't
--- carry an assistant usage payload are skipped silently. Returns the
--- agg; does not consult or update _ccFileCache (that's the caller's
--- job).
---
--- Substring pre-filter: assistant-message lines from Claude Code always
--- carry `"role":"assistant"` and `"usage":` together (compact JSON, no
--- spaces). Most lines in a session log are user / tool / snapshot
--- events that don't match — `string.find(..., plain=true)` rejects them
--- in microseconds so we never pay the `hs.json.decode` cost on them.
-local function parseClaudeCodeFile(filepath)
-  local agg = {}
-  local f = io.open(filepath, "r")
-  if not f then return agg end
-  for line in f:lines() do
-    if line and line ~= ""
-       and line:find('"role":"assistant"', 1, true)
-       and line:find('"usage":', 1, true) then
-      local ok, evt = pcall(hs.json.decode, line)
-      if ok and type(evt) == "table" then
-        local msg = evt.message
-        local tsStr = evt.timestamp
-        if type(msg) == "table" and msg.role == "assistant"
-           and type(msg.usage) == "table" and type(tsStr) == "string" then
-          local date = tsStr:sub(1, 10)  -- "YYYY-MM-DD"
-          local model = tostring(msg.model or "unknown")
-          local key = date .. "\0" .. model
-          local row = agg[key]
-          if not row then
-            row = { date = date, model = model, ts = tsStr,
-                    requests = 0, input_tokens = 0, output_tokens = 0,
-                    cached_tokens = 0, reasoning_tokens = 0 }
-            agg[key] = row
-          end
-          local u = msg.usage
-          row.requests      = row.requests      + 1
-          row.input_tokens  = row.input_tokens  + (tonumber(u.input_tokens)  or 0)
-          row.output_tokens = row.output_tokens + (tonumber(u.output_tokens) or 0)
-          -- Sum read-cache + write-cache as "cached tokens". Cache
-          -- writes (creation) and cache reads are billed differently
-          -- but for the at-a-glance dashboard "tokens that touched
-          -- the cache" is the useful aggregate.
-          row.cached_tokens = row.cached_tokens
-                            + (tonumber(u.cache_read_input_tokens)     or 0)
-                            + (tonumber(u.cache_creation_input_tokens) or 0)
-          -- Track the latest timestamp seen for this (day, model)
-          -- bucket. Used by the from/to filter at merge time to be
-          -- more precise than "this day overlaps the range."
-          if tsStr > row.ts then row.ts = tsStr end
-          -- Anthropic doesn't break out reasoning tokens in
-          -- message.usage; extended-thinking is counted toward
-          -- output_tokens. Leave the column at 0.
-        end
-      end
-    end
+-- Fold one JSONL line into a per-day agg. Returns true if the line
+-- matched the assistant-usage shape and contributed to `agg`, false
+-- otherwise. Substring pre-filter: assistant-message lines from
+-- Claude Code always carry `"role":"assistant"` and `"usage":`
+-- together (compact JSON, no spaces). Most lines in a session log are
+-- user / tool / snapshot events that don't match; `string.find` with
+-- the plain flag rejects them in microseconds so we never pay the
+-- `hs.json.decode` cost on them — the single biggest perf knob.
+local function foldClaudeCodeLine(line, agg)
+  if not line or line == ""
+     or not line:find('"role":"assistant"', 1, true)
+     or not line:find('"usage":', 1, true) then
+    return false
   end
-  f:close()
-  return agg
+  local ok, evt = pcall(hs.json.decode, line)
+  if not ok or type(evt) ~= "table" then return false end
+  local msg = evt.message
+  local tsStr = evt.timestamp
+  if not (type(msg) == "table" and msg.role == "assistant"
+          and type(msg.usage) == "table" and type(tsStr) == "string") then
+    return false
+  end
+  local date = tsStr:sub(1, 10)  -- "YYYY-MM-DD"
+  local model = tostring(msg.model or "unknown")
+  local key = date .. "\0" .. model
+  local row = agg[key]
+  if not row then
+    row = { date = date, model = model, ts = tsStr,
+            requests = 0, input_tokens = 0, output_tokens = 0,
+            cached_tokens = 0, reasoning_tokens = 0 }
+    agg[key] = row
+  end
+  local u = msg.usage
+  row.requests      = row.requests      + 1
+  row.input_tokens  = row.input_tokens  + (tonumber(u.input_tokens)  or 0)
+  row.output_tokens = row.output_tokens + (tonumber(u.output_tokens) or 0)
+  -- Sum read-cache + write-cache as "cached tokens" — the at-a-glance
+  -- aggregate "tokens that touched the cache."
+  row.cached_tokens = row.cached_tokens
+                    + (tonumber(u.cache_read_input_tokens)     or 0)
+                    + (tonumber(u.cache_creation_input_tokens) or 0)
+  -- Track the latest timestamp seen for the (day, model) bucket;
+  -- used by the from/to filter at merge time for sub-day precision.
+  if tsStr > row.ts then row.ts = tsStr end
+  -- Anthropic doesn't break out reasoning tokens in `message.usage`;
+  -- extended-thinking is counted toward output_tokens. Leave at 0.
+  return true
 end
 
--- Look up a file's cached day-agg or parse it from disk. The cache
--- is invalidated whenever the file's mtime changes; old session files
--- (mtime stable) hit forever.
-local function getCachedDayAgg(filepath, mtime)
+-- Async per-file parser with line-level batching. Slurps all lines
+-- (cheap io even for multi-MB files), then folds them into the agg in
+-- chunks of LINES_PER_TICK per runloop tick, yielding via
+-- `hs.timer.doAfter(0)` between chunks. The yields are what let other
+-- spoons' event-tap callbacks fire during a cold parse — without them,
+-- a single 5000-line session file holds the main thread for ~170 ms.
+--
+-- `isStillCurrent()` is consulted before each batch so a superseded
+-- run (the user clicked another preset mid-parse, bumping requestSeq)
+-- bails immediately instead of finishing dead work.
+local LINES_PER_TICK = 500
+
+local function parseClaudeCodeFileAsync(filepath, isStillCurrent, callback)
+  local f = io.open(filepath, "r")
+  if not f then callback({}); return end
+  local lines = {}
+  for line in f:lines() do lines[#lines + 1] = line end
+  f:close()
+
+  local agg = {}
+  local idx = 0
+  local total = #lines
+
+  local function processBatch()
+    if not isStillCurrent() then
+      callback(nil)  -- superseded
+      return
+    end
+    local stop = math.min(idx + LINES_PER_TICK, total)
+    for i = idx + 1, stop do
+      foldClaudeCodeLine(lines[i], agg)
+    end
+    idx = stop
+    if idx >= total then
+      callback(agg)
+    else
+      hs.timer.doAfter(0, processBatch)
+    end
+  end
+  processBatch()
+end
+
+-- Look up a file's cached day-agg, or parse it asynchronously and
+-- cache the result. `callback(dayAgg, wasCached)` fires once the agg
+-- is available; `dayAgg` is nil if the run was superseded.
+local function getCachedDayAggAsync(filepath, mtime, isStillCurrent, callback)
   local cached = _ccFileCache[filepath]
-  if cached and cached.mtime == mtime then return cached.dayAgg end
-  local dayAgg = parseClaudeCodeFile(filepath)
-  _ccFileCache[filepath] = { mtime = mtime, dayAgg = dayAgg }
-  return dayAgg
+  if cached and cached.mtime == mtime then
+    callback(cached.dayAgg, true)
+    return
+  end
+  parseClaudeCodeFileAsync(filepath, isStillCurrent, function(dayAgg)
+    if dayAgg == nil then callback(nil, false); return end
+    _ccFileCache[filepath] = { mtime = mtime, dayAgg = dayAgg }
+    callback(dayAgg, false)
+  end)
 end
 
 -- Apply the user's date range + granularity to a cached day-level agg,
@@ -1538,45 +1573,44 @@ function obj:_refreshClaudeCode(requestSeq)
   local idx = 0
   local cacheHits, coldParses = 0, 0
 
-  local function step()
-    if requestSeq ~= self._state.requestSeq then
+  local isStillCurrent = function() return requestSeq == self._state.requestSeq end
+
+  local function finalize()
+    self._state.inFlight = false
+    slot.lastData = buildClaudeCodeData(agg, fromIso, toIso, granularity)
+    slot.lastError = nil
+    slot.lastStatus = 200
+    slot.lastRefreshAt = os.time()
+    local elapsed = hs.timer.secondsSinceEpoch() - startedAt
+    self.logger.df("refresh response #%d source=claudecode elapsed=%.3fs files=%d (%d cached, %d parsed) rows=%d",
+      requestSeq, elapsed, #files, cacheHits, coldParses, #slot.lastData.series)
+    self:_setMenubarStatus("OK", false)
+    self:_publishToWindow()
+  end
+
+  local processNext  -- forward declaration
+  processNext = function()
+    if not isStillCurrent() then
       self.logger.wf("stale claudecode run #%d superseded", requestSeq)
       return
     end
-    -- One file per tick: caps the main-thread block duration to a
-    -- single file's parse time. Cache hits are essentially free; cold
-    -- parses are bounded but can still hold the thread for tens to
-    -- hundreds of ms on large session files.
     idx = idx + 1
+    if idx > #files then finalize(); return end
     local file = files[idx]
-    local before = _ccFileCache[file.path]
-    local hit = before and before.mtime == file.mtime
-    local ok, dayAggOrErr = pcall(getCachedDayAgg, file.path, file.mtime)
-    if ok then
-      mergeFilteredDayAgg(dayAggOrErr, fromEpoch, toEpoch, granularity, agg)
-      if hit then cacheHits = cacheHits + 1
-      else        coldParses = coldParses + 1 end
-    else
-      self.logger.wf("claudecode parse error in %s: %s", file.path, tostring(dayAggOrErr))
-    end
-
-    if idx >= #files then
-      self._state.inFlight = false
-      slot.lastData = buildClaudeCodeData(agg, fromIso, toIso, granularity)
-      slot.lastError = nil
-      slot.lastStatus = 200
-      slot.lastRefreshAt = os.time()
-      local elapsed = hs.timer.secondsSinceEpoch() - startedAt
-      self.logger.df("refresh response #%d source=claudecode elapsed=%.3fs files=%d (%d cached, %d parsed) rows=%d",
-        requestSeq, elapsed, #files, cacheHits, coldParses, #slot.lastData.series)
-      self:_setMenubarStatus("OK", false)
-      self:_publishToWindow()
-    else
-      hs.timer.doAfter(0, step)
-    end
+    getCachedDayAggAsync(file.path, file.mtime, isStillCurrent, function(dayAgg, wasCached)
+      if dayAgg == nil then return end  -- superseded mid-parse
+      mergeFilteredDayAgg(dayAgg, fromEpoch, toEpoch, granularity, agg)
+      if wasCached then cacheHits = cacheHits + 1
+      else              coldParses = coldParses + 1 end
+      -- Yield between files even on cache hits: the merge itself runs
+      -- in the closure synchronously, and chaining hundreds of cached
+      -- merges back-to-back without yielding would still hold the
+      -- main thread.
+      hs.timer.doAfter(0, processNext)
+    end)
   end
 
-  step()
+  processNext()
 end
 
 function obj:_handleAction(params)
