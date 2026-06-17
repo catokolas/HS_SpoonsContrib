@@ -901,6 +901,16 @@ local function htmlTemplate()
       try { window.focus(); } catch (e) {}
     }, true);
 
+    // Signal Lua as soon as ModelsUsageRender exists, so the first
+    // publish doesn't race the WebKit content process loading the
+    // script. Without this, the Lua-initiated publish that runs right
+    // after w:html(...) on the next runloop tick lands while
+    // `window.ModelsUsageRender` is still undefined; the
+    // `window.ModelsUsageRender && ...` guard in _publishToWindow
+    // silently drops the payload and the dashboard renders empty
+    // until the user clicks Refresh.
+    send('ready');
+
     // Manually editing date / key / interval inputs invalidates the
     // currently-highlighted preset (the user is overriding it).
     ['from', 'to', 'key', 'interval'].forEach(id => {
@@ -1602,6 +1612,15 @@ function obj:_handleAction(params)
 
   if action == "setSource" and params.id then
     self:setActiveSource(params.id)
+    return
+  end
+
+  if action == "ready" then
+    -- JS-side handshake: the dashboard script has loaded and is ready
+    -- to receive ModelsUsageRender calls. Push current state now so
+    -- the initial render doesn't depend on the in-flight refresh
+    -- completing.
+    self:_publishToWindow()
     return
   end
 end
