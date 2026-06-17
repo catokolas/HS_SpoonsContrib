@@ -1332,22 +1332,33 @@ local function listClaudeCodeFiles()
   return files
 end
 
--- Parse one JSONL file and fold its assistant-role usage records into
--- `agg`, keyed by `<bucketDate>\0<model>`. Lines that fail to parse or
--- don't match the assistant-usage shape are skipped silently — partial
--- writes mid-session are normal.
+-- Per-file day-resolution cache. Keyed by absolute file path. Value:
+-- `{ mtime = <fs mtime>, dayAgg = <"YYYY-MM-DD\0model" → row> }`. The
+-- dayAgg is the file's full per-day per-model usage with no from/to
+-- filter and no coarser bucketing applied. Subsequent refreshes
+-- re-aggregate cached rows in milliseconds; only files whose mtime
+-- has changed since last seen need to be re-read from disk.
+--
+-- Claude Code session files are append-only — once a session ends, the
+-- file's mtime is stable forever. The only file that legitimately
+-- needs re-parsing across refreshes is the currently-active session.
+local _ccFileCache = {}
+
+-- Parse one JSONL file end-to-end into a per-day, per-model agg map.
+-- Lines that fail the substring pre-filter, fail to parse, or don't
+-- carry an assistant usage payload are skipped silently. Returns the
+-- agg; does not consult or update _ccFileCache (that's the caller's
+-- job).
 --
 -- Substring pre-filter: assistant-message lines from Claude Code always
 -- carry `"role":"assistant"` and `"usage":` together (compact JSON, no
 -- spaces). Most lines in a session log are user / tool / snapshot
 -- events that don't match — `string.find(..., plain=true)` rejects them
 -- in microseconds so we never pay the `hs.json.decode` cost on them.
--- This is the single biggest perf knob in the walker — without it,
--- decode-everything dominates the runtime and stalls Hammerspoon's
--- main thread long enough to drop event-tap callbacks in other spoons.
-local function foldClaudeCodeFile(filepath, fromEpoch, toEpoch, granularity, agg)
+local function parseClaudeCodeFile(filepath)
+  local agg = {}
   local f = io.open(filepath, "r")
-  if not f then return end
+  if not f then return agg end
   for line in f:lines() do
     if line and line ~= ""
        and line:find('"role":"assistant"', 1, true)
@@ -1358,40 +1369,82 @@ local function foldClaudeCodeFile(filepath, fromEpoch, toEpoch, granularity, agg
         local tsStr = evt.timestamp
         if type(msg) == "table" and msg.role == "assistant"
            and type(msg.usage) == "table" and type(tsStr) == "string" then
-          local epoch = isoToEpoch(tsStr)
-          if epoch
-             and (not fromEpoch or epoch >= fromEpoch)
-             and (not toEpoch   or epoch <= toEpoch) then
-            local bucket = bucketDate(tsStr, granularity)
-            local model = tostring(msg.model or "unknown")
-            local key = bucket .. "\0" .. model
-            local row = agg[key]
-            if not row then
-              row = { date = bucket, model = model,
-                      requests = 0, input_tokens = 0, output_tokens = 0,
-                      cached_tokens = 0, reasoning_tokens = 0 }
-              agg[key] = row
-            end
-            local u = msg.usage
-            row.requests      = row.requests      + 1
-            row.input_tokens  = row.input_tokens  + (tonumber(u.input_tokens)  or 0)
-            row.output_tokens = row.output_tokens + (tonumber(u.output_tokens) or 0)
-            -- Sum read-cache + write-cache as "cached tokens". Cache
-            -- writes (creation) and cache reads are billed differently
-            -- but for the at-a-glance dashboard "tokens that touched
-            -- the cache" is the useful aggregate.
-            row.cached_tokens = row.cached_tokens
-                              + (tonumber(u.cache_read_input_tokens)     or 0)
-                              + (tonumber(u.cache_creation_input_tokens) or 0)
-            -- Anthropic doesn't break out reasoning tokens in
-            -- message.usage; extended-thinking is counted toward
-            -- output_tokens. Leave the column at 0.
+          local date = tsStr:sub(1, 10)  -- "YYYY-MM-DD"
+          local model = tostring(msg.model or "unknown")
+          local key = date .. "\0" .. model
+          local row = agg[key]
+          if not row then
+            row = { date = date, model = model, ts = tsStr,
+                    requests = 0, input_tokens = 0, output_tokens = 0,
+                    cached_tokens = 0, reasoning_tokens = 0 }
+            agg[key] = row
           end
+          local u = msg.usage
+          row.requests      = row.requests      + 1
+          row.input_tokens  = row.input_tokens  + (tonumber(u.input_tokens)  or 0)
+          row.output_tokens = row.output_tokens + (tonumber(u.output_tokens) or 0)
+          -- Sum read-cache + write-cache as "cached tokens". Cache
+          -- writes (creation) and cache reads are billed differently
+          -- but for the at-a-glance dashboard "tokens that touched
+          -- the cache" is the useful aggregate.
+          row.cached_tokens = row.cached_tokens
+                            + (tonumber(u.cache_read_input_tokens)     or 0)
+                            + (tonumber(u.cache_creation_input_tokens) or 0)
+          -- Track the latest timestamp seen for this (day, model)
+          -- bucket. Used by the from/to filter at merge time to be
+          -- more precise than "this day overlaps the range."
+          if tsStr > row.ts then row.ts = tsStr end
+          -- Anthropic doesn't break out reasoning tokens in
+          -- message.usage; extended-thinking is counted toward
+          -- output_tokens. Leave the column at 0.
         end
       end
     end
   end
   f:close()
+  return agg
+end
+
+-- Look up a file's cached day-agg or parse it from disk. The cache
+-- is invalidated whenever the file's mtime changes; old session files
+-- (mtime stable) hit forever.
+local function getCachedDayAgg(filepath, mtime)
+  local cached = _ccFileCache[filepath]
+  if cached and cached.mtime == mtime then return cached.dayAgg end
+  local dayAgg = parseClaudeCodeFile(filepath)
+  _ccFileCache[filepath] = { mtime = mtime, dayAgg = dayAgg }
+  return dayAgg
+end
+
+-- Apply the user's date range + granularity to a cached day-level agg,
+-- merging surviving rows into `target` (the shared global agg for the
+-- in-progress refresh). Day-resolution rows whose `ts` falls inside
+-- [fromEpoch, toEpoch] contribute; bucketing happens at merge time so
+-- the cache stays granularity-agnostic.
+local function mergeFilteredDayAgg(dayAgg, fromEpoch, toEpoch, granularity, target)
+  for _, row in pairs(dayAgg) do
+    local epoch = isoToEpoch(row.ts)
+    if epoch
+       and (not fromEpoch or epoch >= fromEpoch)
+       and (not toEpoch   or epoch <= toEpoch) then
+      local bucket = row.date
+      if granularity == "month" then bucket = row.date:sub(1, 7)
+      elseif granularity == "year" then bucket = row.date:sub(1, 4)
+      end
+      local key = bucket .. "\0" .. row.model
+      local cur = target[key]
+      if not cur then
+        cur = { date = bucket, model = row.model,
+                requests = 0, input_tokens = 0, output_tokens = 0,
+                cached_tokens = 0, reasoning_tokens = 0 }
+        target[key] = cur
+      end
+      cur.requests      = cur.requests      + row.requests
+      cur.input_tokens  = cur.input_tokens  + row.input_tokens
+      cur.output_tokens = cur.output_tokens + row.output_tokens
+      cur.cached_tokens = cur.cached_tokens + row.cached_tokens
+    end
+  end
 end
 
 -- Turn the aggregation map into the {series, by_model, ...} shape that
@@ -1483,19 +1536,28 @@ function obj:_refreshClaudeCode(requestSeq)
 
   local agg = {}
   local idx = 0
+  local cacheHits, coldParses = 0, 0
 
   local function step()
     if requestSeq ~= self._state.requestSeq then
       self.logger.wf("stale claudecode run #%d superseded", requestSeq)
       return
     end
-    -- One file per tick: caps the main-thread block duration to whatever
-    -- the slowest single file takes, rather than the sum across a batch.
+    -- One file per tick: caps the main-thread block duration to a
+    -- single file's parse time. Cache hits are essentially free; cold
+    -- parses are bounded but can still hold the thread for tens to
+    -- hundreds of ms on large session files.
     idx = idx + 1
-    local ok, err = pcall(foldClaudeCodeFile,
-      files[idx].path, fromEpoch, toEpoch, granularity, agg)
-    if not ok then
-      self.logger.wf("claudecode parse error in %s: %s", files[idx].path, tostring(err))
+    local file = files[idx]
+    local before = _ccFileCache[file.path]
+    local hit = before and before.mtime == file.mtime
+    local ok, dayAggOrErr = pcall(getCachedDayAgg, file.path, file.mtime)
+    if ok then
+      mergeFilteredDayAgg(dayAggOrErr, fromEpoch, toEpoch, granularity, agg)
+      if hit then cacheHits = cacheHits + 1
+      else        coldParses = coldParses + 1 end
+    else
+      self.logger.wf("claudecode parse error in %s: %s", file.path, tostring(dayAggOrErr))
     end
 
     if idx >= #files then
@@ -1505,8 +1567,8 @@ function obj:_refreshClaudeCode(requestSeq)
       slot.lastStatus = 200
       slot.lastRefreshAt = os.time()
       local elapsed = hs.timer.secondsSinceEpoch() - startedAt
-      self.logger.df("refresh response #%d source=claudecode elapsed=%.3fs files=%d rows=%d",
-        requestSeq, elapsed, #files, #slot.lastData.series)
+      self.logger.df("refresh response #%d source=claudecode elapsed=%.3fs files=%d (%d cached, %d parsed) rows=%d",
+        requestSeq, elapsed, #files, cacheHits, coldParses, #slot.lastData.series)
       self:_setMenubarStatus("OK", false)
       self:_publishToWindow()
     else
