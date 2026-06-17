@@ -1344,6 +1344,68 @@ end
 -- needs re-parsing across refreshes is the currently-active session.
 local _ccFileCache = {}
 
+-- Disk-backed cache: persist `_ccFileCache` to a JSON file so a
+-- Hammerspoon reload doesn't dump a hot cache and force a multi-second
+-- cold re-parse on the next broad-range refresh. Version-tagged so a
+-- shape change in a future spoon release discards stale on-disk data
+-- without trying to reuse incompatible entries.
+--
+-- On-disk shape:
+--   { "version": 1,
+--     "files": { "<abs path>": { "mtime": N, "rows": [<row>, ...] } } }
+-- The in-memory `dayAgg` map is reconstituted from `rows` on load by
+-- re-keying `date .. "\0" .. model`. Persisting the list form avoids
+-- the JSON encoder having to round-trip null-byte map keys.
+local CC_CACHE_VERSION = 1
+
+local function ccCacheFilePath()
+  return (os.getenv("HOME") or "/tmp") .. "/.hammerspoon/cache/ModelsUsage-claudecode.json"
+end
+
+local function loadClaudeCodeCache()
+  local f = io.open(ccCacheFilePath(), "r")
+  if not f then return end
+  local content = f:read("*a")
+  f:close()
+  if not content or content == "" then return end
+  local ok, decoded = pcall(hs.json.decode, content)
+  if not ok or type(decoded) ~= "table" then return end
+  if decoded.version ~= CC_CACHE_VERSION then return end
+  local restored = 0
+  for path, entry in pairs(decoded.files or {}) do
+    if type(entry) == "table" and type(entry.mtime) == "number"
+       and type(entry.rows) == "table" then
+      local dayAgg = {}
+      for _, row in ipairs(entry.rows) do
+        if type(row) == "table" and row.date and row.model then
+          dayAgg[row.date .. "\0" .. row.model] = row
+        end
+      end
+      _ccFileCache[path] = { mtime = entry.mtime, dayAgg = dayAgg }
+      restored = restored + 1
+    end
+  end
+  return restored
+end
+
+local function saveClaudeCodeCache()
+  local out = { version = CC_CACHE_VERSION, files = {} }
+  for path, entry in pairs(_ccFileCache) do
+    local rows = {}
+    for _, row in pairs(entry.dayAgg) do rows[#rows + 1] = row end
+    out.files[path] = { mtime = entry.mtime, rows = rows }
+  end
+  local encoded = hs.json.encode(out)
+  if not encoded then return end
+  -- Best-effort: create the cache directory if it doesn't exist yet.
+  local cacheDir = ccCacheFilePath():match("^(.*)/[^/]+$")
+  if cacheDir then hs.fs.mkdir(cacheDir) end
+  local f = io.open(ccCacheFilePath(), "w")
+  if not f then return end
+  f:write(encoded)
+  f:close()
+end
+
 -- Fold one JSONL line into a per-day agg. Returns true if the line
 -- matched the assistant-usage shape and contributed to `agg`, false
 -- otherwise. Substring pre-filter: assistant-message lines from
@@ -1586,6 +1648,13 @@ function obj:_refreshClaudeCode(requestSeq)
       requestSeq, elapsed, #files, cacheHits, coldParses, #slot.lastData.series)
     self:_setMenubarStatus("OK", false)
     self:_publishToWindow()
+    -- Persist the cache after a refresh that added entries, so the
+    -- next Hammerspoon reload doesn't have to re-parse from cold.
+    -- Deferred to the next tick so the disk write doesn't sit on the
+    -- response path's critical section.
+    if coldParses > 0 then
+      hs.timer.doAfter(0, saveClaudeCodeCache)
+    end
   end
 
   local processNext  -- forward declaration
@@ -1829,6 +1898,13 @@ function obj:start()
   if self._state.menubar then return self end
 
   self:_loadSettings()
+  -- Restore the on-disk Claude Code parse cache so the first refresh
+  -- after a Hammerspoon reload doesn't have to cold-parse every file
+  -- that was already cached in the previous session.
+  local restored = loadClaudeCodeCache()
+  if restored and restored > 0 then
+    self.logger.df("restored claudecode parse cache: %d files", restored)
+  end
   if not self._state.granularity then
     self._state.granularity = clampGranularity(self.defaultGranularity)
   end
