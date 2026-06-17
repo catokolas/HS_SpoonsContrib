@@ -80,8 +80,8 @@ obj._state = {
   from = nil,
   to = nil,
   refreshSeconds = nil,
-  -- The most recently picked range preset ("today", "last7d",
-  -- "last30d", "monthToDate", "yearToDate"). nil when the user has
+  -- The most recently picked range preset ("today", "thisWeek",
+  -- "thisMonth", "thisYear"). nil when the user has
   -- manually overridden from/to via the Apply Controls path. Persisted
   -- across reloads so the tab's preset highlight + the date scope come
   -- back the way the user left them — with the preset re-evaluated
@@ -141,6 +141,17 @@ local function startOfYearUtc()
   d.min = 0
   d.sec = 0
   return os.date("!%Y-%m-%dT%H:%M:%SZ", os.time(d))
+end
+
+-- Start of *this week* in UTC, with Monday as the first day (ISO 8601
+-- / European convention). os.date's `!*t` gives `wday` = 1..7 with
+-- Sunday = 1; subtract `(wday - 2) mod 7` days so that Monday lands on
+-- the current week's Monday.
+local function startOfWeekUtc()
+  local d = os.date("!*t")
+  local daysSinceMonday = (d.wday - 2) % 7
+  local t = os.time(d) - daysSinceMonday * 86400
+  return os.date("!%Y-%m-%dT00:00:00Z", t)
 end
 
 local function fmtNum(n)
@@ -642,11 +653,10 @@ local function htmlTemplate()
       </div>
       <div class="row" style="margin-top:10px;">
         <button id="apply" onclick="applyControls()" class="primary">Apply controls</button>
-        <button data-preset="today"       onclick="pickPreset(this)">Today</button>
-        <button data-preset="last7d"      onclick="pickPreset(this)">Last 7d</button>
-        <button data-preset="last30d"     onclick="pickPreset(this)">Last 30d</button>
-        <button data-preset="monthToDate" onclick="pickPreset(this)">MTD</button>
-        <button data-preset="yearToDate"  onclick="pickPreset(this)">YTD</button>
+        <button data-preset="today"     onclick="pickPreset(this)">Today</button>
+        <button data-preset="thisWeek"  onclick="pickPreset(this)">This Week</button>
+        <button data-preset="thisMonth" onclick="pickPreset(this)">This Month</button>
+        <button data-preset="thisYear"  onclick="pickPreset(this)">This Year</button>
       </div>
     </div>
 
@@ -951,7 +961,7 @@ function obj:_loadSettings()
   --
   --   1. The preset name is persisted → use it.
   --   2. No preset persisted AND no from set → fresh install /
-  --      migration target. Default to last30d so the initial Claude
+  --      migration target. Default to thisMonth so the initial Claude
   --      Code refresh has a bounded scope (an unbounded one
   --      cold-parses every session file the user has ever recorded).
   --   3. No preset persisted BUT from IS set → upgrading from an
@@ -961,12 +971,24 @@ function obj:_loadSettings()
   --      differences don't matter) against each preset's *current*
   --      computation. If any matches, the user gets their highlight
   --      back without having to re-click.
-  local PRESET_NAMES = { "today", "last7d", "last30d", "monthToDate", "yearToDate" }
+  local PRESET_NAMES = { "today", "thisWeek", "thisMonth", "thisYear" }
+  -- Migration table: old preset names → new equivalents. Pre-rename
+  -- spoons stored e.g. "last30d", which is now spelled "thisMonth"
+  -- (with subtly different semantics: was rolling-30-days, now
+  -- start-of-month-to-now). Mapping is best-effort: the user gets a
+  -- preset highlighted again, even if the underlying dates shift
+  -- slightly when `_applyPresetDates` re-evaluates against today.
+  local PRESET_MIGRATION = {
+    last7d      = "thisWeek",
+    last30d     = "thisMonth",
+    monthToDate = "thisMonth",
+    yearToDate  = "thisYear",
+  }
   local storedPreset = hs.settings.get(SETTINGS.activePreset)
   if type(storedPreset) == "string" and storedPreset ~= "" then
-    self._state.activePreset = storedPreset
+    self._state.activePreset = PRESET_MIGRATION[storedPreset] or storedPreset
   elseif not self._state.from then
-    self._state.activePreset = "last30d"
+    self._state.activePreset = "thisMonth"
   else
     local origFrom, origTo = self._state.from, self._state.to
     local storedFromEpoch = isoToEpoch(origFrom)
@@ -1141,18 +1163,15 @@ function obj:_applyPresetDates(preset)
   if preset == "today" then
     self._state.from = startOfDayUtc(0)
     self._state.to = endOfDayUtc(0)
-  elseif preset == "last7d" then
-    self._state.from = startOfDayUtc(6)
+  elseif preset == "thisWeek" then
+    self._state.from = startOfWeekUtc()
     self._state.to = endOfDayUtc(0)
-  elseif preset == "last30d" then
-    self._state.from = startOfDayUtc(29)
-    self._state.to = endOfDayUtc(0)
-  elseif preset == "monthToDate" then
+  elseif preset == "thisMonth" then
     self._state.from = startOfMonthUtc()
-    self._state.to = nowIsoUtc()
-  elseif preset == "yearToDate" then
+    self._state.to = endOfDayUtc(0)
+  elseif preset == "thisYear" then
     self._state.from = startOfYearUtc()
-    self._state.to = nowIsoUtc()
+    self._state.to = endOfDayUtc(0)
   end
 end
 
