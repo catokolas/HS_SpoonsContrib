@@ -29,6 +29,7 @@ obj.logger = hs.logger.new("ModelsUsage")
 local SETTINGS = {
   -- Global (apply to the active source)
   activeSource    = "modelsUsage.activeSource",
+  activePreset    = "modelsUsage.activePreset",
   granularity     = "modelsUsage.granularity",
   from            = "modelsUsage.from",
   to              = "modelsUsage.to",
@@ -61,6 +62,13 @@ obj._state = {
   from = nil,
   to = nil,
   refreshSeconds = nil,
+  -- The most recently picked range preset ("today", "last7d",
+  -- "last30d", "monthToDate", "yearToDate"). nil when the user has
+  -- manually overridden from/to via the Apply Controls path. Persisted
+  -- across reloads so the tab's preset highlight + the date scope come
+  -- back the way the user left them — with the preset re-evaluated
+  -- against *today's* clock, not the saved-then-stale from/to dates.
+  activePreset = nil,
 
   -- Multi-source bookkeeping
   activeSource = "kix",
@@ -417,6 +425,7 @@ local function buildViewModel(state, topModelsLimit, seriesRowsLimit,
     lastStatus = active.lastStatus,
     lastRefreshAt = active.lastRefreshAt,
     activeSource = state.activeSource,
+    activePreset = state.activePreset,
     sources = buildSourceTabs(state, sourcesRegistry, sourceOrder),
     -- Token presence is only meaningful for KIX; surface that flag so the
     -- dashboard could later show a "missing token" hint when KIX is active.
@@ -807,6 +816,15 @@ local function htmlTemplate()
       setInputIfChanged('key', (Array.isArray(payload.keys) ? payload.keys : []).join(', '));
       setInputIfChanged('interval', payload.refreshSeconds || 300);
 
+      // Sync the JS-side preset highlight with the persisted Lua-side
+      // activePreset so reload / first-open lights up the preset that
+      // owns the current range.
+      const nextPreset = payload.activePreset || null;
+      if (nextPreset !== activePreset) {
+        activePreset = nextPreset;
+        paintPresetSelection();
+      }
+
       // Data signature includes activeSource so switching tabs forces a
       // table re-render even when the new source's data happens to hash
       // the same as the old one's (e.g., both empty).
@@ -907,6 +925,23 @@ function obj:_loadSettings()
   self._state.from = hs.settings.get(SETTINGS.from)
   self._state.to = hs.settings.get(SETTINGS.to)
   self._state.refreshSeconds = coercePositiveNumber(hs.settings.get(SETTINGS.refreshSeconds), self.refreshSeconds)
+
+  -- Restore the active preset and re-evaluate it against today's
+  -- clock. This keeps the highlight in the dashboard AND keeps the
+  -- date range fresh ("Last 30d" stays last-30-days even across many
+  -- reloads spanning days). If no preset is persisted *and* no
+  -- explicit from is set either, drop a sensible default in so a
+  -- fresh install isn't unbounded (an unbounded Claude Code refresh
+  -- cold-parses every session file the user has ever recorded).
+  local storedPreset = hs.settings.get(SETTINGS.activePreset)
+  if type(storedPreset) == "string" and storedPreset ~= "" then
+    self._state.activePreset = storedPreset
+  elseif not self._state.from then
+    self._state.activePreset = "last30d"
+  end
+  if self._state.activePreset then
+    self:_applyPresetDates(self._state.activePreset)
+  end
 end
 
 function obj:_saveSettingsImmediate()
@@ -920,6 +955,7 @@ function obj:_saveSettingsImmediate()
   hs.settings.set(SETTINGS.legacyDefaultKey, nil)
 
   hs.settings.set(SETTINGS.activeSource,   self._state.activeSource)
+  hs.settings.set(SETTINGS.activePreset,   self._state.activePreset)
   hs.settings.set(SETTINGS.granularity,    self._state.granularity)
   hs.settings.set(SETTINGS.from,           self._state.from)
   hs.settings.set(SETTINGS.to,             self._state.to)
@@ -1048,7 +1084,12 @@ function obj:setRefreshSeconds(seconds)
   return self
 end
 
-function obj:_applyPreset(preset)
+-- Re-compute from/to from a preset name against the current clock.
+-- No side effects beyond setting state.from/to — used both by the
+-- user-driven `_applyPreset` (which also persists + refreshes) and by
+-- the settings-load path (which re-evaluates a persisted preset name
+-- against today instead of trusting stale stored timestamps).
+function obj:_applyPresetDates(preset)
   if preset == "today" then
     self._state.from = startOfDayUtc(0)
     self._state.to = endOfDayUtc(0)
@@ -1065,6 +1106,11 @@ function obj:_applyPreset(preset)
     self._state.from = startOfYearUtc()
     self._state.to = nowIsoUtc()
   end
+end
+
+function obj:_applyPreset(preset)
+  self._state.activePreset = preset
+  self:_applyPresetDates(preset)
   self:_saveSettings()
   self:refresh()
 end
@@ -1700,6 +1746,11 @@ function obj:_handleAction(params)
     if params.granularity then self._state.granularity = clampGranularity(params.granularity) end
     self._state.from = params.from and params.from ~= "" and params.from or nil
     self._state.to = params.to and params.to ~= "" and params.to or nil
+    -- User explicitly set from/to via the form, so no preset owns the
+    -- range anymore — clear the active preset so the highlight goes
+    -- away and a future reload doesn't recompute the preset on top of
+    -- whatever the user typed.
+    self._state.activePreset = nil
     -- params.key is a comma-separated UUID list from the input field;
     -- only meaningful for the KIX source (the input is hidden on other
     -- tabs by the JS-side render).
