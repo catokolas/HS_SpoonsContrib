@@ -24,6 +24,24 @@ obj.seriesRowsLimit = 40
 obj.windowWidth = 980
 obj.windowHeight = 720
 
+-- Pre-warm the dashboard webview at startup so the first menubar-click
+-- open doesn't pay the 3-5s WebKit content-process spawn synchronously
+-- on the main thread (which queues every other spoon's eventtap
+-- callbacks while it runs — `MouseScrollTweaks` invert-scroll going
+-- dead being the typical symptom).
+--
+-- Opt-in because the only spawn-trigger that *actually works* is
+-- showing the window visibly: macOS / Quartz / WebKit skip the render
+-- path entirely for off-screen or alpha=0 windows, so the cost just
+-- relocates back to the menubar click. With this on, the dashboard
+-- briefly flashes on screen at startup (~1.5s), then hides itself;
+-- subsequent menubar opens are instant.
+--
+-- Trade-off:
+--   false (default) → no flash, but 3-5s scroll hang on first open.
+--   true            → 1.5s flash at startup, instant opens after.
+obj.prewarmDashboard = false
+
 obj.logger = hs.logger.new("ModelsUsage")
 
 local SETTINGS = {
@@ -1826,21 +1844,23 @@ function obj:_parseActionUrl(url)
   return out
 end
 
--- Pre-warm alpha. Has to be non-zero — WebKit / Quartz skip the
--- render path entirely for alpha=0 windows (and for fully off-screen
--- ones), which means the WKWebView content-process spawn never
--- happens during pre-warm and the cost just relocates to the user's
--- menubar click. 0.01 (1% opacity) is enough for the compositor to
--- treat the window as visible — basically imperceptible against
--- desktop wallpaper.
-local PREWARM_ALPHA = 0.01
+-- How long to leave the dashboard visible during pre-warm before
+-- hiding it. Has to be long enough for WebKit's content-process spawn
+-- + initial layout + JS execution to actually run (which is what
+-- we're trying to amortise off the menubar-click critical path). 1.5 s
+-- comfortably covers the 3-5 s spawn even on a busy reload — the
+-- window stays up only as long as it takes to get the work done; the
+-- hide() runs as soon as the timer fires.
+local PREWARM_VISIBLE_SECONDS = 1.5
 
 -- Lazy create-only helper. `visible` true → create the window at the
 -- user's saved frame + alpha 1 + focus, ready to interact with.
--- `visible` false → pre-warm: same saved frame, just alpha 0.01, so
--- the WebKit content-process spawn + initial HTML/JS parse + first
--- composite all run while the window is essentially imperceptible.
--- `_openWindow` then bumps alpha to 1 with no further WebKit work.
+-- `visible` false → pre-warm: show the window briefly (visibly!) so
+-- the WebKit content-process spawn + initial paint actually happen,
+-- then hide it after PREWARM_VISIBLE_SECONDS. The flash is the
+-- unfortunate cost of forcing the work; alpha-0 / off-screen /
+-- alpha-0.01 all let macOS skip the render path, so the spawn never
+-- actually happens and the cost stays on the user's menubar click.
 function obj:_createWindow(visible)
   if self._state.window then return end
 
@@ -1888,7 +1908,7 @@ function obj:_createWindow(visible)
   -- target, so reload re-fetches it cleanly.
   w:url("data:text/html;charset=utf-8;base64," .. hs.base64.encode(htmlTemplate()))
 
-  w:alpha(visible and 1.0 or PREWARM_ALPHA)
+  w:alpha(1.0)
   w:show()
 
   self._state.window = w
@@ -1909,18 +1929,27 @@ function obj:_createWindow(visible)
       if win then win:focus() end
     end)
     hs.timer.doAfter(0, function() self:refresh() end)
+  else
+    -- Pre-warm path: window is briefly visible (forcing WebKit to
+    -- actually spawn + render); hide it after enough time for the
+    -- spawn to finish. The hide() makes future menubar opens instant
+    -- because the content process stays alive on the hidden window.
+    hs.timer.doAfter(PREWARM_VISIBLE_SECONDS, function()
+      if self._state.window and self._state.windowPrewarmed then
+        self._state.window:hide()
+      end
+    end)
   end
 end
 
--- Promote a pre-warmed window from its alpha 0.01 home to full alpha
--- and focus. The window is already at the user's saved frame and the
--- WebKit content process has already done its initial spawn / render
--- during pre-warm, so this is just an opacity bump + key-window
--- activation — no thread-blocking WebKit work.
+-- Promote a pre-warmed window: it's been hidden after a brief
+-- pre-warm flash. show() brings it back instantly because the WebKit
+-- content process is already running and the page is already
+-- rendered.
 function obj:_promotePrewarmedWindow()
   if not (self._state.window and self._state.windowPrewarmed) then return end
-  self._state.window:alpha(1.0)
   self._state.windowPrewarmed = false
+  self._state.window:show()
   hs.timer.doAfter(0.08, function()
     if not self._state.window then return end
     local win = self._state.window:hswindow()
@@ -2052,19 +2081,17 @@ function obj:start()
   self:_restartTimer()
   self:refresh()
 
-  -- Pre-warm the dashboard webview a few seconds after start. The first
-  -- WKWebView in the Hammerspoon process pays a 3-5s content-process
-  -- spawn + initial HTML/JS parse on the main thread, long enough to
-  -- queue event-tap callbacks in other spoons (MouseScrollTweaks goes
-  -- dead, etc.). Doing it here in the background — once, off-screen,
-  -- at alpha 0 — pays that cost while the user isn't actively scrolling
-  -- or typing, and the menubar-click open is a frame-move + alpha bump.
-  -- A short delay lets `refresh()` finish first so the two main-thread
-  -- workloads don't stack.
-  hs.timer.doAfter(3.0, function()
-    if self._state.window then return end  -- user got there first
-    self:_createWindow(false)
-  end)
+  -- Pre-warm the dashboard webview a few seconds after start, IF the
+  -- user opted in. See `obj.prewarmDashboard` for the trade-off
+  -- (briefly-visible dashboard at startup vs no flash but a 3-5s
+  -- scroll hang on first menubar-click open). Default is off because
+  -- the flash is a behavioural change that should be explicit.
+  if self.prewarmDashboard then
+    hs.timer.doAfter(3.0, function()
+      if self._state.window then return end  -- user got there first
+      self:_createWindow(false)
+    end)
+  end
 
   return self
 end
