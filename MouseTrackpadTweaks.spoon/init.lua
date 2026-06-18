@@ -129,6 +129,29 @@ obj.middleClick = {
 --- touch sessions and middle-click decisions.
 obj.logger = hs.logger.new("MouseTrackpadTweaks")
 
+--- MouseTrackpadTweaks.startupDelay
+--- Variable
+--- Seconds to defer all OS-touching work inside `:start()` —
+--- the accessibility probe, `hs.eventtap.new`/`:start()`, and the
+--- multitouch shim startup. `start()` returns immediately and
+--- schedules a one-shot timer that performs the real wiring.
+---
+--- Why: Hammerspoon's reload runs every Spoon's `:start()` in tight
+--- succession on the main thread. The simultaneous `CGEventTapCreate`
+--- XPC handshakes across multiple Mouse-* spoons + the multitouch
+--- shim's native callback registration contend with other main-
+--- thread cold-start work (notably NSURLSession's first-call init)
+--- enough to stall one-shot timers in *other* Spoons for tens of
+--- seconds — ModelsUsage in particular loses its KIX-request
+--- timeout. Pushing this spoon's OS calls a few seconds past the
+--- reload storm avoids being part of that contention. Set to 0
+--- for the pre-2026-06 synchronous behaviour.
+---
+--- Default 3.3 is staggered against the other Mouse-* spoons
+--- (3.0 / 3.6 / 3.9) so their deferred OS calls don't all land in
+--- the same run-loop tick.
+obj.startupDelay = 3.3
+
 -- Internal state — not part of the public API.
 obj._tap          = nil    -- shared eventtap (scroll + click)
 obj._mt           = nil    -- hs._ckol.multitouch module ref, or nil
@@ -783,40 +806,54 @@ end
 --- Returns:
 ---  * self
 function obj:start()
-  if not hs.accessibilityState() then
-    error("MouseTrackpadTweaks requires Accessibility permission for "
-          .. "Hammerspoon (System Settings -> Privacy & Security -> "
-          .. "Accessibility).", 2)
+  -- Pure-Lua only here. All OS-touching work is deferred — see
+  -- `obj.startupDelay` for the cold-start contention rationale.
+  if self._startupTimer then self._startupTimer:stop(); self._startupTimer = nil end
+  if self._tap        then self._tap:stop();        self._tap        = nil end
+  if self._mt and self._mtStarted then
+    pcall(function() self._mt.stop() end)
+    self._mtStarted = false
   end
 
-  loadNativeMultitouch(self)
+  self._startupTimer = hs.timer.doAfter(self.startupDelay or 3, function()
+    self._startupTimer = nil
 
-  if self._tap then self._tap:stop() end
-  local T = hs.eventtap.event.types
-  self._tap = hs.eventtap.new(
-    { T.scrollWheel, T.leftMouseDown, T.leftMouseUp },
-    function(ev) return self:_handle(ev) end)
-  self._tap:start()
-
-  if self._mt and not self._mtStarted then
-    local okStart, err = pcall(function()
-      self._mt.start(function(devId, devKind, touchId, phase, nx, ny, ts)
-        self:_onTouch(devId, devKind, touchId, phase, nx, ny, ts)
-      end)
-    end)
-    if okStart then
-      self._mtStarted = true
-    else
-      self.logger.w("hs._ckol.multitouch.start failed: " .. tostring(err))
+    if not hs.accessibilityState() then
+      self.logger.e("MouseTrackpadTweaks requires Accessibility permission for "
+                    .. "Hammerspoon (System Settings -> Privacy & Security -> "
+                    .. "Accessibility); spoon not started.")
+      return
     end
-  end
 
-  self.logger.i(string.format(
-    "started; invertV=%s invertH=%s middleClick=%s multitouch=%s",
-    tostring(self.invertVertical),
-    tostring(self.invertHorizontal),
-    tostring(self.middleClick.enabled),
-    self._mtStarted and "active" or "missing"))
+    loadNativeMultitouch(self)
+
+    local T = hs.eventtap.event.types
+    self._tap = hs.eventtap.new(
+      { T.scrollWheel, T.leftMouseDown, T.leftMouseUp },
+      function(ev) return self:_handle(ev) end)
+    self._tap:start()
+
+    if self._mt and not self._mtStarted then
+      local okStart, err = pcall(function()
+        self._mt.start(function(devId, devKind, touchId, phase, nx, ny, ts)
+          self:_onTouch(devId, devKind, touchId, phase, nx, ny, ts)
+        end)
+      end)
+      if okStart then
+        self._mtStarted = true
+      else
+        self.logger.w("hs._ckol.multitouch.start failed: " .. tostring(err))
+      end
+    end
+
+    self.logger.i(string.format(
+      "started; invertV=%s invertH=%s middleClick=%s multitouch=%s",
+      tostring(self.invertVertical),
+      tostring(self.invertHorizontal),
+      tostring(self.middleClick.enabled),
+      self._mtStarted and "active" or "missing"))
+  end)
+
   return self
 end
 
@@ -828,6 +865,7 @@ end
 --- Returns:
 ---  * self
 function obj:stop()
+  if self._startupTimer then self._startupTimer:stop(); self._startupTimer = nil end
   if self._tap then self._tap:stop(); self._tap = nil end
   if self._mt and self._mtStarted then
     pcall(function() self._mt.stop() end)

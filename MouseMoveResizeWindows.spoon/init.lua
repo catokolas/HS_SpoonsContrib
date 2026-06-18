@@ -67,6 +67,28 @@ obj.firstRaise = true
 --- gesture decisions.
 obj.logger = hs.logger.new("MouseMoveResizeWindows")
 
+--- MouseMoveResizeWindows.startupDelay
+--- Variable
+--- Seconds to defer the accessibility check + `hs.eventtap.new`/
+--- `:start()` inside `:start()`. The spoon's `start()` returns
+--- immediately and schedules a one-shot timer that performs the
+--- real wiring.
+---
+--- Why: Hammerspoon's reload runs every Spoon's `:start()` in tight
+--- succession on the main thread. The simultaneous `CGEventTapCreate`
+--- XPC handshakes across multiple Mouse-* spoons contend with other
+--- main-thread cold-start work (notably NSURLSession's first-call
+--- init) enough to stall one-shot timers in *other* Spoons for
+--- tens of seconds — ModelsUsage in particular loses its KIX-request
+--- timeout. Pushing this spoon's OS calls a few seconds past the
+--- reload storm avoids being part of that contention. Set to 0 for
+--- the pre-2026-06 synchronous behaviour.
+---
+--- Default 3.6 is staggered against the other Mouse-* spoons
+--- (3.0 / 3.3 / 3.9) so their deferred OS calls don't all land in
+--- the same run-loop tick.
+obj.startupDelay = 3.6
+
 -- Internal state — not part of the public API.
 obj._tap      = nil   -- eventtap handle
 obj._hotkeys  = {}    -- bindHotkeys-installed hotkeys
@@ -392,23 +414,35 @@ end
 --- Returns:
 ---  * self
 function obj:start()
-  if not hs.accessibilityState() then
-    error("MouseMoveResizeWindows requires Accessibility permission for "
-          .. "Hammerspoon (System Settings -> Privacy & Security -> "
-          .. "Accessibility).", 2)
-  end
-  if self._tap then self._tap:stop() end
-  local T = hs.eventtap.event.types
-  self._tap = hs.eventtap.new({
-    T.leftMouseDown, T.leftMouseDragged, T.leftMouseUp,
-    T.rightMouseDown, T.rightMouseDragged, T.rightMouseUp,
-    T.flagsChanged,
-  }, function(ev) return self:_handle(ev) end)
-  self._tap:start()
-  self.logger.i(string.format(
-    "started; modifiers={%s} firstRaise=%s",
-    table.concat(self.modifiers or {}, ","),
-    tostring(self.firstRaise)))
+  -- Pure-Lua only here. All OS-touching work is deferred — see
+  -- `obj.startupDelay` for the cold-start contention rationale.
+  if self._startupTimer then self._startupTimer:stop(); self._startupTimer = nil end
+  if self._tap then self._tap:stop(); self._tap = nil end
+
+  self._startupTimer = hs.timer.doAfter(self.startupDelay or 3, function()
+    self._startupTimer = nil
+
+    if not hs.accessibilityState() then
+      self.logger.e("MouseMoveResizeWindows requires Accessibility permission for "
+                    .. "Hammerspoon (System Settings -> Privacy & Security -> "
+                    .. "Accessibility); spoon not started.")
+      return
+    end
+
+    local T = hs.eventtap.event.types
+    self._tap = hs.eventtap.new({
+      T.leftMouseDown, T.leftMouseDragged, T.leftMouseUp,
+      T.rightMouseDown, T.rightMouseDragged, T.rightMouseUp,
+      T.flagsChanged,
+    }, function(ev) return self:_handle(ev) end)
+    self._tap:start()
+
+    self.logger.i(string.format(
+      "started; modifiers={%s} firstRaise=%s",
+      table.concat(self.modifiers or {}, ","),
+      tostring(self.firstRaise)))
+  end)
+
   return self
 end
 
@@ -419,6 +453,7 @@ end
 --- Returns:
 ---  * self
 function obj:stop()
+  if self._startupTimer then self._startupTimer:stop(); self._startupTimer = nil end
   if self._tap then self._tap:stop(); self._tap = nil end
   self._drag = nil
   self.logger.i("stopped")

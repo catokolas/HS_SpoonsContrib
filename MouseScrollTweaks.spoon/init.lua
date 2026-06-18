@@ -53,6 +53,37 @@ obj.invertHorizontal = true
 --- without restarting the spoon.
 obj.smoothness = 15
 
+--- MouseScrollTweaks.startupDelay
+--- Variable
+--- Seconds to defer all OS-touching work inside `:start()` —
+--- the accessibility probe, engine `dofile`, `hs.eventtap.new` +
+--- `:start()`, and the `hs.application.watcher` registration. The
+--- spoon's `start()` returns immediately and schedules a one-shot
+--- timer; only that timer's callback actually wires up the tap.
+---
+--- Why: Hammerspoon's reload runs every Spoon's `:start()` in tight
+--- succession on the main thread. On M1 systems with several event-
+--- tap-using Spoons (multiple Mouse-* spoons), the simultaneous
+--- `CGEventTapCreate` XPC handshakes with WindowServer + the
+--- NSWorkspace observer subscriptions contend with other main-
+--- thread cold-start work (notably NSURLSession's first-call
+--- init) enough to stall one-shot timers in *other* Spoons for
+--- tens of seconds — `ModelsUsage` in particular loses its
+--- KIX-request timeout and gets stuck `inFlight` until manually
+--- nudged. Pushing this spoon's OS calls a few seconds past the
+--- reload storm matches FocusFollowsMouse's `start()` profile
+--- (which is a single `hs.timer.doEvery` and provably doesn't
+--- trigger the wedge). Scroll inversion + smoothness are
+--- unaffected once the deferred init runs.
+---
+--- Set to 0 to perform the full setup synchronously in `:start()`
+--- (the pre-2026-06 behaviour).
+---
+--- Default 3.0 is staggered against the other Mouse-* spoons
+--- (3.3 / 3.6 / 3.9) so their deferred OS calls don't all land in
+--- the same run-loop tick.
+obj.startupDelay = 3.0
+
 --- MouseScrollTweaks.logger
 --- Variable
 --- Logger object used within the Spoon. Set its level (e.g.
@@ -756,42 +787,61 @@ end
 --- Returns:
 ---  * self
 function obj:start()
-  if not hs.accessibilityState() then
-    error("MouseScrollTweaks requires Accessibility permission for "
-          .. "Hammerspoon (System Settings -> Privacy & Security -> "
-          .. "Accessibility).", 2)
-  end
-
+  -- Pure-Lua setup only — no OS calls.
+  --
+  -- All the OS-touching work (accessibility check, engine dofile,
+  -- eventtap creation/registration, NSWorkspace app-watcher) is
+  -- pushed into a `hs.timer.doAfter(self.startupDelay, ...)`
+  -- callback so this spoon's `:start()` returns immediately at
+  -- reload time and looks like FocusFollowsMouse's polling
+  -- `start()` to the main run loop. See `obj.startupDelay` doc
+  -- for the cold-start contention rationale.
+  --
+  -- Idempotent: cancels any pending deferred init and stops any
+  -- previously-running tap/watcher before scheduling fresh ones.
   self.smoothness = normaliseSmoothness(self.smoothness)
+  if self._startupTimer then self._startupTimer:stop(); self._startupTimer = nil end
+  if self._tap        then self._tap:stop();        self._tap        = nil end
+  if self._appWatcher then self._appWatcher:stop(); self._appWatcher = nil end
 
-  -- Auto-detect: use the smoothscroll module if installed, else default.
-  self:_loadEngine()
+  self._startupTimer = hs.timer.doAfter(self.startupDelay or 3, function()
+    self._startupTimer = nil
 
-  if self._tap then self._tap:stop() end
-  self._tap = hs.eventtap.new(
-    { hs.eventtap.event.types.scrollWheel,
-      hs.eventtap.event.types.leftMouseDown },
-    function(ev) return self:_handle(ev) end
-  )
-  self._tap:start()
-
-  -- App-activation watcher: cancel any in-flight glide when the
-  -- frontmost app changes (Cmd-Tab, clicking another window) so the
-  -- residual scroll doesn't bleed into the new window.
-  if self._appWatcher then self._appWatcher:stop() end
-  self._appWatcher = hs.application.watcher.new(function(_, eventType, _)
-    if eventType == hs.application.watcher.activated then
-      self:_cancelGlide()
+    if not hs.accessibilityState() then
+      self.logger.e("MouseScrollTweaks requires Accessibility permission for "
+                    .. "Hammerspoon (System Settings -> Privacy & Security -> "
+                    .. "Accessibility); spoon not started.")
+      return
     end
-  end)
-  self._appWatcher:start()
 
-  self.logger.i(string.format(
-    "started; invertV=%s invertH=%s smoothness=%d engine=%s",
-    tostring(self.invertVertical),
-    tostring(self.invertHorizontal),
-    self.smoothness,
-    (self._engineImpl and self._engineImpl.name) or "?"))
+    -- Auto-detect: use the smoothscroll module if installed, else default.
+    self:_loadEngine()
+
+    self._tap = hs.eventtap.new(
+      { hs.eventtap.event.types.scrollWheel,
+        hs.eventtap.event.types.leftMouseDown },
+      function(ev) return self:_handle(ev) end
+    )
+    self._tap:start()
+
+    -- App-activation watcher: cancel any in-flight glide when the
+    -- frontmost app changes (Cmd-Tab, clicking another window) so the
+    -- residual scroll doesn't bleed into the new window.
+    self._appWatcher = hs.application.watcher.new(function(_, eventType, _)
+      if eventType == hs.application.watcher.activated then
+        self:_cancelGlide()
+      end
+    end)
+    self._appWatcher:start()
+
+    self.logger.i(string.format(
+      "started; invertV=%s invertH=%s smoothness=%d engine=%s",
+      tostring(self.invertVertical),
+      tostring(self.invertHorizontal),
+      self.smoothness,
+      (self._engineImpl and self._engineImpl.name) or "?"))
+  end)
+
   return self
 end
 
@@ -802,6 +852,7 @@ end
 --- Returns:
 ---  * self
 function obj:stop()
+  if self._startupTimer then self._startupTimer:stop(); self._startupTimer = nil end
   if self._tap then self._tap:stop(); self._tap = nil end
   if self._appWatcher then self._appWatcher:stop(); self._appWatcher = nil end
   if self._anim.frameTimer then self._anim.frameTimer:stop(); self._anim.frameTimer = nil end

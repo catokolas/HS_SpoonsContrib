@@ -93,6 +93,28 @@ obj.restoreDelayMs = 200
 --- Logger object used within the Spoon. Set its level to control verbosity.
 obj.logger = hs.logger.new("MouseCopyPasteSelection")
 
+--- MouseCopyPasteSelection.startupDelay
+--- Variable
+--- Seconds to defer the accessibility check + `hs.eventtap.new`/
+--- `:start()` inside `:start()`. The spoon's `start()` returns
+--- immediately and schedules a one-shot timer that performs the
+--- real wiring.
+---
+--- Why: Hammerspoon's reload runs every Spoon's `:start()` in tight
+--- succession on the main thread. The simultaneous `CGEventTapCreate`
+--- XPC handshakes across multiple Mouse-* spoons contend with other
+--- main-thread cold-start work (notably NSURLSession's first-call
+--- init) enough to stall one-shot timers in *other* Spoons for
+--- tens of seconds — ModelsUsage in particular loses its KIX-request
+--- timeout. Pushing this spoon's OS calls a few seconds past the
+--- reload storm avoids being part of that contention. Set to 0 for
+--- the pre-2026-06 synchronous behaviour.
+---
+--- Default 3.9 is staggered against the other Mouse-* spoons
+--- (3.0 / 3.3 / 3.6) so their deferred OS calls don't all land in
+--- the same run-loop tick.
+obj.startupDelay = 3.9
+
 -- Cursor-type strings that mean "the cursor is over editable text". Both
 -- horizontal and vertical-layout I-beams should arm the copy-on-release.
 local IBEAM_TYPES = {
@@ -319,28 +341,39 @@ end
 --- Returns:
 ---  * self
 function obj:start()
-  if not hs.accessibilityState() then
-    error("MouseCopyPasteSelection requires Accessibility permission for "
-          .. "Hammerspoon (System Settings -> Privacy & Security -> "
-          .. "Accessibility).", 2)
-  end
+  -- Pure-Lua only here. All OS-touching work is deferred — see
+  -- `obj.startupDelay` for the cold-start contention rationale.
+  -- _selectionBuffer intentionally NOT cleared on (re)start so toggling
+  -- the tap off and on doesn't lose the most-recent selection.
+  if self._startupTimer then self._startupTimer:stop(); self._startupTimer = nil end
+  if self._tap then self._tap:stop(); self._tap = nil end
 
   self._prevClickMs  = 0
   self._curClickMs   = 0
   self._isDragging   = false
   self._dragStartLoc = nil
-  -- _selectionBuffer intentionally NOT cleared on (re)start so toggling
-  -- the tap off and on doesn't lose the most-recent selection.
 
-  local T = hs.eventtap.event.types
-  local mask = { T.leftMouseDown, T.leftMouseUp, T.leftMouseDragged }
-  if self.enableMiddleClickPaste then
-    table.insert(mask, T.otherMouseDown)
-  end
+  self._startupTimer = hs.timer.doAfter(self.startupDelay or 3, function()
+    self._startupTimer = nil
 
-  self._tap = hs.eventtap.new(mask, function(ev) return self:_handle(ev) end)
-  self._tap:start()
-  self.logger.i("started; middleClickPaste=" .. tostring(self.enableMiddleClickPaste))
+    if not hs.accessibilityState() then
+      self.logger.e("MouseCopyPasteSelection requires Accessibility permission for "
+                    .. "Hammerspoon (System Settings -> Privacy & Security -> "
+                    .. "Accessibility); spoon not started.")
+      return
+    end
+
+    local T = hs.eventtap.event.types
+    local mask = { T.leftMouseDown, T.leftMouseUp, T.leftMouseDragged }
+    if self.enableMiddleClickPaste then
+      table.insert(mask, T.otherMouseDown)
+    end
+
+    self._tap = hs.eventtap.new(mask, function(ev) return self:_handle(ev) end)
+    self._tap:start()
+    self.logger.i("started; middleClickPaste=" .. tostring(self.enableMiddleClickPaste))
+  end)
+
   return self
 end
 
@@ -351,6 +384,7 @@ end
 --- Returns:
 ---  * self
 function obj:stop()
+  if self._startupTimer then self._startupTimer:stop(); self._startupTimer = nil end
   if self._tap then self._tap:stop(); self._tap = nil end
   self.logger.i("stopped")
   return self
