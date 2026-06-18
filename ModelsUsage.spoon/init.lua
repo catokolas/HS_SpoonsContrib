@@ -1508,16 +1508,17 @@ function obj:refresh()
   self:_publishToWindow()
 
   if self._state.inFlight then
-    -- Watchdog: any in-flight that has lingered past 3× the per-source
+    -- Watchdog: any in-flight that has lingered past 2× the per-source
     -- timeoutSeconds is almost certainly leaked — a callback path that
-    -- didn't reset `inFlight`, or a timer that never fired on a
-    -- machine with unusual HTTP / Lua-timer behaviour. Without this
-    -- the spoon gets permanently wedged on "refresh already in flight"
-    -- and only a Hammerspoon reload recovers (which is what the user
-    -- reported on a second installation). Force-clear and proceed;
-    -- the requestSeq bump below makes any zombie callback land as
-    -- stale and get dropped.
-    local maxAge = (self.timeoutSeconds or 10) * 3
+    -- didn't reset `inFlight`, or (more commonly) a timer that never
+    -- fired on a machine where NSURLSession's cold-start setup blocks
+    -- the main thread long enough to skip our 10s timeout. Without
+    -- this the spoon gets permanently wedged on "refresh already in
+    -- flight" until Hammerspoon reload. Force-clear and proceed; the
+    -- requestSeq bump below makes any zombie callback land as stale
+    -- and get dropped. The background watchdog (scheduled in start())
+    -- catches the same case without needing refresh() to be called.
+    local maxAge = (tonumber(self.timeoutSeconds) or 10) * 2
     local startedAt = self._state.inFlightSince or 0
     local elapsed = os.time() - startedAt
     if elapsed > maxAge then
@@ -2712,6 +2713,27 @@ function obj:start()
   self:_restartTimer()
   self:refresh()
 
+  -- Background watchdog: catches the cold-start case where
+  -- hs.timer.doAfter scheduled inside a per-source refresh fails to
+  -- fire during NSURLSession's initial setup. The refresh()-guard
+  -- watchdog only runs when refresh() is called, which doesn't
+  -- happen for ~5 minutes if the user never opens the dashboard or
+  -- changes a control. This one polls every 10s, force-clears
+  -- inFlight if it's been stuck > 2x timeoutSeconds, and kicks off
+  -- a fresh refresh so recovery doesn't require user interaction.
+  if self._state.watchdogTimer then self._state.watchdogTimer:stop() end
+  self._state.watchdogTimer = hs.timer.doEvery(10, function()
+    if not self._state.inFlight then return end
+    local elapsed = os.time() - (self._state.inFlightSince or 0)
+    local maxAge = (tonumber(self.timeoutSeconds) or 10) * 2
+    if elapsed > maxAge then
+      self.logger.wf("watchdog: force-clearing stuck inFlight after %ds (limit %ds), retrying",
+        elapsed, maxAge)
+      self._state.inFlight = false
+      self:refresh()
+    end
+  end)
+
   -- Pre-warm the dashboard webview a few seconds after start, IF the
   -- user opted in. See `obj.prewarmDashboard` for the trade-off
   -- (briefly-visible dashboard at startup vs no flash but a 3-5s
@@ -2735,6 +2757,10 @@ function obj:stop()
   if self._state.timer then
     self._state.timer:stop()
     self._state.timer = nil
+  end
+  if self._state.watchdogTimer then
+    self._state.watchdogTimer:stop()
+    self._state.watchdogTimer = nil
   end
   if self._state.themeWatcher then
     self._state.themeWatcher:stop()
