@@ -131,25 +131,32 @@ obj.logger = hs.logger.new("MouseTrackpadTweaks")
 
 --- MouseTrackpadTweaks.startupDelay
 --- Variable
---- Seconds to defer all OS-touching work inside `:start()` —
---- the accessibility probe, `hs.eventtap.new`/`:start()`, and the
---- multitouch shim startup. `start()` returns immediately and
---- schedules a one-shot timer that performs the real wiring.
+--- Seconds to defer the `hs.eventtap.new`/`:start()` call inside
+--- `:start()`. The accessibility probe and the multitouch shim
+--- startup intentionally remain synchronous.
 ---
---- Why: Hammerspoon's reload runs every Spoon's `:start()` in tight
---- succession on the main thread. The simultaneous `CGEventTapCreate`
---- XPC handshakes across multiple Mouse-* spoons + the multitouch
---- shim's native callback registration contend with other main-
---- thread cold-start work (notably NSURLSession's first-call init)
---- enough to stall one-shot timers in *other* Spoons for tens of
---- seconds — ModelsUsage in particular loses its KIX-request
---- timeout. Pushing this spoon's OS calls a few seconds past the
---- reload storm avoids being part of that contention. Set to 0
---- for the pre-2026-06 synchronous behaviour.
+--- Why defer the eventtap: Hammerspoon's reload runs every Spoon's
+--- `:start()` in tight succession on the main thread. The
+--- simultaneous `CGEventTapCreate` XPC handshakes across multiple
+--- Mouse-* spoons contend with other main-thread cold-start work
+--- (notably NSURLSession's first-call init) enough to stall
+--- one-shot timers in *other* Spoons for tens of seconds —
+--- ModelsUsage in particular loses its KIX-request timeout.
+--- Pushing the tap registration a few seconds past the reload
+--- storm avoids being part of that contention.
+---
+--- Why NOT defer the multitouch shim: `hs._ckol.multitouch` has no
+--- C-level `__gc` cleanup for its native MultitouchSupport callback,
+--- so a stale callback from the previous Lua state survives
+--- `hs.reload()` and crashes Hammerspoon on the next touch (LuaSkin
+--- `pushLuaRef:ref:` assertion) during the deferral window. Starting
+--- the shim synchronously in the new state replaces the stale
+--- callback before any touch can arrive. `hs.eventtap` does not have
+--- this problem because its C wrapper detaches the tap on teardown.
 ---
 --- Default 3.3 is staggered against the other Mouse-* spoons
 --- (3.0 / 3.6 / 3.9) so their deferred OS calls don't all land in
---- the same run-loop tick.
+--- the same run-loop tick. Set to 0 to disable the eventtap defer.
 obj.startupDelay = 3.3
 
 -- Internal state — not part of the public API.
@@ -806,8 +813,7 @@ end
 --- Returns:
 ---  * self
 function obj:start()
-  -- Pure-Lua only here. All OS-touching work is deferred — see
-  -- `obj.startupDelay` for the cold-start contention rationale.
+  -- Cleanup before re-init.
   if self._startupTimer then self._startupTimer:stop(); self._startupTimer = nil end
   if self._tap        then self._tap:stop();        self._tap        = nil end
   if self._mt and self._mtStarted then
@@ -815,36 +821,50 @@ function obj:start()
     self._mtStarted = false
   end
 
+  if not hs.accessibilityState() then
+    self.logger.e("MouseTrackpadTweaks requires Accessibility permission for "
+                  .. "Hammerspoon (System Settings -> Privacy & Security -> "
+                  .. "Accessibility); spoon not started.")
+    return self
+  end
+
+  -- The multitouch shim MUST run synchronously — see `obj.startupDelay`
+  -- for the full rationale, but in short: `hs._ckol.multitouch` registers
+  -- a native MultitouchSupport callback that is NOT auto-detached when
+  -- the Lua state tears down (unlike `hs.eventtap` and
+  -- `hs.application.watcher`, both of which have C-level `__gc` cleanup).
+  -- If `_mt.start(callback)` is deferred, an `hs.reload()` leaves the
+  -- previous Lua state's callback registered for the duration of the
+  -- delay, and the next touch event crashes Hammerspoon with a
+  -- LuaSkin `pushLuaRef:ref:` assertion (ref points into the dead
+  -- state). Calling `_mt.start` synchronously in the new state's
+  -- `start()` replaces the stale callback before any touch can arrive.
+  loadNativeMultitouch(self)
+  if self._mt and not self._mtStarted then
+    local okStart, err = pcall(function()
+      self._mt.start(function(devId, devKind, touchId, phase, nx, ny, ts)
+        self:_onTouch(devId, devKind, touchId, phase, nx, ny, ts)
+      end)
+    end)
+    if okStart then
+      self._mtStarted = true
+    else
+      self.logger.w("hs._ckol.multitouch.start failed: " .. tostring(err))
+    end
+  end
+
+  -- The eventtap registration is still deferred — that's the actual
+  -- cold-start contention point we're addressing. `hs.eventtap` cleans
+  -- up its native CGEventTap on Lua state teardown via `__gc`, so the
+  -- reload-race that bit multitouch above doesn't apply here.
   self._startupTimer = hs.timer.doAfter(self.startupDelay or 3, function()
     self._startupTimer = nil
-
-    if not hs.accessibilityState() then
-      self.logger.e("MouseTrackpadTweaks requires Accessibility permission for "
-                    .. "Hammerspoon (System Settings -> Privacy & Security -> "
-                    .. "Accessibility); spoon not started.")
-      return
-    end
-
-    loadNativeMultitouch(self)
 
     local T = hs.eventtap.event.types
     self._tap = hs.eventtap.new(
       { T.scrollWheel, T.leftMouseDown, T.leftMouseUp },
       function(ev) return self:_handle(ev) end)
     self._tap:start()
-
-    if self._mt and not self._mtStarted then
-      local okStart, err = pcall(function()
-        self._mt.start(function(devId, devKind, touchId, phase, nx, ny, ts)
-          self:_onTouch(devId, devKind, touchId, phase, nx, ny, ts)
-        end)
-      end)
-      if okStart then
-        self._mtStarted = true
-      else
-        self.logger.w("hs._ckol.multitouch.start failed: " .. tostring(err))
-      end
-    end
 
     self.logger.i(string.format(
       "started; invertV=%s invertH=%s middleClick=%s multitouch=%s",
