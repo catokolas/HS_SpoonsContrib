@@ -2088,6 +2088,23 @@ local function computeClaudeCodeSession()
   }
 end
 
+-- A summary row only earns a place in the table when it contributes
+-- something to at least one of the four windows. Filters out two
+-- failure modes at once:
+--   1. Cached day-aggs whose timestamps predate the earliest window
+--      (`thisYear`'s start): the row gets created in the per-model
+--      map but never lands a contribution → all-zero row.
+--   2. Legacy / corrupted cache entries where `model` is an empty
+--      string (some old session lines logged with `"model":""` and
+--      the `tostring(msg.model or "unknown")` fallback in
+--      `foldClaudeCodeLine` only catches nil, not "").
+local function hasAnyWindowTokens(row)
+  return (row.today     or 0) > 0
+      or (row.thisWeek  or 0) > 0
+      or (row.thisMonth or 0) > 0
+      or (row.thisYear  or 0) > 0
+end
+
 -- Aggregate the in-memory Claude Code cache into per-model Summary
 -- rows. No async work because everything we need is already in
 -- `_ccFileCache`'s day-resolution aggs.
@@ -2114,7 +2131,9 @@ local function buildClaudeCodeSummaryRows(windows)
     end
   end
   local rows = {}
-  for _, r in pairs(perModel) do rows[#rows + 1] = r end
+  for _, r in pairs(perModel) do
+    if hasAnyWindowTokens(r) then rows[#rows + 1] = r end
+  end
   return rows
 end
 
@@ -2149,7 +2168,9 @@ local function buildKixSummaryRows(data, windows)
     end
   end
   local rows = {}
-  for _, r in pairs(perModel) do rows[#rows + 1] = r end
+  for _, r in pairs(perModel) do
+    if hasAnyWindowTokens(r) then rows[#rows + 1] = r end
+  end
   return rows
 end
 
