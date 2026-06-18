@@ -2351,13 +2351,28 @@ function obj:_refreshSummary(requestSeq)
     -- true, and every subsequent refresh skips with "request already
     -- in flight". `kixDone` guards against the timeout and the real
     -- response both firing.
+    --
+    -- Coerce timeoutSeconds defensively: a misconfiguration that left
+    -- it nil / non-number / non-positive would have made
+    -- `hs.timer.doAfter(...)` throw or no-op, leaking the in-flight
+    -- forever. Log the scheduled duration so a user can confirm in
+    -- the Console that the timer was actually wired up.
+    local timeoutSecs = tonumber(self.timeoutSeconds) or 10
+    if timeoutSecs <= 0 then timeoutSecs = 10 end
+    self.logger.df("refresh #%d source=summary kix: timeout scheduled in %ds",
+      requestSeq, timeoutSecs)
     local kixDone = false
-    local kixTimeoutTimer = hs.timer.doAfter(self.timeoutSeconds, function()
-      if kixDone or not isStillCurrent() then return end
+    local kixTimeoutTimer = hs.timer.doAfter(timeoutSecs, function()
+      self.logger.df("refresh #%d source=summary kix: timeout timer fired", requestSeq)
+      if kixDone or not isStillCurrent() then
+        self.logger.df("refresh #%d source=summary kix: timeout body skipped (kixDone=%s, stale=%s)",
+          requestSeq, tostring(kixDone), tostring(not isStillCurrent()))
+        return
+      end
       kixDone = true
-      errors.kix = "Request timed out after " .. tostring(self.timeoutSeconds) .. "s"
+      errors.kix = "Request timed out after " .. tostring(timeoutSecs) .. "s"
       self.logger.ef("refresh timeout #%d source=summary kix after %ds",
-        requestSeq, self.timeoutSeconds)
+        requestSeq, timeoutSecs)
       sourceDone()
     end)
 
