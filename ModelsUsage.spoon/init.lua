@@ -292,8 +292,23 @@ local function isoToEpoch(iso)
   if type(iso) ~= "string" then return nil end
   local y, mo, d, h, mi, s = iso:match("^(%d%d%d%d)%-(%d%d)%-(%d%d)T(%d%d):(%d%d):(%d%d)")
   if not y then return nil end
-  return os.time({ year = tonumber(y), month = tonumber(mo), day = tonumber(d),
-                   hour = tonumber(h), min  = tonumber(mi), sec = tonumber(s) })
+  -- Our timestamps are UTC (trailing "Z"), but os.time interprets a
+  -- field table as *local* time. Read the fields as local, then add the
+  -- local UTC offset so the result is a true epoch comparable to
+  -- os.time(). Without this the 5h-session window and reset countdown
+  -- are skewed by the local tz offset (e.g. 2h in CEST). The offset is
+  -- derived by round-tripping this instant through UTC; we rebuild the
+  -- UTC breakdown *without* its isdst flag so os.time re-derives DST for
+  -- the local zone -- passing os.date("!*t")'s isdst=false straight back
+  -- would drop the DST hour (CEST would collapse to CET, leaving a 1h
+  -- error). Two isoToEpoch results compared to each other are unaffected
+  -- (the offset cancels); only comparisons against os.time() need this.
+  local localEpoch = os.time({ year = tonumber(y), month = tonumber(mo), day = tonumber(d),
+                               hour = tonumber(h), min  = tonumber(mi), sec = tonumber(s) })
+  local u = os.date("!*t", localEpoch)
+  local utcAsLocal = os.time({ year = u.year, month = u.month, day = u.day,
+                               hour = u.hour, min = u.min, sec = u.sec })
+  return localEpoch + (localEpoch - utcAsLocal)
 end
 
 -- ISO timestamp → date bucket string at the requested granularity.
@@ -2199,8 +2214,9 @@ end
 
 -- Walk Claude Code's most-recently-modified session files for
 -- assistant-role messages whose timestamps fall inside the trailing
--- 5h rolling window. Sums tokens (input + output + cache_read +
--- cache_creation) and tracks the earliest in-window timestamp — the
+-- 5h rolling window. Sums new-token consumption (input + output +
+-- cache_creation; cache_read is excluded — see below) and tracks the
+-- earliest in-window timestamp — the
 -- earliest message is what determines when the next token leaves the
 -- rolling window. The day-resolution `_ccFileCache` doesn't carry
 -- sub-day timestamps so this pays a fresh per-file parse, but the
@@ -2240,10 +2256,16 @@ local function computeClaudeCodeSession()
             local epoch = isoToEpoch(evt.timestamp)
             if epoch and epoch >= windowStartEpoch then
               local u = evt.message.usage
+              -- Cache-read tokens are deliberately excluded: in a typical
+              -- Claude Code session they're ~97% of raw token volume but
+              -- are billed/rate-limited at a tiny fraction, so counting
+              -- them at full weight made "% used" wildly overstate the
+              -- 5h quota (e.g. 327% of cap that's really ~8% used). What
+              -- remains — fresh input, output, and cache *creation* — is
+              -- the meaningful new-token consumption for the window.
               tokensUsed = tokensUsed
                 + (tonumber(u.input_tokens)              or 0)
                 + (tonumber(u.output_tokens)             or 0)
-                + (tonumber(u.cache_read_input_tokens)   or 0)
                 + (tonumber(u.cache_creation_input_tokens) or 0)
               if not earliestEpoch or epoch < earliestEpoch then
                 earliestEpoch = epoch
@@ -2373,6 +2395,11 @@ function obj:_refreshSummary(requestSeq)
   local allRows = {}
   local pending = 0
   local errors = {}
+  -- Declared here (not next to the doAfter that fills it) so `finalize`,
+  -- defined below, closes over this upvalue. In Lua a local's scope
+  -- begins after its declaration; declaring it later would leave the
+  -- reference in `finalize` bound to a nil global instead.
+  local claudecodeSession = nil
 
   local function isStillCurrent() return requestSeq == self._state.requestSeq end
 
@@ -2419,7 +2446,6 @@ function obj:_refreshSummary(requestSeq)
   -- quota card. Wrap in a doAfter(0) so `pending` is set up before
   -- we resolve.
   pending = pending + 1
-  local claudecodeSession = nil
   hs.timer.doAfter(0, function()
     if not isStillCurrent() then sourceDone(); return end
     local ok, ccRows = pcall(buildClaudeCodeSummaryRows, windows)
