@@ -2264,8 +2264,18 @@ function obj:_refreshSummary(requestSeq)
     slot.lastStatus = 200
     slot.lastRefreshAt = os.time()
     local elapsed = hs.timer.secondsSinceEpoch() - startedAt
-    self.logger.df("refresh response #%d source=summary elapsed=%.3fs rows=%d",
-      requestSeq, elapsed, #allRows)
+    -- Surface per-source errors at finalize time so a user looking at
+    -- the Console after a quiet failure can see which source(s) didn't
+    -- contribute and why, without digging through per-source debug
+    -- lines. Each individual error path already logs its own ef line;
+    -- this is a roll-up.
+    local errorSummary = {}
+    for src, msg in pairs(errors) do
+      errorSummary[#errorSummary + 1] = src .. ": " .. tostring(msg)
+    end
+    self.logger.df("refresh response #%d source=summary elapsed=%.3fs rows=%d errors=%s",
+      requestSeq, elapsed, #allRows,
+      #errorSummary > 0 and ("{" .. table.concat(errorSummary, "; ") .. "}") or "none")
     self:_setMenubarStatus("OK", false)
     self:_publishToWindow()
   end
@@ -2305,9 +2315,15 @@ function obj:_refreshSummary(requestSeq)
   end)
 
   -- KIX: one year-to-date pull. Skip silently when no token is
-  -- configured (the user may have a Claude-Code-only setup).
+  -- configured (the user may have a Claude-Code-only setup) or when
+  -- apiBaseUrl / usagePath aren't set (a typo'd / unset configure
+  -- would otherwise throw a concat-nil error inside the doAfter
+  -- callback and leave inFlight wedged).
   local kixCfg = self._state.sources.kix.config
-  if kixCfg.token and kixCfg.token ~= "" then
+  local baseUrl = type(self.apiBaseUrl) == "string" and self.apiBaseUrl or ""
+  local usagePath = type(self.usagePath) == "string" and self.usagePath or ""
+  if kixCfg.token and kixCfg.token ~= ""
+     and baseUrl ~= "" and usagePath ~= "" then
     pending = pending + 1
     local queryParts = {
       "granularity=day",
@@ -2321,7 +2337,7 @@ function obj:_refreshSummary(requestSeq)
         end
       end
     end
-    local url = self.apiBaseUrl .. self.usagePath .. "?" .. table.concat(queryParts, "&")
+    local url = baseUrl .. usagePath .. "?" .. table.concat(queryParts, "&")
     local headers = {
       ["Authorization"] = "Bearer " .. kixCfg.token,
       ["Accept"] = "application/json",
@@ -2351,12 +2367,21 @@ function obj:_refreshSummary(requestSeq)
       if kixTimeoutTimer then kixTimeoutTimer:stop(); kixTimeoutTimer = nil end
       if status < 200 or status >= 300 then
         errors.kix = "HTTP " .. tostring(status)
+        -- Negative status from hs.http means the request never reached
+        -- a server (DNS failure, connection refused, TLS error). Log
+        -- at error level so the user actually sees what went wrong
+        -- in the Console without needing debug-level logging on.
+        self.logger.ef("refresh failed #%d source=summary kix: HTTP %s body=%s",
+          requestSeq, tostring(status),
+          tostring(body):sub(1, 200))
         sourceDone()
         return
       end
       local data, err = parseJson(body)
       if not data then
         errors.kix = err or "parse failed"
+        self.logger.ef("refresh parse error #%d source=summary kix: %s body=%s",
+          requestSeq, tostring(err), tostring(body):sub(1, 200))
         sourceDone()
         return
       end
