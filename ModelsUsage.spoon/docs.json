@@ -50,11 +50,11 @@
         "signature": "ModelsUsage:configure(configuration)"
       },
       {
-        "name": "setToken",
+        "name": "setApiKey",
         "type": "Method",
-        "def": "ModelsUsage:setToken(token)",
-        "desc": "Persist bearer token used for KIX /api/usage calls.",
-        "signature": "ModelsUsage:setToken(token)"
+        "def": "ModelsUsage:setApiKey(apiKey)",
+        "desc": "Persist the KIX API key sent as `Authorization: Bearer <key>` on every KIX /api/usage HTTP call. Synchronously written to hs.settings so an immediate :start() picks it up.",
+        "signature": "ModelsUsage:setApiKey(apiKey)"
       },
       {
         "name": "setKeys",

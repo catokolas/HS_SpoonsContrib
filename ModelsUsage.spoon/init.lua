@@ -1283,20 +1283,30 @@ function obj:configure(configuration)
   return self
 end
 
--- All token / key setters now write into the KIX source's config slot.
--- They keep their original names + signatures for backward compatibility
--- with existing init.lua snippets — only the storage location changed.
-function obj:setToken(token)
-  self._state.sources.kix.config.token = token and tostring(token) or nil
+-- All API-key / keys setters write into the KIX source's config slot.
+-- They keep their original signatures for backward compatibility with
+-- existing init.lua snippets — only the storage location changed.
+
+--- ModelsUsage:setApiKey(apiKey)
+--- Method
+--- Set the KIX API key used in the `Authorization: Bearer ...` header
+--- on every KIX HTTP request. Persisted across reloads via
+--- `hs.settings`. Passing nil / empty clears it. The internal field
+--- is still named `token` for backward compat, but the public
+--- terminology says "API key" to avoid colliding with input / output /
+--- cached *tokens* — the per-message counts the dashboard surfaces.
+function obj:setApiKey(apiKey)
+  self._state.sources.kix.config.token = apiKey and tostring(apiKey) or nil
   -- Sync save (not the debounced `_saveSettings`): a typical init.lua
-  -- pattern is `:setToken(...)` immediately followed by `:start()`,
+  -- pattern is `:setApiKey(...)` immediately followed by `:start()`,
   -- and `:start()` calls `_loadSettings` which would otherwise read
-  -- the stale on-disk token (the 200ms debounce hasn't fired yet) and
+  -- the stale on-disk key (the 200ms debounce hasn't fired yet) and
   -- overwrite our in-memory value with the old one.
   self:_saveSettingsImmediate()
   self:_renderWindow()
   return self
 end
+
 
 --- ModelsUsage:setKeys(keys)
 --- Method
@@ -1306,7 +1316,7 @@ end
 --- (`"uuid-a, uuid-b"`). Passing nil / empty clears the list.
 function obj:setKeys(keys)
   self._state.sources.kix.config.keys = normalizeKeys(keys)
-  -- Sync save (see note on setToken): one-shot programmatic setters
+  -- Sync save (see note on setApiKey): one-shot programmatic setters
   -- must persist immediately so an immediate `:start()` can't
   -- overwrite the in-memory value with the stale on-disk one.
   self:_saveSettingsImmediate()
@@ -1325,7 +1335,7 @@ function obj:setDefaultKey(uuid)
   else
     self._state.sources.kix.config.keys = {}
   end
-  -- Sync save (see setToken): one-shot programmatic call → persist now.
+  -- Sync save (see setApiKey): one-shot programmatic call → persist now.
   self:_saveSettingsImmediate()
   self:_renderWindow()
   return self
@@ -1340,7 +1350,7 @@ function obj:setActiveSource(id)
   if type(id) ~= "string" or not self._state.sources[id] then return self end
   if self._state.activeSource == id then return self end
   self._state.activeSource = id
-  self:_saveSettingsImmediate()  -- sync (see setToken)
+  self:_saveSettingsImmediate()  -- sync (see setApiKey)
   self:_publishToWindow()
   self:refresh()
   return self
@@ -1348,7 +1358,7 @@ end
 
 function obj:setGranularity(granularity)
   self._state.granularity = clampGranularity(granularity)
-  self:_saveSettingsImmediate()  -- sync (see setToken)
+  self:_saveSettingsImmediate()  -- sync (see setApiKey)
   self:refresh()
   return self
 end
@@ -1356,14 +1366,14 @@ end
 function obj:setDateRange(fromIso, toIso)
   self._state.from = fromIso
   self._state.to = toIso
-  self:_saveSettingsImmediate()  -- sync (see setToken)
+  self:_saveSettingsImmediate()  -- sync (see setApiKey)
   self:refresh()
   return self
 end
 
 function obj:setRefreshSeconds(seconds)
   self._state.refreshSeconds = coercePositiveNumber(seconds, self.refreshSeconds)
-  self:_saveSettingsImmediate()  -- sync (see setToken)
+  self:_saveSettingsImmediate()  -- sync (see setApiKey)
   self:_restartTimer()
   self:_renderWindow()
   return self
@@ -1425,7 +1435,7 @@ function obj:_buildUrlAndHeaders()
   local kixCfg = self._state.sources.kix.config
   local token = kixCfg.token
   if not token or token == "" then
-    return nil, nil, "Missing token. Use setToken(...)"
+    return nil, nil, "Missing API key. Use setApiKey(...)"
   end
 
   local queryParts = {
@@ -2556,11 +2566,11 @@ function obj:_makeMenu()
 
   local kixCfg = self._state.sources.kix.config
   local kixSubmenu = {
-    { title = "Set token...", fn = function()
+    { title = "Set API key...", fn = function()
       local btn, text = hs.dialog.textPrompt(
-        "Bearer token", "Enter bearer token:",
+        "KIX API key", "Enter the API key used in the Authorization: Bearer header:",
         kixCfg.token or "", "Save", "Cancel")
-      if btn == "Save" then self:setToken(text); self:refresh() end
+      if btn == "Save" then self:setApiKey(text); self:refresh() end
     end },
     { title = "Set keys...", fn = function()
       local current = (type(kixCfg.keys) == "table" and #kixCfg.keys > 0)

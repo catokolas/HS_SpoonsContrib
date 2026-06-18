@@ -44,7 +44,7 @@ spoon.ModelsUsage:configure({
 })
 
 -- KIX source config (only needed if you actually use the KIX tab):
-spoon.ModelsUsage:setToken("<bearer-token>")
+spoon.ModelsUsage:setApiKey("<api-key>")
 spoon.ModelsUsage:setKeys({ "<uuid-a>", "<uuid-b>" })             -- optional
 -- spoon.ModelsUsage:setKeys("<uuid-a>, <uuid-b>")                -- equivalent
 -- spoon.ModelsUsage:setDefaultKey("<uuid>")                      -- back-compat shim
@@ -61,10 +61,15 @@ Open the dashboard from the menubar item: `Open Usage Dashboard`.
 
 ### KIX
 
-HTTP client for KIX Models Manager `/api/usage`. Requires a bearer
-token (`:setToken`) and optionally one or more key UUIDs to filter on
+HTTP client for KIX Models Manager `/api/usage`. Requires an API key
+(`:setApiKey`), emitted as `Authorization: Bearer …` on every
+request, and optionally one or more key UUIDs to filter on
 (`:setKeys`). The dashboard's "Key UUIDs" input is only visible while
 the KIX tab is active.
+
+"API key" rather than "token" deliberately: the dashboard reports
+*input / output / cached tokens* per model, and using "token" for
+the credential would collide with that.
 
 ### Claude Code
 
