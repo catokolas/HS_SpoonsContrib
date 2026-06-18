@@ -970,22 +970,36 @@ local function htmlTemplate()
     function paintCcSession() {
       const card = document.getElementById('ccSession');
       if (!card) return;
-      const s = ccSessionPayload;
-      const visible = ccSessionActiveSource === 'summary'
-                    && s && (s.tokensUsed || 0) > 0;
-      const wantDisplay = visible ? '' : 'none';
+      // Card visibility is tied only to the Summary tab. When there's
+      // no recent Claude Code activity we keep the card visible but
+      // swap in an "idle" message — otherwise the missing card reads
+      // as "feature is broken" rather than "you haven't run claude
+      // recently."
+      const onSummary = ccSessionActiveSource === 'summary';
+      const wantDisplay = onSummary ? '' : 'none';
       if (card.style.display !== wantDisplay) card.style.display = wantDisplay;
-      if (!visible) return;
+      if (!onSummary) return;
+
+      const headline = document.getElementById('ccSessionHeadline');
+      const fill     = document.getElementById('ccSessionBarFill');
+      const reset    = document.getElementById('ccSessionReset');
+      const s        = ccSessionPayload;
+      const used     = s ? (Number(s.tokensUsed) || 0) : 0;
+
+      if (used === 0) {
+        headline.textContent = 'No Claude Code activity in the last 5 hours';
+        fill.style.width = '0%';
+        fill.className = 'cc-session-bar-fill';
+        reset.textContent = '';
+        return;
+      }
 
       const quota = Number(s.quotaTokens) || 0;
-      const used  = Number(s.tokensUsed) || 0;
       const pct   = quota > 0 ? (used / quota) * 100 : 0;
-      const headline = document.getElementById('ccSessionHeadline');
       headline.textContent = quota > 0
         ? pct.toFixed(1) + '% used — ' + f(used) + ' / ' + f(quota) + ' tokens'
         : f(used) + ' tokens used (no quota configured)';
 
-      const fill = document.getElementById('ccSessionBarFill');
       const clamped = Math.max(0, Math.min(100, pct));
       fill.style.width = clamped + '%';
       let level = '';
@@ -993,7 +1007,6 @@ local function htmlTemplate()
       else if (pct >= 70) level = 'warn';
       fill.className = 'cc-session-bar-fill' + (level ? ' ' + level : '');
 
-      const reset = document.getElementById('ccSessionReset');
       if (!s.resetEpoch) {
         reset.textContent = '';
         return;
