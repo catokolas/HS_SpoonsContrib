@@ -1508,8 +1508,26 @@ function obj:refresh()
   self:_publishToWindow()
 
   if self._state.inFlight then
-    self.logger.df("refresh skipped: request already in flight")
-    return
+    -- Watchdog: any in-flight that has lingered past 3× the per-source
+    -- timeoutSeconds is almost certainly leaked — a callback path that
+    -- didn't reset `inFlight`, or a timer that never fired on a
+    -- machine with unusual HTTP / Lua-timer behaviour. Without this
+    -- the spoon gets permanently wedged on "refresh already in flight"
+    -- and only a Hammerspoon reload recovers (which is what the user
+    -- reported on a second installation). Force-clear and proceed;
+    -- the requestSeq bump below makes any zombie callback land as
+    -- stale and get dropped.
+    local maxAge = (self.timeoutSeconds or 10) * 3
+    local startedAt = self._state.inFlightSince or 0
+    local elapsed = os.time() - startedAt
+    if elapsed > maxAge then
+      self.logger.wf("refresh: clearing stuck inFlight after %ds (limit %ds)",
+        elapsed, maxAge)
+      self._state.inFlight = false
+    else
+      self.logger.df("refresh skipped: request already in flight (%ds elapsed)", elapsed)
+      return
+    end
   end
 
   local id = self._state.activeSource
@@ -1525,6 +1543,7 @@ function obj:refresh()
   end
 
   self._state.requestSeq = (self._state.requestSeq or 0) + 1
+  self._state.inFlightSince = os.time()
   local requestSeq = self._state.requestSeq
   method(self, requestSeq)
 end
