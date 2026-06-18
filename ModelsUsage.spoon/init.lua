@@ -2309,8 +2309,27 @@ function obj:_refreshSummary(requestSeq)
     }
     self.logger.df("refresh start #%d source=summary kix=GET url=%s headers=%s",
       requestSeq, url, formatHeadersForLog(headers))
+
+    -- Timeout for the KIX HTTP leg. Without this an unreachable / slow
+    -- KIX server hangs the entire Summary refresh forever — pending
+    -- never decrements, finalize never fires, `state.inFlight` stays
+    -- true, and every subsequent refresh skips with "request already
+    -- in flight". `kixDone` guards against the timeout and the real
+    -- response both firing.
+    local kixDone = false
+    local kixTimeoutTimer = hs.timer.doAfter(self.timeoutSeconds, function()
+      if kixDone or not isStillCurrent() then return end
+      kixDone = true
+      errors.kix = "Request timed out after " .. tostring(self.timeoutSeconds) .. "s"
+      self.logger.ef("refresh timeout #%d source=summary kix after %ds",
+        requestSeq, self.timeoutSeconds)
+      sourceDone()
+    end)
+
     hs.http.asyncGet(url, headers, function(status, body)
-      if not isStillCurrent() then return end
+      if kixDone or not isStillCurrent() then return end
+      kixDone = true
+      if kixTimeoutTimer then kixTimeoutTimer:stop(); kixTimeoutTimer = nil end
       if status < 200 or status >= 300 then
         errors.kix = "HTTP " .. tostring(status)
         sourceDone()
