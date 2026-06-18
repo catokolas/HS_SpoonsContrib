@@ -2249,6 +2249,13 @@ function obj:_refreshSummary(requestSeq)
     if sessOk and type(sess) == "table" then
       sess.quotaTokens = self.claudecodeQuotaTokens or 0
       claudecodeSession = sess
+      self.logger.df("claudecode session: tokensUsed=%d earliestEpoch=%s resetEpoch=%s lastModel=%s",
+        sess.tokensUsed or 0,
+        tostring(sess.earliestEpoch),
+        tostring(sess.resetEpoch),
+        tostring(sess.lastModel))
+    else
+      self.logger.ef("claudecode session compute failed: %s", tostring(sess))
     end
     sourceDone()
   end)
