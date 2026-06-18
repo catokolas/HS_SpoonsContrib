@@ -754,9 +754,25 @@ local function htmlTemplate()
   </div>
 
   <script>
+    // Compact K / M / B number formatter used by every number-bearing
+    // cell in the dashboard (totals tiles, per-source tables, Summary
+    // matrix, session card). One decimal where it adds information
+    // (`1.2M`) and dropped otherwise (`14M`, `201M`); raw integer when
+    // below 1000. 0 stays `0` rather than `0M`.
     function f(n) {
-      n = Number(n || 0);
-      return Math.floor(n).toLocaleString('en-US');
+      n = Number(n) || 0;
+      if (n === 0) return '0';
+      const abs = Math.abs(n);
+      const sign = n < 0 ? '-' : '';
+      if (abs < 1000) return sign + Math.floor(abs);
+      let value, suffix;
+      if      (abs < 1e6) { value = abs / 1e3; suffix = 'K'; }
+      else if (abs < 1e9) { value = abs / 1e6; suffix = 'M'; }
+      else                { value = abs / 1e9; suffix = 'B'; }
+      const formatted = value < 10
+        ? value.toFixed(1).replace(/\.0$/, '')
+        : String(Math.round(value));
+      return sign + formatted + suffix;
     }
 
     const bridge = (window.webkit
@@ -903,29 +919,8 @@ local function htmlTemplate()
       root.innerHTML = rows.map(rowHtml).join('');
     }
 
-    // Compact "round to K / M / B" formatter for the Summary table.
-    // Keeps big numbers scannable (`14M`, `201M`) instead of printing
-    // a 9-digit thousands-separated count per cell. One decimal place
-    // when it adds information (`1.2M`) and dropped when it doesn't
-    // (`14M`, `201M`).
-    function fmtCompact(n) {
-      n = Number(n) || 0;
-      if (n === 0) return '0';
-      const abs = Math.abs(n);
-      const sign = n < 0 ? '-' : '';
-      if (abs < 1000) return sign + Math.floor(abs);
-      let value, suffix;
-      if      (abs < 1e6) { value = abs / 1e3; suffix = 'K'; }
-      else if (abs < 1e9) { value = abs / 1e6; suffix = 'M'; }
-      else                { value = abs / 1e9; suffix = 'B'; }
-      const formatted = value < 10
-        ? value.toFixed(1).replace(/\.0$/, '')
-        : String(Math.round(value));
-      return sign + formatted + suffix;
-    }
-
     // Right-aligned numeric cell for the Summary table.
-    function num(v) { return '<td style="text-align:right;">' + fmtCompact(v) + '</td>'; }
+    function num(v) { return '<td style="text-align:right;">' + f(v) + '</td>'; }
 
     function renderSummary(rows) {
       const root = document.getElementById('summaryRows');
