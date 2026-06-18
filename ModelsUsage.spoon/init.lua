@@ -1042,6 +1042,17 @@ local function htmlTemplate()
         paintPresetSelection();
       }
 
+      // Update the Claude Code session card on every publish, BEFORE
+      // the data-signature early-return below. This is a status-style
+      // update independent of the table payload, so it has to run on
+      // every render — the early-return only suppresses table
+      // re-renders. Without this hoist, the first publish (before the
+      // refresh finishes) caches a null session, and the follow-up
+      // publish carrying the real session data hashes to the same
+      // `summaryRows` signature → returns early → the card never
+      // updates from its "no activity" initial state.
+      setClaudeCodeSession(payload.claudecodeSession || null, payload.activeSource);
+
       // Data signature includes activeSource AND the Summary rows so
       // switching tabs (or new Summary fetch results) forces a table
       // re-render even when the new source's data happens to hash the
@@ -1055,11 +1066,6 @@ local function htmlTemplate()
       ]);
       if (sig === lastDataSig) return;
       lastDataSig = sig;
-
-      // Update the Claude Code session card on every publish so the
-      // tab visibility tracks payload.activeSource. The countdown
-      // continues ticking via setInterval between publishes.
-      setClaudeCodeSession(payload.claudecodeSession || null, payload.activeSource);
 
       if (payload.activeSource === 'summary') {
         renderSummary(payload.summaryRows || []);
