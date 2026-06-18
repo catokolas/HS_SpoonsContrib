@@ -24,6 +24,15 @@ obj.seriesRowsLimit = 40
 obj.windowWidth = 980
 obj.windowHeight = 720
 
+-- Claude Code rolling-window quota assumption. Anthropic Claude Code
+-- enforces a rolling 5-hour token cap that varies by plan
+-- (Pro/Team/Max). The Summary tab uses this to show `% used` against
+-- a quota you can override via `:configure({ claudecodeQuotaTokens =
+-- ... })`. Default is a rough Pro-plan estimate; bump it for
+-- Max-plan accounts. If you set it to 0 the card just shows absolute
+-- counts.
+obj.claudecodeQuotaTokens = 45000
+
 -- Pre-warm the dashboard webview at startup so the first menubar-click
 -- open doesn't pay the 3-5s WebKit content-process spawn synchronously
 -- on the main thread (which queues every other spoon's eventtap
@@ -485,8 +494,10 @@ local function buildViewModel(state, topModelsLimit, seriesRowsLimit,
     -- active; null otherwise. The JS render skips the summary-table
     -- update when this is missing, so KIX / Claude Code renders stay
     -- unchanged from the per-source code path.
-    summaryRows   = (state.activeSource == "summary") and (data.rows   or {}) or nil,
-    summaryErrors = (state.activeSource == "summary") and (data.errors or {}) or nil,
+    summaryRows           = (state.activeSource == "summary") and (data.rows or {}) or nil,
+    summaryErrors         = (state.activeSource == "summary") and (data.errors or {}) or nil,
+    claudecodeSession     = (state.activeSource == "summary") and data.claudecodeSession or nil,
+    nowEpoch              = (state.activeSource == "summary") and os.time() or nil,
   }
 end
 
@@ -634,6 +645,19 @@ local function htmlTemplate()
     tbody tr.empty:hover, tbody tr.empty:nth-child(even) { background: transparent; }
     tbody tr.empty td { color: var(--muted); font-style: italic; text-align: center; padding: 16px; }
     .mono { font-family: ui-monospace, Menlo, Monaco, monospace; font-size: 12px; color: var(--muted); }
+    .cc-session-headline { font-size: 15px; font-weight: 600; }
+    .cc-session-bar {
+      margin-top: 8px; height: 6px; border-radius: 3px;
+      background: var(--border); overflow: hidden;
+    }
+    .cc-session-bar-fill {
+      height: 100%; width: 0%;
+      background: var(--accent);
+      transition: width 0.3s ease, background-color 0.3s ease;
+    }
+    .cc-session-bar-fill.warn  { background: var(--warn); }
+    .cc-session-bar-fill.error { background: var(--error); }
+    .cc-session-reset { margin-top: 8px; }
   </style>
 </head>
 <body>
@@ -657,6 +681,15 @@ local function htmlTemplate()
         </thead>
         <tbody id="summaryRows"></tbody>
       </table>
+    </div>
+
+    <!-- Session card visibility is JS-controlled (depends on both tab
+         being Summary AND having usage data); no data-only-for. -->
+    <div class="card cc-session-card" id="ccSession" style="display:none;">
+      <h3 style="margin:0 0 8px 0;">Claude Code session (rolling 5 h)</h3>
+      <div class="cc-session-headline" id="ccSessionHeadline"></div>
+      <div class="cc-session-bar"><div class="cc-session-bar-fill" id="ccSessionBarFill"></div></div>
+      <div class="cc-session-reset mono" id="ccSessionReset"></div>
     </div>
 
     <div class="card" data-only-for="kix,claudecode">
@@ -891,6 +924,74 @@ local function htmlTemplate()
       ).join('');
     }
 
+    // Claude Code session card: % used + countdown to the trailing
+    // 5h window's reset. Visibility is JS-driven (Summary tab AND
+    // session data present); the countdown ticks every second via
+    // setInterval so the displayed time stays current without needing
+    // a publish per second.
+    let ccSessionPayload = null;
+    let ccSessionActiveSource = null;
+    let ccSessionTickerStarted = false;
+
+    function formatDuration(seconds) {
+      seconds = Math.max(0, Math.floor(seconds));
+      const h = Math.floor(seconds / 3600);
+      const m = Math.floor((seconds % 3600) / 60);
+      const s = seconds % 60;
+      const pad = n => String(n).padStart(2, '0');
+      if (h > 0) return h + 'h ' + pad(m) + 'm ' + pad(s) + 's';
+      if (m > 0) return m + 'm ' + pad(s) + 's';
+      return s + 's';
+    }
+
+    function setClaudeCodeSession(session, activeSource) {
+      ccSessionPayload = session || null;
+      ccSessionActiveSource = activeSource || null;
+      paintCcSession();
+      if (!ccSessionTickerStarted) {
+        setInterval(paintCcSession, 1000);
+        ccSessionTickerStarted = true;
+      }
+    }
+
+    function paintCcSession() {
+      const card = document.getElementById('ccSession');
+      if (!card) return;
+      const s = ccSessionPayload;
+      const visible = ccSessionActiveSource === 'summary'
+                    && s && (s.tokensUsed || 0) > 0;
+      const wantDisplay = visible ? '' : 'none';
+      if (card.style.display !== wantDisplay) card.style.display = wantDisplay;
+      if (!visible) return;
+
+      const quota = Number(s.quotaTokens) || 0;
+      const used  = Number(s.tokensUsed) || 0;
+      const pct   = quota > 0 ? (used / quota) * 100 : 0;
+      const headline = document.getElementById('ccSessionHeadline');
+      headline.textContent = quota > 0
+        ? pct.toFixed(1) + '% used — ' + f(used) + ' / ' + f(quota) + ' tokens'
+        : f(used) + ' tokens used (no quota configured)';
+
+      const fill = document.getElementById('ccSessionBarFill');
+      const clamped = Math.max(0, Math.min(100, pct));
+      fill.style.width = clamped + '%';
+      let level = '';
+      if (pct >= 90) level = 'error';
+      else if (pct >= 70) level = 'warn';
+      fill.className = 'cc-session-bar-fill' + (level ? ' ' + level : '');
+
+      const reset = document.getElementById('ccSessionReset');
+      if (!s.resetEpoch) {
+        reset.textContent = '';
+        return;
+      }
+      const nowSec = Math.floor(Date.now() / 1000);
+      const left = s.resetEpoch - nowSec;
+      reset.textContent = left <= 0
+        ? 'window has reset'
+        : 'window resets in ' + formatDuration(left);
+    }
+
     let lastDataSig = null;
 
     window.ModelsUsageRender = function(payload) {
@@ -928,6 +1029,11 @@ local function htmlTemplate()
       ]);
       if (sig === lastDataSig) return;
       lastDataSig = sig;
+
+      // Update the Claude Code session card on every publish so the
+      // tab visibility tracks payload.activeSource. The countdown
+      // continues ticking via setInterval between publishes.
+      setClaudeCodeSession(payload.claudecodeSession || null, payload.activeSource);
 
       if (payload.activeSource === 'summary') {
         renderSummary(payload.summaryRows || []);
@@ -1892,6 +1998,78 @@ local function totalTokens(row)
        + (tonumber(row.cached_tokens) or 0)
 end
 
+-- Walk Claude Code's most-recently-modified session files for
+-- assistant-role messages whose timestamps fall inside the trailing
+-- 5h rolling window. Sums tokens (input + output + cache_read +
+-- cache_creation) and tracks the earliest in-window timestamp — the
+-- earliest message is what determines when the next token leaves the
+-- rolling window. The day-resolution `_ccFileCache` doesn't carry
+-- sub-day timestamps so this pays a fresh per-file parse, but the
+-- mtime filter keeps it to the 1-2 files that could possibly
+-- contain in-window messages.
+local function computeClaudeCodeSession()
+  local windowSeconds = 5 * 3600
+  local nowEpoch = os.time()
+  local windowStartEpoch = nowEpoch - windowSeconds
+  -- 1h buffer on the mtime filter for files whose mtime crossed the
+  -- 5h boundary while the user was idle.
+  local mtimeCutoff = windowStartEpoch - 3600
+
+  local relevantFiles = {}
+  for _, f in ipairs(listClaudeCodeFiles()) do
+    if f.mtime >= mtimeCutoff then
+      relevantFiles[#relevantFiles + 1] = f
+    end
+  end
+
+  local tokensUsed = 0
+  local earliestEpoch
+  local lastModel
+
+  for _, file in ipairs(relevantFiles) do
+    local fh = io.open(file.path, "r")
+    if fh then
+      for line in fh:lines() do
+        if line and line ~= ""
+           and line:find('"role":"assistant"', 1, true)
+           and line:find('"usage":', 1, true) then
+          local ok, evt = pcall(hs.json.decode, line)
+          if ok and type(evt) == "table" and type(evt.message) == "table"
+             and evt.message.role == "assistant"
+             and type(evt.message.usage) == "table"
+             and type(evt.timestamp) == "string" then
+            local epoch = isoToEpoch(evt.timestamp)
+            if epoch and epoch >= windowStartEpoch then
+              local u = evt.message.usage
+              tokensUsed = tokensUsed
+                + (tonumber(u.input_tokens)              or 0)
+                + (tonumber(u.output_tokens)             or 0)
+                + (tonumber(u.cache_read_input_tokens)   or 0)
+                + (tonumber(u.cache_creation_input_tokens) or 0)
+              if not earliestEpoch or epoch < earliestEpoch then
+                earliestEpoch = epoch
+              end
+              if evt.message.model then lastModel = tostring(evt.message.model) end
+            end
+          end
+        end
+      end
+      fh:close()
+    end
+  end
+
+  return {
+    tokensUsed       = tokensUsed,
+    windowSeconds    = windowSeconds,
+    windowStartEpoch = windowStartEpoch,
+    earliestEpoch    = earliestEpoch,
+    -- Reset = the moment the *earliest* in-window message ages out.
+    -- Until any message is in-window, "reset" is meaningless, so nil.
+    resetEpoch       = earliestEpoch and (earliestEpoch + windowSeconds) or nil,
+    lastModel        = lastModel,
+  }
+end
+
 -- Aggregate the in-memory Claude Code cache into per-model Summary
 -- rows. No async work because everything we need is already in
 -- `_ccFileCache`'s day-resolution aggs.
@@ -1989,7 +2167,8 @@ function obj:_refreshSummary(requestSeq)
       if a.source ~= b.source then return a.source < b.source end
       return (a.model or "") < (b.model or "")
     end)
-    slot.lastData = { rows = allRows, windows = windows, errors = errors }
+    slot.lastData = { rows = allRows, windows = windows, errors = errors,
+                      claudecodeSession = claudecodeSession }
     slot.lastError = nil  -- per-source errors live in lastData.errors
     slot.lastStatus = 200
     slot.lastRefreshAt = os.time()
@@ -2005,9 +2184,12 @@ function obj:_refreshSummary(requestSeq)
     if pending == 0 then finalize() end
   end
 
-  -- Claude Code: synchronous aggregation from cached day-aggs. Wrap
-  -- in a doAfter(0) so `pending` is set up before we resolve.
+  -- Claude Code: synchronous aggregation from cached day-aggs, plus
+  -- a fresh per-file walk of the trailing 5h to populate the session
+  -- quota card. Wrap in a doAfter(0) so `pending` is set up before
+  -- we resolve.
   pending = pending + 1
+  local claudecodeSession = nil
   hs.timer.doAfter(0, function()
     if not isStillCurrent() then sourceDone(); return end
     local ok, ccRows = pcall(buildClaudeCodeSummaryRows, windows)
@@ -2015,6 +2197,11 @@ function obj:_refreshSummary(requestSeq)
       for _, r in ipairs(ccRows) do allRows[#allRows + 1] = r end
     else
       errors.claudecode = tostring(ccRows or "aggregation failed")
+    end
+    local sessOk, sess = pcall(computeClaudeCodeSession)
+    if sessOk and type(sess) == "table" then
+      sess.quotaTokens = self.claudecodeQuotaTokens or 0
+      claudecodeSession = sess
     end
     sourceDone()
   end)
