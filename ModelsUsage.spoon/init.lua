@@ -1288,7 +1288,12 @@ end
 -- with existing init.lua snippets — only the storage location changed.
 function obj:setToken(token)
   self._state.sources.kix.config.token = token and tostring(token) or nil
-  self:_saveSettings()
+  -- Sync save (not the debounced `_saveSettings`): a typical init.lua
+  -- pattern is `:setToken(...)` immediately followed by `:start()`,
+  -- and `:start()` calls `_loadSettings` which would otherwise read
+  -- the stale on-disk token (the 200ms debounce hasn't fired yet) and
+  -- overwrite our in-memory value with the old one.
+  self:_saveSettingsImmediate()
   self:_renderWindow()
   return self
 end
@@ -1301,7 +1306,10 @@ end
 --- (`"uuid-a, uuid-b"`). Passing nil / empty clears the list.
 function obj:setKeys(keys)
   self._state.sources.kix.config.keys = normalizeKeys(keys)
-  self:_saveSettings()
+  -- Sync save (see note on setToken): one-shot programmatic setters
+  -- must persist immediately so an immediate `:start()` can't
+  -- overwrite the in-memory value with the stale on-disk one.
+  self:_saveSettingsImmediate()
   self:_renderWindow()
   return self
 end
@@ -1317,7 +1325,8 @@ function obj:setDefaultKey(uuid)
   else
     self._state.sources.kix.config.keys = {}
   end
-  self:_saveSettings()
+  -- Sync save (see setToken): one-shot programmatic call → persist now.
+  self:_saveSettingsImmediate()
   self:_renderWindow()
   return self
 end
@@ -1331,7 +1340,7 @@ function obj:setActiveSource(id)
   if type(id) ~= "string" or not self._state.sources[id] then return self end
   if self._state.activeSource == id then return self end
   self._state.activeSource = id
-  self:_saveSettings()
+  self:_saveSettingsImmediate()  -- sync (see setToken)
   self:_publishToWindow()
   self:refresh()
   return self
@@ -1339,7 +1348,7 @@ end
 
 function obj:setGranularity(granularity)
   self._state.granularity = clampGranularity(granularity)
-  self:_saveSettings()
+  self:_saveSettingsImmediate()  -- sync (see setToken)
   self:refresh()
   return self
 end
@@ -1347,14 +1356,14 @@ end
 function obj:setDateRange(fromIso, toIso)
   self._state.from = fromIso
   self._state.to = toIso
-  self:_saveSettings()
+  self:_saveSettingsImmediate()  -- sync (see setToken)
   self:refresh()
   return self
 end
 
 function obj:setRefreshSeconds(seconds)
   self._state.refreshSeconds = coercePositiveNumber(seconds, self.refreshSeconds)
-  self:_saveSettings()
+  self:_saveSettingsImmediate()  -- sync (see setToken)
   self:_restartTimer()
   self:_renderWindow()
   return self
