@@ -903,11 +903,29 @@ local function htmlTemplate()
       root.innerHTML = rows.map(rowHtml).join('');
     }
 
-    // Right-aligned numeric cell helper. Pulls the four window
-    // columns into a uniform shape so the Summary table reads cleanly
-    // regardless of magnitude (0 in Today vs hundreds of millions in
-    // This Year). Uses the existing f() formatter for thousands sep.
-    function num(v) { return '<td style="text-align:right;">' + f(v) + '</td>'; }
+    // Compact "round to K / M / B" formatter for the Summary table.
+    // Keeps big numbers scannable (`14M`, `201M`) instead of printing
+    // a 9-digit thousands-separated count per cell. One decimal place
+    // when it adds information (`1.2M`) and dropped when it doesn't
+    // (`14M`, `201M`).
+    function fmtCompact(n) {
+      n = Number(n) || 0;
+      if (n === 0) return '0';
+      const abs = Math.abs(n);
+      const sign = n < 0 ? '-' : '';
+      if (abs < 1000) return sign + Math.floor(abs);
+      let value, suffix;
+      if      (abs < 1e6) { value = abs / 1e3; suffix = 'K'; }
+      else if (abs < 1e9) { value = abs / 1e6; suffix = 'M'; }
+      else                { value = abs / 1e9; suffix = 'B'; }
+      const formatted = value < 10
+        ? value.toFixed(1).replace(/\.0$/, '')
+        : String(Math.round(value));
+      return sign + formatted + suffix;
+    }
+
+    // Right-aligned numeric cell for the Summary table.
+    function num(v) { return '<td style="text-align:right;">' + fmtCompact(v) + '</td>'; }
 
     function renderSummary(rows) {
       const root = document.getElementById('summaryRows');
