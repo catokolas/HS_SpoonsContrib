@@ -89,8 +89,15 @@ obj._state = {
   activePreset = nil,
 
   -- Multi-source bookkeeping
-  activeSource = "kix",
+  activeSource = "summary",
   sources = {
+    summary = {
+      config = {},
+      lastData = nil,
+      lastError = nil,
+      lastStatus = nil,
+      lastRefreshAt = nil,
+    },
     kix = {
       config = { token = nil, keys = {} },
       lastData = nil,
@@ -250,6 +257,11 @@ end
 -- activeSource setting is validated against it, and the dispatch in
 -- obj:refresh() looks up the per-source refresh method by name.
 local SOURCES = {
+  summary = {
+    id = "summary",
+    displayName = "Summary",
+    refreshMethod = "_refreshSummary",
+  },
   kix = {
     id = "kix",
     displayName = "KIX",
@@ -261,7 +273,7 @@ local SOURCES = {
     refreshMethod = "_refreshClaudeCode",
   },
 }
-local SOURCE_ORDER = { "kix", "claudecode" }
+local SOURCE_ORDER = { "summary", "kix", "claudecode" }
 
 -- Get the runtime slot for whichever source is currently active.
 -- Falls back to KIX if the configured `activeSource` is unknown, so an
@@ -469,6 +481,12 @@ local function buildViewModel(state, topModelsLimit, seriesRowsLimit,
     totals = derived.totals,
     topModels = derived.top,
     series = derived.seriesLimited,
+    -- Summary-specific payload only carried when the Summary tab is
+    -- active; null otherwise. The JS render skips the summary-table
+    -- update when this is missing, so KIX / Claude Code renders stay
+    -- unchanged from the per-source code path.
+    summaryRows   = (state.activeSource == "summary") and (data.rows   or {}) or nil,
+    summaryErrors = (state.activeSource == "summary") and (data.errors or {}) or nil,
   }
 end
 
@@ -624,7 +642,24 @@ local function htmlTemplate()
     <div class="tabs" id="tabs" role="tablist"></div>
     <div id="error" class="error-block"></div>
 
-    <div class="card">
+    <div class="card summary-card" data-only-for="summary">
+      <h3 style="margin:0 0 12px 0;">Token usage summary</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Source</th>
+            <th>Model</th>
+            <th style="text-align:right;">Today</th>
+            <th style="text-align:right;">This Week</th>
+            <th style="text-align:right;">This Month</th>
+            <th style="text-align:right;">This Year</th>
+          </tr>
+        </thead>
+        <tbody id="summaryRows"></tbody>
+      </table>
+    </div>
+
+    <div class="card" data-only-for="kix,claudecode">
       <div class="row">
         <div class="cell">
           <label for="granularity">Granularity</label>
@@ -660,11 +695,11 @@ local function htmlTemplate()
       </div>
     </div>
 
-    <div class="card">
+    <div class="card" data-only-for="kix,claudecode">
       <div class="grid5" id="totals"></div>
     </div>
 
-    <div class="card">
+    <div class="card" data-only-for="kix,claudecode">
       <h3 style="margin:0 0 8px 0;">Top Models</h3>
       <table>
         <thead>
@@ -674,7 +709,7 @@ local function htmlTemplate()
       </table>
     </div>
 
-    <div class="card">
+    <div class="card" data-only-for="kix,claudecode">
       <h3 style="margin:0 0 8px 0;">Series</h3>
       <table>
         <thead>
@@ -761,8 +796,14 @@ local function htmlTemplate()
     }
 
     function applySourceVisibility(activeId) {
+      // data-only-for accepts a comma-separated list. The element is
+      // shown when activeId matches any entry; otherwise hidden via
+      // `display: none`. Lets one helper drive every per-tab show/hide,
+      // including showing the Summary card *only* on the Summary tab and
+      // hiding the controls/totals/topModels/series cards on it.
       document.querySelectorAll('[data-only-for]').forEach(el => {
-        const wanted = el.dataset.onlyFor === activeId;
+        const allowed = (el.dataset.onlyFor || '').split(',').map(s => s.trim());
+        const wanted = allowed.indexOf(activeId) !== -1;
         if (el.style.display === (wanted ? '' : 'none')) return;
         el.style.display = wanted ? '' : 'none';
       });
@@ -829,6 +870,27 @@ local function htmlTemplate()
       root.innerHTML = rows.map(rowHtml).join('');
     }
 
+    // Right-aligned numeric cell helper. Pulls the four window
+    // columns into a uniform shape so the Summary table reads cleanly
+    // regardless of magnitude (0 in Today vs hundreds of millions in
+    // This Year). Uses the existing f() formatter for thousands sep.
+    function num(v) { return '<td style="text-align:right;">' + f(v) + '</td>'; }
+
+    function renderSummary(rows) {
+      const root = document.getElementById('summaryRows');
+      if (!Array.isArray(rows) || rows.length === 0) {
+        root.innerHTML = '<tr class="empty"><td colspan="6">No data</td></tr>';
+        return;
+      }
+      root.innerHTML = rows.map(r =>
+        '<tr>'
+          + '<td>' + (r.source || '') + '</td>'
+          + '<td>' + (r.model  || '') + '</td>'
+          + num(r.today) + num(r.thisWeek) + num(r.thisMonth) + num(r.thisYear)
+          + '</tr>'
+      ).join('');
+    }
+
     let lastDataSig = null;
 
     window.ModelsUsageRender = function(payload) {
@@ -853,27 +915,33 @@ local function htmlTemplate()
         paintPresetSelection();
       }
 
-      // Data signature includes activeSource so switching tabs forces a
-      // table re-render even when the new source's data happens to hash
-      // the same as the old one's (e.g., both empty).
+      // Data signature includes activeSource AND the Summary rows so
+      // switching tabs (or new Summary fetch results) forces a table
+      // re-render even when the new source's data happens to hash the
+      // same as the old one's (e.g., both empty).
       const sig = JSON.stringify([
         payload.activeSource,
         payload.totals || {},
         payload.topModels || [],
         payload.series || [],
+        payload.summaryRows || null,
       ]);
       if (sig === lastDataSig) return;
       lastDataSig = sig;
 
-      renderTotals(payload.totals || {});
+      if (payload.activeSource === 'summary') {
+        renderSummary(payload.summaryRows || []);
+      } else {
+        renderTotals(payload.totals || {});
 
-      renderRows('topModels', payload.topModels || [], 6, r =>
-        `<tr><td>${r.model || ''}</td><td>${f(r.requests)}</td><td>${f(r.input_tokens)}</td><td>${f(r.output_tokens)}</td><td>${f(r.cached_tokens)}</td><td>${f(r.reasoning_tokens)}</td></tr>`
-      );
+        renderRows('topModels', payload.topModels || [], 6, r =>
+          `<tr><td>${r.model || ''}</td><td>${f(r.requests)}</td><td>${f(r.input_tokens)}</td><td>${f(r.output_tokens)}</td><td>${f(r.cached_tokens)}</td><td>${f(r.reasoning_tokens)}</td></tr>`
+        );
 
-      renderRows('series', payload.series || [], 7, r =>
-        `<tr><td>${r.date || ''}</td><td>${r.model || ''}</td><td>${f(r.requests)}</td><td>${f(r.input_tokens)}</td><td>${f(r.output_tokens)}</td><td>${f(r.cached_tokens)}</td><td>${f(r.reasoning_tokens)}</td></tr>`
-      );
+        renderRows('series', payload.series || [], 7, r =>
+          `<tr><td>${r.date || ''}</td><td>${r.model || ''}</td><td>${f(r.requests)}</td><td>${f(r.input_tokens)}</td><td>${f(r.output_tokens)}</td><td>${f(r.cached_tokens)}</td><td>${f(r.reasoning_tokens)}</td></tr>`
+        );
+      }
     };
 
     document.getElementById('granularity').addEventListener('change', function() {
@@ -1793,6 +1861,206 @@ function obj:_refreshClaudeCode(requestSeq)
   end
 
   processNext()
+end
+
+-- Compute the four fixed Summary time windows against the current
+-- clock. Each returns an `{fromIso, toIso, fromEpoch, toEpoch}` table
+-- so aggregations can do both string-keyed (for the API call) and
+-- numeric (for fast in-row date checks) comparisons.
+local function computeSummaryWindows()
+  local function pair(fromIso, toIso)
+    return { fromIso = fromIso, toIso = toIso,
+             fromEpoch = isoToEpoch(fromIso),
+             toEpoch = isoToEpoch(toIso) }
+  end
+  local today  = pair(startOfDayUtc(0),  endOfDayUtc(0))
+  return {
+    today     = today,
+    thisWeek  = pair(startOfWeekUtc(),  today.toIso),
+    thisMonth = pair(startOfMonthUtc(), today.toIso),
+    thisYear  = pair(startOfYearUtc(),  today.toIso),
+  }
+end
+
+-- Sum the three token kinds we surface in the dashboard (input +
+-- output + cached) into a single "tokens used" number for the
+-- Summary table. Reasoning tokens are folded into output for
+-- Anthropic responses, so output already covers thinking.
+local function totalTokens(row)
+  return (tonumber(row.input_tokens)  or 0)
+       + (tonumber(row.output_tokens) or 0)
+       + (tonumber(row.cached_tokens) or 0)
+end
+
+-- Aggregate the in-memory Claude Code cache into per-model Summary
+-- rows. No async work because everything we need is already in
+-- `_ccFileCache`'s day-resolution aggs.
+local function buildClaudeCodeSummaryRows(windows)
+  local perModel = {}
+  for _, fileEntry in pairs(_ccFileCache) do
+    for _, dayRow in pairs(fileEntry.dayAgg or {}) do
+      local epoch = isoToEpoch(dayRow.ts)
+      if epoch then
+        local entry = perModel[dayRow.model]
+        if not entry then
+          entry = { source = "Claude Code", model = dayRow.model,
+                    today = 0, thisWeek = 0, thisMonth = 0, thisYear = 0 }
+          perModel[dayRow.model] = entry
+        end
+        local t = totalTokens(dayRow)
+        for windowName, window in pairs(windows) do
+          if epoch >= (window.fromEpoch or 0)
+             and epoch <= (window.toEpoch or math.huge) then
+            entry[windowName] = entry[windowName] + t
+          end
+        end
+      end
+    end
+  end
+  local rows = {}
+  for _, r in pairs(perModel) do rows[#rows + 1] = r end
+  return rows
+end
+
+-- Aggregate a KIX `/api/usage` response (one year-to-date call with
+-- granularity=day) into per-model Summary rows. The server's
+-- `series` is the per-day breakdown; we slice each row into whichever
+-- of the four windows it falls into and accumulate.
+local function buildKixSummaryRows(data, windows)
+  if type(data) ~= "table" or type(data.series) ~= "table" then return {} end
+  local perModel = {}
+  for _, dayRow in ipairs(data.series) do
+    if type(dayRow) == "table" and type(dayRow.date) == "string" then
+      -- `date` from the KIX response is a "YYYY-MM-DD" bucket; treat
+      -- it as the start of the day for window matching.
+      local epoch = isoToEpoch(dayRow.date .. "T00:00:00Z")
+      if epoch then
+        local model = tostring(dayRow.model or "unknown")
+        local entry = perModel[model]
+        if not entry then
+          entry = { source = "KIX", model = model,
+                    today = 0, thisWeek = 0, thisMonth = 0, thisYear = 0 }
+          perModel[model] = entry
+        end
+        local t = totalTokens(dayRow)
+        for windowName, window in pairs(windows) do
+          if epoch >= (window.fromEpoch or 0)
+             and epoch <= (window.toEpoch or math.huge) then
+            entry[windowName] = entry[windowName] + t
+          end
+        end
+      end
+    end
+  end
+  local rows = {}
+  for _, r in pairs(perModel) do rows[#rows + 1] = r end
+  return rows
+end
+
+-- Per-source refresh: Summary. Cross-source aggregation that hits each
+-- underlying source for *one* broad year-to-date pull, then buckets
+-- the result into the four fixed windows client-side. KIX is async
+-- (HTTP); Claude Code is sync (cached day-aggs). The Summary slot's
+-- `lastData.rows` carries the {source, model, today, thisWeek,
+-- thisMonth, thisYear} matrix the JS-side render fills the table from.
+function obj:_refreshSummary(requestSeq)
+  local slot = self._state.sources.summary
+  local startedAt = hs.timer.secondsSinceEpoch()
+
+  self._state.inFlight = true
+  self:_setMenubarStatus("Loading...", false)
+  self:_publishToWindow()
+
+  local windows = computeSummaryWindows()
+  local allRows = {}
+  local pending = 0
+  local errors = {}
+
+  local function isStillCurrent() return requestSeq == self._state.requestSeq end
+
+  local function finalize()
+    if not isStillCurrent() then return end
+    self._state.inFlight = false
+    -- Sort: highest This-Year first so the biggest spenders rise to
+    -- the top. Stable secondary sort by source then model so
+    -- recurrent reloads don't visibly reshuffle equal rows.
+    table.sort(allRows, function(a, b)
+      if a.thisYear ~= b.thisYear then return a.thisYear > b.thisYear end
+      if a.source ~= b.source then return a.source < b.source end
+      return (a.model or "") < (b.model or "")
+    end)
+    slot.lastData = { rows = allRows, windows = windows, errors = errors }
+    slot.lastError = nil  -- per-source errors live in lastData.errors
+    slot.lastStatus = 200
+    slot.lastRefreshAt = os.time()
+    local elapsed = hs.timer.secondsSinceEpoch() - startedAt
+    self.logger.df("refresh response #%d source=summary elapsed=%.3fs rows=%d",
+      requestSeq, elapsed, #allRows)
+    self:_setMenubarStatus("OK", false)
+    self:_publishToWindow()
+  end
+
+  local function sourceDone()
+    pending = pending - 1
+    if pending == 0 then finalize() end
+  end
+
+  -- Claude Code: synchronous aggregation from cached day-aggs. Wrap
+  -- in a doAfter(0) so `pending` is set up before we resolve.
+  pending = pending + 1
+  hs.timer.doAfter(0, function()
+    if not isStillCurrent() then sourceDone(); return end
+    local ok, ccRows = pcall(buildClaudeCodeSummaryRows, windows)
+    if ok and type(ccRows) == "table" then
+      for _, r in ipairs(ccRows) do allRows[#allRows + 1] = r end
+    else
+      errors.claudecode = tostring(ccRows or "aggregation failed")
+    end
+    sourceDone()
+  end)
+
+  -- KIX: one year-to-date pull. Skip silently when no token is
+  -- configured (the user may have a Claude-Code-only setup).
+  local kixCfg = self._state.sources.kix.config
+  if kixCfg.token and kixCfg.token ~= "" then
+    pending = pending + 1
+    local queryParts = {
+      "granularity=day",
+      "from=" .. hs.http.encodeForQuery(windows.thisYear.fromIso),
+      "to="   .. hs.http.encodeForQuery(windows.thisYear.toIso),
+    }
+    if type(kixCfg.keys) == "table" then
+      for _, k in ipairs(kixCfg.keys) do
+        if type(k) == "string" and k ~= "" then
+          table.insert(queryParts, "key=" .. hs.http.encodeForQuery(k))
+        end
+      end
+    end
+    local url = self.apiBaseUrl .. self.usagePath .. "?" .. table.concat(queryParts, "&")
+    local headers = {
+      ["Authorization"] = "Bearer " .. kixCfg.token,
+      ["Accept"] = "application/json",
+    }
+    self.logger.df("refresh start #%d source=summary kix=GET url=%s headers=%s",
+      requestSeq, url, formatHeadersForLog(headers))
+    hs.http.asyncGet(url, headers, function(status, body)
+      if not isStillCurrent() then return end
+      if status < 200 or status >= 300 then
+        errors.kix = "HTTP " .. tostring(status)
+        sourceDone()
+        return
+      end
+      local data, err = parseJson(body)
+      if not data then
+        errors.kix = err or "parse failed"
+        sourceDone()
+        return
+      end
+      local kixRows = buildKixSummaryRows(data, windows)
+      for _, r in ipairs(kixRows) do allRows[#allRows + 1] = r end
+      sourceDone()
+    end)
+  end
 end
 
 function obj:_handleAction(params)
