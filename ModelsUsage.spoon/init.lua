@@ -2213,13 +2213,20 @@ local function totalTokens(row)
 end
 
 -- Compute the current Claude Code 5-hour usage block, matching how
--- Anthropic reports session limits: a block opens at the first message
--- (floored to the top of the hour) and lasts exactly 5h; the next
--- message at or after the block end opens a fresh block. The reset time
--- is therefore stable for the life of a block, unlike a rolling window
--- whose reset slides forward as old messages age out. Sums new-token
--- consumption (input + output + cache_creation; cache_read excluded --
--- see below) over the active block.
+-- Anthropic reports session limits: a block opens at the exact first
+-- message and lasts exactly 5h; the next message at or after the block
+-- end opens a fresh block. The reset time is therefore stable for the
+-- life of a block, unlike a rolling window whose reset slides forward as
+-- old messages age out. Sums new-token consumption (input + output +
+-- cache_creation; cache_read excluded -- see below) over the active
+-- block.
+--
+-- Caveat: this only sees Claude Code's local session logs. Anthropic's
+-- real 5h window spans *all* plan activity (claude.ai web, API, ...) and
+-- anchors on the first message across all of them, so when the block was
+-- actually opened by non-Code usage our reset can read a few minutes
+-- early. We don't floor the anchor to the hour -- observed resets land
+-- on the first message's minute, not a round hour.
 --
 -- We scan ~2 blocks of history rather than just the trailing 5h: the
 -- current block's first message may sit just under 5h ago, and locating
@@ -2284,12 +2291,11 @@ local function computeClaudeCodeSession()
 
   -- Walk forward to the block holding the most recent message: each time
   -- a message lands at or after the running block's end it opens a new
-  -- block, anchored to the top of its hour.
-  local function floorHour(e) return e - (e % 3600) end
-  local blockStart = floorHour(msgs[1].epoch)
+  -- block, anchored to that message's exact timestamp.
+  local blockStart = msgs[1].epoch
   for _, m in ipairs(msgs) do
     if m.epoch >= blockStart + BLOCK then
-      blockStart = floorHour(m.epoch)
+      blockStart = m.epoch
     end
   end
   local resetEpoch = blockStart + BLOCK
