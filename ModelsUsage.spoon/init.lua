@@ -70,6 +70,8 @@ local SETTINGS = {
   -- Per-source: KIX
   kixToken        = "modelsUsage.kix.token",
   kixKeys         = "modelsUsage.kix.keys",
+  -- Per-source: Claude Code
+  claudecodeQuota = "modelsUsage.claudecode.quota",
   -- Legacy (read-once for one-way migration; no longer written)
   legacyToken        = "modelsUsage.token",
   legacyKeys         = "modelsUsage.keys",
@@ -1246,6 +1248,12 @@ function obj:_loadSettings()
   self._state.to = hs.settings.get(SETTINGS.to)
   self._state.refreshSeconds = coercePositiveNumber(hs.settings.get(SETTINGS.refreshSeconds), self.refreshSeconds)
   self._state.numberFormat = clampNumberFormat(hs.settings.get(SETTINGS.numberFormat) or self.numberFormat)
+  -- Claude Code quota: a stored value (incl. 0, meaning "no %") wins over
+  -- the configure()/default; absent, keep whatever was configured.
+  local storedQuota = hs.settings.get(SETTINGS.claudecodeQuota)
+  if type(storedQuota) == "number" and storedQuota >= 0 then
+    self.claudecodeQuotaTokens = storedQuota
+  end
 
   -- Restore the active preset and re-evaluate it against today's
   -- clock. This keeps the highlight in the dashboard AND keeps the
@@ -1324,6 +1332,7 @@ function obj:_saveSettingsImmediate()
   hs.settings.set(SETTINGS.to,             self._state.to)
   hs.settings.set(SETTINGS.refreshSeconds, self._state.refreshSeconds)
   hs.settings.set(SETTINGS.numberFormat,   self._state.numberFormat)
+  hs.settings.set(SETTINGS.claudecodeQuota, self.claudecodeQuotaTokens)
 end
 
 function obj:_saveSettings()
@@ -1469,6 +1478,23 @@ function obj:setRefreshSeconds(seconds)
   self:_saveSettingsImmediate()  -- sync (see setApiKey)
   self:_restartTimer()
   self:_renderWindow()
+  return self
+end
+
+--- ModelsUsage:setClaudecodeQuota(tokens) -> self
+--- Method
+--- Set the assumed Claude Code 5-hour token cap that the session card's
+--- "% used" is measured against. The figure is cost-weighted (input +
+--- output + 1.25x cache-write + 0.1x cache-read), so calibrate it against
+--- that, not raw token counts. Passing 0 (or non-numeric) hides the
+--- percentage/bar and shows the absolute count. Persisted across reloads
+--- and takes precedence over the configure() value.
+function obj:setClaudecodeQuota(tokens)
+  local v = tonumber(tokens)
+  if not v or v < 0 then v = 0 end
+  self.claudecodeQuotaTokens = math.floor(v + 0.5)
+  self:_saveSettingsImmediate()  -- sync (see setApiKey)
+  self:refresh()                 -- recompute the session card's % with the new cap
   return self
 end
 
@@ -2853,6 +2879,19 @@ function obj:_makeMenu()
     end },
   }
 
+  local ccSubmenu = {
+    { title = "Set 5h quota (tokens)...", fn = function()
+      local btn, text = hs.dialog.textPrompt(
+        "Claude Code 5h quota",
+        "Assumed 5-hour token cap for the session % bar. The usage figure\n" ..
+        "is cost-weighted (input + output + 1.25x cache-write + 0.1x\n" ..
+        "cache-read), so calibrate against that. Enter 0 to hide the % and\n" ..
+        "show the raw token count instead.",
+        tostring(self.claudecodeQuotaTokens or 0), "Save", "Cancel")
+      if btn == "Save" then self:setClaudecodeQuota(text) end
+    end },
+  }
+
   local numberFormatSubmenu = {
     {
       title = "Auto (" .. detectedLabel .. ")" .. (selectedNumberFormat == "auto" and "  ✓" or ""),
@@ -2872,6 +2911,7 @@ function obj:_makeMenu()
     { title = "Open Usage Dashboard", fn = function() self:_openWindow() end },
     { title = "-" },
     { title = "Configure KIX",  menu = kixSubmenu },
+    { title = "Configure Claude Code", menu = ccSubmenu },
     { title = "Number format", menu = numberFormatSubmenu },
     { title = "Set interval (seconds)...", fn = function()
       local btn, text = hs.dialog.textPrompt("Refresh interval", "Seconds:",

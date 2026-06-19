@@ -43,6 +43,7 @@ spoon.ModelsUsage:configure({
   numberFormat = "auto",                                           -- "auto", "us", or "no"
   defaultHotkeys = { refresh = { { "ctrl" }, "r" } },              -- set false to disable
   topModelsLimit = 10,
+  claudecodeQuotaTokens = 7000000,                                 -- Claude Code 5h session cap; 0 hides the % (see Claude Code section)
 })
 
 -- KIX source config (only needed if you actually use the KIX tab):
@@ -87,8 +88,19 @@ into `cached_tokens`) into the matching (date, model) bucket. The walk
 is batched (a few files per runloop tick) so an idle Hammerspoon
 doesn't beachball even on multi-hundred-session corpora.
 
-No configuration needed. If `~/.claude/projects/` doesn't exist (you
-don't use Claude Code), the source reports zero rows.
+No configuration needed for the usage table. If `~/.claude/projects/`
+doesn't exist (you don't use Claude Code), the source reports zero rows.
+
+The Summary tab also shows a **5-hour session card** modelling
+Anthropic's rolling usage limit: a block opens at the first message and
+lasts 5h, and the bar shows cost-weighted token use (`input + output +
+1.25× cache-write + 0.1× cache-read`) against an assumed cap. That cap is
+a guess — set it to your plan via the menubar (`Configure Claude Code →
+Set 5h quota (tokens)…`) or `:setClaudecodeQuota(n)` / `configure({
+claudecodeQuotaTokens = n })`. Set `0` to hide the percentage and show
+the raw count. Because this reads only Claude Code's local logs (not
+claude.ai web or API usage), it can't match the website's percentage
+exactly — calibrate the cap so the bar tracks what you care about.
 
 ## Persisted settings
 
@@ -97,6 +109,7 @@ don't use Claude Code), the source reports zero rows.
   `modelsUsage.refreshSeconds`, `modelsUsage.numberFormat`,
   `modelsUsage.windowFrame` — global
 - `modelsUsage.kix.token`, `modelsUsage.kix.keys` — KIX source config
+- `modelsUsage.claudecode.quota` — Claude Code 5h session cap (tokens)
 
 On first load, the legacy single-source keys (`modelsUsage.token`,
 `modelsUsage.keys`, `modelsUsage.defaultKey`) are migrated one-way into
