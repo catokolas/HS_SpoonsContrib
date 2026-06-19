@@ -1071,7 +1071,7 @@ local function htmlTemplate()
       const used     = s ? (Number(s.tokensUsed) || 0) : 0;
 
       if (used === 0) {
-        headline.textContent = 'No Claude Code activity in the last 5 hours';
+        headline.textContent = 'No Claude Code activity in the current 5h window';
         fill.style.width = '0%';
         fill.className = 'cc-session-bar-fill';
         reset.textContent = '';
@@ -2212,82 +2212,108 @@ local function totalTokens(row)
        + (tonumber(row.cached_tokens) or 0)
 end
 
--- Walk Claude Code's most-recently-modified session files for
--- assistant-role messages whose timestamps fall inside the trailing
--- 5h rolling window. Sums new-token consumption (input + output +
--- cache_creation; cache_read is excluded — see below) and tracks the
--- earliest in-window timestamp — the
--- earliest message is what determines when the next token leaves the
--- rolling window. The day-resolution `_ccFileCache` doesn't carry
--- sub-day timestamps so this pays a fresh per-file parse, but the
--- mtime filter keeps it to the 1-2 files that could possibly
--- contain in-window messages.
+-- Compute the current Claude Code 5-hour usage block, matching how
+-- Anthropic reports session limits: a block opens at the first message
+-- (floored to the top of the hour) and lasts exactly 5h; the next
+-- message at or after the block end opens a fresh block. The reset time
+-- is therefore stable for the life of a block, unlike a rolling window
+-- whose reset slides forward as old messages age out. Sums new-token
+-- consumption (input + output + cache_creation; cache_read excluded --
+-- see below) over the active block.
+--
+-- We scan ~2 blocks of history rather than just the trailing 5h: the
+-- current block's first message may sit just under 5h ago, and locating
+-- it means seeing where the previous block ended. The day-resolution
+-- `_ccFileCache` carries no sub-day timestamps so this pays a fresh
+-- per-file parse, but the mtime filter keeps it to the handful of files
+-- that could hold in-range messages.
 local function computeClaudeCodeSession()
-  local windowSeconds = 5 * 3600
+  local BLOCK = 5 * 3600
   local nowEpoch = os.time()
-  local windowStartEpoch = nowEpoch - windowSeconds
-  -- 1h buffer on the mtime filter for files whose mtime crossed the
-  -- 5h boundary while the user was idle.
-  local mtimeCutoff = windowStartEpoch - 3600
+  -- Two blocks back, plus an hour of slack, is enough to expose the
+  -- boundary that anchors the current block.
+  local scanCutoff  = nowEpoch - (2 * BLOCK) - 3600
+  local mtimeCutoff = scanCutoff - 3600
 
-  local relevantFiles = {}
+  -- Gather assistant messages (epoch, new-token count, model) in range.
+  local msgs = {}
   for _, f in ipairs(listClaudeCodeFiles()) do
     if f.mtime >= mtimeCutoff then
-      relevantFiles[#relevantFiles + 1] = f
-    end
-  end
-
-  local tokensUsed = 0
-  local earliestEpoch
-  local lastModel
-
-  for _, file in ipairs(relevantFiles) do
-    local fh = io.open(file.path, "r")
-    if fh then
-      for line in fh:lines() do
-        if line and line ~= ""
-           and line:find('"role":"assistant"', 1, true)
-           and line:find('"usage":', 1, true) then
-          local ok, evt = pcall(hs.json.decode, line)
-          if ok and type(evt) == "table" and type(evt.message) == "table"
-             and evt.message.role == "assistant"
-             and type(evt.message.usage) == "table"
-             and type(evt.timestamp) == "string" then
-            local epoch = isoToEpoch(evt.timestamp)
-            if epoch and epoch >= windowStartEpoch then
-              local u = evt.message.usage
-              -- Cache-read tokens are deliberately excluded: in a typical
-              -- Claude Code session they're ~97% of raw token volume but
-              -- are billed/rate-limited at a tiny fraction, so counting
-              -- them at full weight made "% used" wildly overstate the
-              -- 5h quota (e.g. 327% of cap that's really ~8% used). What
-              -- remains — fresh input, output, and cache *creation* — is
-              -- the meaningful new-token consumption for the window.
-              tokensUsed = tokensUsed
-                + (tonumber(u.input_tokens)              or 0)
-                + (tonumber(u.output_tokens)             or 0)
-                + (tonumber(u.cache_creation_input_tokens) or 0)
-              if not earliestEpoch or epoch < earliestEpoch then
-                earliestEpoch = epoch
+      local fh = io.open(f.path, "r")
+      if fh then
+        for line in fh:lines() do
+          if line and line ~= ""
+             and line:find('"role":"assistant"', 1, true)
+             and line:find('"usage":', 1, true) then
+            local ok, evt = pcall(hs.json.decode, line)
+            if ok and type(evt) == "table" and type(evt.message) == "table"
+               and evt.message.role == "assistant"
+               and type(evt.message.usage) == "table"
+               and type(evt.timestamp) == "string" then
+              local epoch = isoToEpoch(evt.timestamp)
+              if epoch and epoch >= scanCutoff then
+                local u = evt.message.usage
+                -- Cache-read tokens are deliberately excluded: in a
+                -- typical Claude Code session they're ~97% of raw token
+                -- volume but are billed/rate-limited at a tiny fraction,
+                -- so counting them at full weight made "% used" wildly
+                -- overstate the quota. What remains -- fresh input,
+                -- output, and cache *creation* -- is the meaningful
+                -- new-token consumption.
+                local toks = (tonumber(u.input_tokens)               or 0)
+                           + (tonumber(u.output_tokens)              or 0)
+                           + (tonumber(u.cache_creation_input_tokens) or 0)
+                msgs[#msgs + 1] = {
+                  epoch = epoch, tokens = toks,
+                  model = evt.message.model and tostring(evt.message.model) or nil,
+                }
               end
-              if evt.message.model then lastModel = tostring(evt.message.model) end
             end
           end
         end
+        fh:close()
       end
-      fh:close()
+    end
+  end
+
+  local empty = { tokensUsed = 0, windowSeconds = BLOCK,
+                  blockStartEpoch = nil, resetEpoch = nil, lastModel = nil }
+  if #msgs == 0 then return empty end
+
+  table.sort(msgs, function(a, b) return a.epoch < b.epoch end)
+
+  -- Walk forward to the block holding the most recent message: each time
+  -- a message lands at or after the running block's end it opens a new
+  -- block, anchored to the top of its hour.
+  local function floorHour(e) return e - (e % 3600) end
+  local blockStart = floorHour(msgs[1].epoch)
+  for _, m in ipairs(msgs) do
+    if m.epoch >= blockStart + BLOCK then
+      blockStart = floorHour(m.epoch)
+    end
+  end
+  local resetEpoch = blockStart + BLOCK
+
+  -- Past that block's end the user has gone idle and no block is active;
+  -- report empty so the card reads as idle rather than showing a stale,
+  -- already-reset block.
+  if nowEpoch >= resetEpoch then return empty end
+
+  -- Sum new tokens and capture the latest model within the active block.
+  local tokensUsed, lastModel = 0, nil
+  for _, m in ipairs(msgs) do
+    if m.epoch >= blockStart then
+      tokensUsed = tokensUsed + m.tokens
+      if m.model then lastModel = m.model end
     end
   end
 
   return {
-    tokensUsed       = tokensUsed,
-    windowSeconds    = windowSeconds,
-    windowStartEpoch = windowStartEpoch,
-    earliestEpoch    = earliestEpoch,
-    -- Reset = the moment the *earliest* in-window message ages out.
-    -- Until any message is in-window, "reset" is meaningless, so nil.
-    resetEpoch       = earliestEpoch and (earliestEpoch + windowSeconds) or nil,
-    lastModel        = lastModel,
+    tokensUsed      = tokensUsed,
+    windowSeconds   = BLOCK,
+    blockStartEpoch = blockStart,
+    resetEpoch      = resetEpoch,
+    lastModel       = lastModel,
   }
 end
 
@@ -2458,9 +2484,9 @@ function obj:_refreshSummary(requestSeq)
     if sessOk and type(sess) == "table" then
       sess.quotaTokens = self.claudecodeQuotaTokens or 0
       claudecodeSession = sess
-      self.logger.df("claudecode session: tokensUsed=%d earliestEpoch=%s resetEpoch=%s lastModel=%s",
+      self.logger.df("claudecode session: tokensUsed=%d blockStartEpoch=%s resetEpoch=%s lastModel=%s",
         sess.tokensUsed or 0,
-        tostring(sess.earliestEpoch),
+        tostring(sess.blockStartEpoch),
         tostring(sess.resetEpoch),
         tostring(sess.lastModel))
     else
