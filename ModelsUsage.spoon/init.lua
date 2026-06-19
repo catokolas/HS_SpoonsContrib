@@ -2217,9 +2217,9 @@ end
 -- message and lasts exactly 5h; the next message at or after the block
 -- end opens a fresh block. The reset time is therefore stable for the
 -- life of a block, unlike a rolling window whose reset slides forward as
--- old messages age out. Sums new-token consumption (input + output +
--- cache_creation; cache_read excluded -- see below) over the active
--- block.
+-- old messages age out. Sums cost-weighted token consumption (input +
+-- output + 1.25x cache_creation + 0.1x cache_read -- see below) over the
+-- active block.
 --
 -- Caveat: this only sees Claude Code's local session logs. Anthropic's
 -- real 5h window spans *all* plan activity (claude.ai web, API, ...) and
@@ -2260,16 +2260,20 @@ local function computeClaudeCodeSession()
               local epoch = isoToEpoch(evt.timestamp)
               if epoch and epoch >= scanCutoff then
                 local u = evt.message.usage
-                -- Cache-read tokens are deliberately excluded: in a
-                -- typical Claude Code session they're ~97% of raw token
-                -- volume but are billed/rate-limited at a tiny fraction,
-                -- so counting them at full weight made "% used" wildly
-                -- overstate the quota. What remains -- fresh input,
-                -- output, and cache *creation* -- is the meaningful
-                -- new-token consumption.
-                local toks = (tonumber(u.input_tokens)               or 0)
-                           + (tonumber(u.output_tokens)              or 0)
-                           + (tonumber(u.cache_creation_input_tokens) or 0)
+                -- Weight token kinds by roughly their cost, mirroring how
+                -- Anthropic accounts usage, instead of a flat sum. Cache
+                -- reads dominate raw volume (~97% in a typical session)
+                -- but are cheap, so a flat sum wildly overstated "% used"
+                -- (327% of cap), while dropping them entirely understated
+                -- long sessions (cache_read balloons every turn). The
+                -- 1.25x / 0.1x weights approximate cache-write / cache-
+                -- read pricing; the quota is calibrated against the
+                -- resulting number, so exact weights matter less than the
+                -- shape tracking the real window.
+                local toks = (tonumber(u.input_tokens)                or 0)
+                           + (tonumber(u.output_tokens)               or 0)
+                           + 1.25 * (tonumber(u.cache_creation_input_tokens) or 0)
+                           + 0.1  * (tonumber(u.cache_read_input_tokens)     or 0)
                 msgs[#msgs + 1] = {
                   epoch = epoch, tokens = toks,
                   model = evt.message.model and tostring(evt.message.model) or nil,
@@ -2305,7 +2309,9 @@ local function computeClaudeCodeSession()
   -- already-reset block.
   if nowEpoch >= resetEpoch then return empty end
 
-  -- Sum new tokens and capture the latest model within the active block.
+  -- Sum weighted tokens and capture the latest model within the active
+  -- block. The weights yield fractional tokens; round to a whole number
+  -- for display and the %d logger.
   local tokensUsed, lastModel = 0, nil
   for _, m in ipairs(msgs) do
     if m.epoch >= blockStart then
@@ -2313,6 +2319,7 @@ local function computeClaudeCodeSession()
       if m.model then lastModel = m.model end
     end
   end
+  tokensUsed = math.floor(tokensUsed + 0.5)
 
   return {
     tokensUsed      = tokensUsed,
