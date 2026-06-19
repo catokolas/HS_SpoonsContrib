@@ -40,6 +40,8 @@ spoon.ModelsUsage:configure({
   usagePath = "/api/usage",
   refreshSeconds = 300,
   defaultGranularity = "month",
+  numberFormat = "auto",                                           -- "auto", "us", or "no"
+  defaultHotkeys = { refresh = { { "ctrl" }, "r" } },              -- set false to disable
   topModelsLimit = 10,
 })
 
@@ -51,6 +53,10 @@ spoon.ModelsUsage:setKeys({ "<uuid-a>", "<uuid-b>" })             -- optional
 
 -- Choose which tab opens first (persisted across reloads):
 spoon.ModelsUsage:setActiveSource("kix")                          -- or "claudecode"
+spoon.ModelsUsage:setNumberFormat("no")                           -- optional: "auto", "us", or "no"
+spoon.ModelsUsage:bindHotkeys({
+  refresh = { { "alt" }, "r" },                                   -- optional override; default is ctrl+r
+})
 
 spoon.ModelsUsage:start()
 ```
@@ -88,7 +94,8 @@ don't use Claude Code), the source reports zero rows.
 
 - `modelsUsage.activeSource` — `"kix"` or `"claudecode"`
 - `modelsUsage.granularity`, `modelsUsage.from`, `modelsUsage.to`,
-  `modelsUsage.refreshSeconds`, `modelsUsage.windowFrame` — global
+  `modelsUsage.refreshSeconds`, `modelsUsage.numberFormat`,
+  `modelsUsage.windowFrame` — global
 - `modelsUsage.kix.token`, `modelsUsage.kix.keys` — KIX source config
 
 On first load, the legacy single-source keys (`modelsUsage.token`,

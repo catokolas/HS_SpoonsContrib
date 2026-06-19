@@ -34,6 +34,20 @@
         "signature": "ModelsUsage.defaultGranularity"
       },
       {
+        "name": "numberFormat",
+        "type": "Variable",
+        "def": "ModelsUsage.numberFormat",
+        "desc": "Default compact number format when none is persisted. Valid values: \"auto\", \"us\", \"no\".",
+        "signature": "ModelsUsage.numberFormat"
+      },
+      {
+        "name": "defaultHotkeys",
+        "type": "Variable",
+        "def": "ModelsUsage.defaultHotkeys",
+        "desc": "Default hotkeys bound during start(). Defaults to refresh = ctrl+r; set false to disable.",
+        "signature": "ModelsUsage.defaultHotkeys"
+      },
+      {
         "name": "logger",
         "type": "Variable",
         "def": "ModelsUsage.logger",
@@ -90,6 +104,20 @@
         "def": "ModelsUsage:setDateRange(fromIso, toIso)",
         "desc": "Set date bounds and refresh immediately.",
         "signature": "ModelsUsage:setDateRange(fromIso, toIso)"
+      },
+      {
+        "name": "setNumberFormat",
+        "type": "Method",
+        "def": "ModelsUsage:setNumberFormat(format)",
+        "desc": "Set the compact number format used by the dashboard. Valid values: \"auto\", \"us\", \"no\".",
+        "signature": "ModelsUsage:setNumberFormat(format)"
+      },
+      {
+        "name": "bindHotkeys",
+        "type": "Method",
+        "def": "ModelsUsage:bindHotkeys(mapping)",
+        "desc": "Override hotkeys for spoon actions. Supported action: refresh, e.g. { refresh = { { \"alt\" }, \"r\" } }. The default refresh hotkey is ctrl+r.",
+        "signature": "ModelsUsage:bindHotkeys(mapping)"
       },
       {
         "name": "refresh",

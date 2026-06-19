@@ -19,6 +19,10 @@ obj.usagePath = "/api/usage"
 obj.refreshSeconds = 300
 obj.timeoutSeconds = 10
 obj.defaultGranularity = "month"
+obj.numberFormat = "auto"
+obj.defaultHotkeys = {
+  refresh = { { "ctrl" }, "r" },
+}
 obj.topModelsLimit = 10
 obj.seriesRowsLimit = 40
 obj.windowWidth = 980
@@ -61,6 +65,7 @@ local SETTINGS = {
   from            = "modelsUsage.from",
   to              = "modelsUsage.to",
   refreshSeconds  = "modelsUsage.refreshSeconds",
+  numberFormat    = "modelsUsage.numberFormat",
   windowFrame     = "modelsUsage.windowFrame",
   -- Per-source: KIX
   kixToken        = "modelsUsage.kix.token",
@@ -75,6 +80,9 @@ obj._state = {
   -- UI / system
   menubar = nil,
   themeWatcher = nil,
+  hotkeys = {},
+  hotkeyMapping = nil,
+  hotkeysConfigured = false,
   timer = nil,            -- periodic refresh timer (global)
   window = nil,
   usesIcon = false,
@@ -89,6 +97,7 @@ obj._state = {
   from = nil,
   to = nil,
   refreshSeconds = nil,
+  numberFormat = nil,
   -- The most recently picked range preset ("today", "thisWeek",
   -- "thisMonth", "thisYear"). nil when the user has
   -- manually overridden from/to via the Apply Controls path. Persisted
@@ -219,6 +228,42 @@ end
 local function clampGranularity(g)
   if g == "day" or g == "month" or g == "year" then return g end
   return "month"
+end
+
+local function clampNumberFormat(format)
+  if format == "auto" or format == "us" or format == "no" then return format end
+  return "auto"
+end
+
+local function looksNorwegianLocale(value)
+  if type(value) ~= "string" then return false end
+  local v = value:lower():gsub("_", "-")
+  return v:match("^nb%-") or v:match("^nn%-") or v:match("^no%-")
+      or v == "nb" or v == "nn" or v == "no"
+end
+
+local function detectedNumberFormat()
+  local localeApi = hs.host and hs.host.locale
+  if localeApi then
+    local okCurrent, current = pcall(function()
+      return localeApi.current and localeApi.current()
+    end)
+    if okCurrent and looksNorwegianLocale(current) then return "no" end
+
+    local okPreferred, preferred = pcall(function()
+      return localeApi.preferredLanguages and localeApi.preferredLanguages()
+    end)
+    if okPreferred and type(preferred) == "table" then
+      if looksNorwegianLocale(preferred[1]) then return "no" end
+    end
+  end
+  return "us"
+end
+
+local function resolveNumberFormat(format)
+  local mode = clampNumberFormat(format)
+  if mode == "auto" then return detectedNumberFormat() end
+  return mode
 end
 
 local function coercePositiveNumber(n, fallback)
@@ -487,6 +532,7 @@ local function buildViewModel(state, topModelsLimit, seriesRowsLimit,
     from = state.from,
     to = state.to,
     refreshSeconds = state.refreshSeconds,
+    numberFormat = resolveNumberFormat(state.numberFormat),
     totals = derived.totals,
     topModels = derived.top,
     series = derived.seriesLimited,
@@ -590,6 +636,12 @@ local function htmlTemplate()
       border-bottom: 1px solid var(--border);
       margin-bottom: 4px;
     }
+    .topbar {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      min-height: 36px;
+    }
     .tab {
       border: none;
       background: transparent;
@@ -664,6 +716,9 @@ local function htmlTemplate()
   <div class="progressbar" id="progress"></div>
   <div class="wrap">
     <div class="tabs" id="tabs" role="tablist"></div>
+    <div class="topbar">
+      <button id="refresh" onclick="send('refresh')">Refresh</button>
+    </div>
     <div id="error" class="error-block"></div>
 
     <div class="card summary-card" data-only-for="summary">
@@ -754,11 +809,16 @@ local function htmlTemplate()
   </div>
 
   <script>
-    // Compact K / M / B number formatter used by every number-bearing
+    // Compact number formatter used by every number-bearing
     // cell in the dashboard (totals tiles, per-source tables, Summary
-    // matrix, session card). One decimal where it adds information
-    // (`1.2M`) and dropped otherwise (`14M`, `201M`); raw integer when
-    // below 1000. 0 stays `0` rather than `0M`.
+    // matrix, session card). One decimal where it adds information and
+    // dropped otherwise; raw integer when below 1000.
+    let currentNumberFormat = 'us';
+
+    function setNumberFormat(format) {
+      currentNumberFormat = format === 'no' ? 'no' : 'us';
+    }
+
     function f(n) {
       n = Number(n) || 0;
       if (n === 0) return '0';
@@ -766,12 +826,19 @@ local function htmlTemplate()
       const sign = n < 0 ? '-' : '';
       if (abs < 1000) return sign + Math.floor(abs);
       let value, suffix;
-      if      (abs < 1e6) { value = abs / 1e3; suffix = 'K'; }
-      else if (abs < 1e9) { value = abs / 1e6; suffix = 'M'; }
-      else                { value = abs / 1e9; suffix = 'B'; }
-      const formatted = value < 10
+      if (currentNumberFormat === 'no') {
+        if      (abs < 1e6) { value = abs / 1e3; suffix = 'k'; }
+        else if (abs < 1e9) { value = abs / 1e6; suffix = ' mill.'; }
+        else                { value = abs / 1e9; suffix = ' mrd.'; }
+      } else {
+        if      (abs < 1e6) { value = abs / 1e3; suffix = 'K'; }
+        else if (abs < 1e9) { value = abs / 1e6; suffix = 'M'; }
+        else                { value = abs / 1e9; suffix = 'B'; }
+      }
+      let formatted = value < 10
         ? value.toFixed(1).replace(/\.0$/, '')
         : String(Math.round(value));
+      if (currentNumberFormat === 'no') formatted = formatted.replace('.', ',');
       return sign + formatted + suffix;
     }
 
@@ -872,6 +939,8 @@ local function htmlTemplate()
     const PROGRESS_MIN_VISIBLE_MS = 400;
     function setProgress(active) {
       const el = document.getElementById('progress');
+      const refresh = document.getElementById('refresh');
+      if (refresh) refresh.disabled = !!active;
       if (active) {
         if (progressHideTimer) { clearTimeout(progressHideTimer); progressHideTimer = null; }
         if (!el.classList.contains('is-active')) {
@@ -1021,6 +1090,7 @@ local function htmlTemplate()
     let lastDataSig = null;
 
     window.ModelsUsageRender = function(payload) {
+      setNumberFormat(payload.numberFormat || 'us');
       renderTabs(payload.sources, payload.activeSource);
       applySourceVisibility(payload.activeSource);
 
@@ -1058,6 +1128,7 @@ local function htmlTemplate()
       // re-render even when the new source's data happens to hash the
       // same as the old one's (e.g., both empty).
       const sig = JSON.stringify([
+        payload.numberFormat || 'us',
         payload.activeSource,
         payload.totals || {},
         payload.topModels || [],
@@ -1159,6 +1230,7 @@ function obj:_loadSettings()
   self._state.from = hs.settings.get(SETTINGS.from)
   self._state.to = hs.settings.get(SETTINGS.to)
   self._state.refreshSeconds = coercePositiveNumber(hs.settings.get(SETTINGS.refreshSeconds), self.refreshSeconds)
+  self._state.numberFormat = clampNumberFormat(hs.settings.get(SETTINGS.numberFormat) or self.numberFormat)
 
   -- Restore the active preset and re-evaluate it against today's
   -- clock. This keeps the highlight in the dashboard AND keeps the
@@ -1236,6 +1308,7 @@ function obj:_saveSettingsImmediate()
   hs.settings.set(SETTINGS.from,           self._state.from)
   hs.settings.set(SETTINGS.to,             self._state.to)
   hs.settings.set(SETTINGS.refreshSeconds, self._state.refreshSeconds)
+  hs.settings.set(SETTINGS.numberFormat,   self._state.numberFormat)
 end
 
 function obj:_saveSettings()
@@ -1280,6 +1353,11 @@ function obj:configure(configuration)
   end
   self._state.granularity = clampGranularity(self._state.granularity or self.defaultGranularity)
   self._state.refreshSeconds = coercePositiveNumber(self._state.refreshSeconds or self.refreshSeconds, self.refreshSeconds)
+  if configuration and configuration.numberFormat ~= nil then
+    self._state.numberFormat = clampNumberFormat(configuration.numberFormat)
+  else
+    self._state.numberFormat = clampNumberFormat(self._state.numberFormat or self.numberFormat)
+  end
   return self
 end
 
@@ -1377,6 +1455,56 @@ function obj:setRefreshSeconds(seconds)
   self:_restartTimer()
   self:_renderWindow()
   return self
+end
+
+--- ModelsUsage:setNumberFormat(format)
+--- Method
+--- Set the compact number format used by the dashboard. Valid values
+--- are `"auto"`, `"us"`, and `"no"`. `"auto"` follows the macOS
+--- locale / preferred language and resolves Norwegian languages to
+--- `mill.` / `mrd.` formatting, otherwise English `M` / `B`.
+function obj:setNumberFormat(format)
+  local nextFormat = clampNumberFormat(format)
+  if self._state.numberFormat == nextFormat then return self end
+  self._state.numberFormat = nextFormat
+  self:_saveSettingsImmediate()  -- sync (see setApiKey)
+  self:_renderWindow()
+  return self
+end
+
+function obj:_deleteHotkeys()
+  for _, hotkey in pairs(self._state.hotkeys or {}) do
+    if hotkey then hotkey:delete() end
+  end
+  self._state.hotkeys = {}
+end
+
+function obj:_bindHotkeyMapping(mapping)
+  self:_deleteHotkeys()
+
+  if type(mapping) ~= "table" then return self end
+  local refreshSpec = mapping.refresh
+  if type(refreshSpec) == "table" then
+    local mods = refreshSpec[1]
+    local key = refreshSpec[2]
+    if type(mods) == "table" and type(key) == "string" and key ~= "" then
+      self._state.hotkeys.refresh = hs.hotkey.bind(mods, key, function() self:refresh() end)
+    end
+  end
+
+  return self
+end
+
+--- ModelsUsage:bindHotkeys(mapping)
+--- Method
+--- Bind hotkeys for spoon actions. Supported action: `refresh`.
+---
+--- Example:
+--- `spoon.ModelsUsage:bindHotkeys({ refresh = { { "ctrl" }, "r" } })`
+function obj:bindHotkeys(mapping)
+  self._state.hotkeysConfigured = true
+  self._state.hotkeyMapping = mapping
+  return self:_bindHotkeyMapping(mapping)
 end
 
 -- Re-compute from/to from a preset name against the current clock.
@@ -2633,15 +2761,9 @@ function obj:_restartTimer()
 end
 
 function obj:_makeMenu()
-  local activeId = self._state.activeSource
-  local sourcesSubmenu = {}
-  for _, id in ipairs(SOURCE_ORDER) do
-    local def = SOURCES[id]
-    sourcesSubmenu[#sourcesSubmenu + 1] = {
-      title = def.displayName .. (id == activeId and "  ✓" or ""),
-      fn = function() self:setActiveSource(id) end,
-    }
-  end
+  local selectedNumberFormat = clampNumberFormat(self._state.numberFormat or self.numberFormat)
+  local detectedFormat = resolveNumberFormat("auto")
+  local detectedLabel = detectedFormat == "no" and "Norwegian detected" or "US detected"
 
   local kixCfg = self._state.sources.kix.config
   local kixSubmenu = {
@@ -2666,12 +2788,26 @@ function obj:_makeMenu()
     end },
   }
 
+  local numberFormatSubmenu = {
+    {
+      title = "Auto (" .. detectedLabel .. ")" .. (selectedNumberFormat == "auto" and "  ✓" or ""),
+      fn = function() self:setNumberFormat("auto") end,
+    },
+    {
+      title = "English (US): 1.2M, 1.2B" .. (selectedNumberFormat == "us" and "  ✓" or ""),
+      fn = function() self:setNumberFormat("us") end,
+    },
+    {
+      title = "Norwegian: 1,2 mill., 1,2 mrd." .. (selectedNumberFormat == "no" and "  ✓" or ""),
+      fn = function() self:setNumberFormat("no") end,
+    },
+  }
+
   local menu = {
     { title = "Open Usage Dashboard", fn = function() self:_openWindow() end },
-    { title = "Refresh now", fn = function() self:refresh() end },
     { title = "-" },
-    { title = "Active source", menu = sourcesSubmenu },
     { title = "Configure KIX",  menu = kixSubmenu },
+    { title = "Number format", menu = numberFormatSubmenu },
     { title = "Set interval (seconds)...", fn = function()
       local btn, text = hs.dialog.textPrompt("Refresh interval", "Seconds:",
         tostring(self._state.refreshSeconds), "Save", "Cancel")
@@ -2699,6 +2835,11 @@ function obj:start()
     self._state.granularity = clampGranularity(self.defaultGranularity)
   end
   self._state.refreshSeconds = coercePositiveNumber(self._state.refreshSeconds or self.refreshSeconds, self.refreshSeconds)
+  if self._state.hotkeysConfigured then
+    self:_bindHotkeyMapping(self._state.hotkeyMapping)
+  elseif self.defaultHotkeys ~= false then
+    self:_bindHotkeyMapping(self.defaultHotkeys)
+  end
 
   self._state.menubar = hs.menubar.new()
   self:_updateMenubarIcon()
@@ -2766,6 +2907,7 @@ function obj:stop()
     self._state.themeWatcher:stop()
     self._state.themeWatcher = nil
   end
+  self:_deleteHotkeys()
   if self._state._publishTimer then
     self._state._publishTimer:stop()
     self._state._publishTimer = nil
