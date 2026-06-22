@@ -59,6 +59,17 @@
       "description": "Speak transitions (pause / resume / arm / expire) via hs.speech.",
       "type": "bool",
       "default": false
+    },
+    {
+      "key": "reevalDebounce",
+      "label": "Re-evaluate debounce",
+      "description": "Seconds to wait after the last screen/audio event before re-evaluating play/pause. Coalesces the burst of events at wake (while headphones reconnect and the audio route settles) so playback resumes once, cleanly, instead of thrashing.",
+      "type": "number",
+      "default": 1.5,
+      "min": 0.0,
+      "max": 10.0,
+      "step": 0.1,
+      "unit": "s"
     }
   ],
   "hotkeys": []

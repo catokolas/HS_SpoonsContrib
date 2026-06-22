@@ -72,6 +72,17 @@ obj.pauseHoursOptions = 4
 --- (pause / resume / pause-hours arm / expire). Default `false`.
 obj.speak = false
 
+--- SpotifyPlayPause.reevalDebounce
+--- Variable
+--- Seconds to wait after the last screen/audio watcher event before
+--- re-evaluating play/pause state. On wake, USB/Bluetooth headphones
+--- reconnect with a delay and the audio route churns (built-in speakers ↔
+--- headphones), firing a burst of events; coalescing them into a single
+--- delayed evaluation avoids thrashing play/pause and issuing `play()`
+--- before CoreAudio has settled on the device (which leaves Spotify
+--- reporting "playing" with no audio). Default `1.5`.
+obj.reevalDebounce = 1.5
+
 --- SpotifyPlayPause.logger
 --- Variable
 --- Logger object used within the Spoon. Can be accessed to set the default log level for the messages coming from the Spoon.
@@ -94,15 +105,6 @@ obj._state = {
   speech              = nil,
   currentIcon         = nil, -- last path set on the menubar (avoids redundant setIcon)
 }
-
--- On screen wake, Bluetooth/USB headphones reconnect with a delay: the audio
--- route churns (built-in speakers -> headphones) and the caffeinate + audio
--- watchers fire a burst of events within a second. Reacting to each one makes
--- the spoon thrash play/pause and issue play() the instant a device appears,
--- before CoreAudio has settled on it — so Spotify reports "playing" but no
--- audio renders. Coalesce the burst: re-evaluate once, this long after the
--- last event, by which point the default output is stable and ready.
-local REEVAL_DEBOUNCE = 1.5 -- seconds
 
 local SPOTIFY_BUNDLE = "com.spotify.client"
 -- Spotify posts this distributed notification on every play/pause/track change.
@@ -148,7 +150,7 @@ end
 --- Method
 --- Configures the spoon. Accepts any of the public variables
 --- (`preferredDevices`, `autoSwitchOutput`, `respectManualPause`,
---- `pauseHoursMenu`, `pauseHoursOptions`, `speak`).
+--- `pauseHoursMenu`, `pauseHoursOptions`, `speak`, `reevalDebounce`).
 ---
 --- Parameters:
 ---  * configuration - a table of configuration values to merge into the spoon
@@ -221,10 +223,11 @@ function obj:_reevaluate()
 end
 
 -- Debounced _reevaluate: collapses a burst of watcher events (e.g. the
--- wake-time audio-route churn) into one evaluation once things settle.
+-- wake-time audio-route churn) into one evaluation once things settle, after
+-- self.reevalDebounce seconds of quiet.
 function obj:_scheduleReevaluate()
   if self._state.reevalTimer then self._state.reevalTimer:stop() end
-  self._state.reevalTimer = hs.timer.doAfter(REEVAL_DEBOUNCE, function()
+  self._state.reevalTimer = hs.timer.doAfter(self.reevalDebounce, function()
     self._state.reevalTimer = nil
     self:_reevaluate()
   end)

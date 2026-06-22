@@ -9,8 +9,8 @@
     "Method": [
       {
         "def": "SpotifyPlayPause:configure(configuration)",
-        "desc": "Configures the spoon. Accepts any of the public variables (preferredDevices, autoSwitchOutput, respectManualPause, pauseHoursMenu, pauseHoursOptions, speak).",
-        "doc": "Configures the spoon. Accepts any of the public variables (preferredDevices, autoSwitchOutput, respectManualPause, pauseHoursMenu, pauseHoursOptions, speak).\n\nParameters:\n * configuration - a table of configuration values to merge into the spoon",
+        "desc": "Configures the spoon. Accepts any of the public variables (preferredDevices, autoSwitchOutput, respectManualPause, pauseHoursMenu, pauseHoursOptions, speak, reevalDebounce).",
+        "doc": "Configures the spoon. Accepts any of the public variables (preferredDevices, autoSwitchOutput, respectManualPause, pauseHoursMenu, pauseHoursOptions, speak, reevalDebounce).\n\nParameters:\n * configuration - a table of configuration values to merge into the spoon",
         "examples": [],
         "file": "Source/SpotifyPlayPause.spoon//init.lua",
         "lineno": "118",
@@ -123,6 +123,17 @@
         "lineno": "69",
         "name": "speak",
         "signature": "SpotifyPlayPause.speak",
+        "stripped_doc": "",
+        "type": "Variable"
+      },
+      {
+        "def": "SpotifyPlayPause.reevalDebounce",
+        "desc": "Seconds to wait after the last screen/audio event before re-evaluating play/pause state, coalescing the burst of events at wake. Default 1.5.",
+        "doc": "Seconds to wait after the last screen/audio watcher event before re-evaluating play/pause state. On wake, USB/Bluetooth headphones reconnect with a delay and the audio route churns, firing a burst of events; coalescing them into a single delayed evaluation avoids thrashing play/pause and issuing play() before CoreAudio has settled on the device. Default 1.5.",
+        "file": "Source/SpotifyPlayPause.spoon//init.lua",
+        "lineno": "75",
+        "name": "reevalDebounce",
+        "signature": "SpotifyPlayPause.reevalDebounce",
         "stripped_doc": "",
         "type": "Variable"
       },
