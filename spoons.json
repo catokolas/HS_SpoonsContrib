@@ -1,6 +1,6 @@
 {
-  "commit": "71faea9f011ef22cf701bf2067f96a59e578f235",
-  "generatedAt": "2026-06-22T19:25:13Z",
+  "commit": "6506de43e93ed7a027ab21382da49ed2686de9c0",
+  "generatedAt": "2026-06-22T19:30:25Z",
   "overrides": {},
   "repo": "catokolas/HS_SpoonsContrib",
   "schemaVersion": 1,
@@ -681,7 +681,7 @@
       },
       "name": "SpotifyPlayPause",
       "schemaVersion": 1,
-      "version": "0.1"
+      "version": "0.2"
     }
   ]
 }

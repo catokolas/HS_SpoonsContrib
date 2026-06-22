@@ -24,7 +24,7 @@ obj.__index = obj
 
 -- Metadata
 obj.name     = "SpotifyPlayPause"
-obj.version  = "0.1"
+obj.version  = "0.2"
 obj.author   = "Cato Kolås <cato.kolas@gmail.com>"
 obj.credits  = "Reimplemented in Lua from the AppleScript spotify-playpause applet"
 obj.homepage = "https://github.com/catokolas/HS_SpoonsContrib"
