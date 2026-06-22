@@ -89,15 +89,39 @@ obj._state = {
   appWatcher          = nil,
   themeWatcher        = nil,
   spotifyStateWatcher = nil,
+  presenceTap         = nil, -- input watcher, live only while we believe the screen is off
+  reevalTimer         = nil, -- debounce timer coalescing bursts of watcher events
   speech              = nil,
   currentIcon         = nil, -- last path set on the menubar (avoids redundant setIcon)
 }
+
+-- On screen wake, Bluetooth/USB headphones reconnect with a delay: the audio
+-- route churns (built-in speakers -> headphones) and the caffeinate + audio
+-- watchers fire a burst of events within a second. Reacting to each one makes
+-- the spoon thrash play/pause and issue play() the instant a device appears,
+-- before CoreAudio has settled on it — so Spotify reports "playing" but no
+-- audio renders. Coalesce the burst: re-evaluate once, this long after the
+-- last event, by which point the default output is stable and ready.
+local REEVAL_DEBOUNCE = 1.5 -- seconds
 
 local SPOTIFY_BUNDLE = "com.spotify.client"
 -- Spotify posts this distributed notification on every play/pause/track change.
 local SPOTIFY_PLAYBACK_NOTE = "com.spotify.client.PlaybackStateChanged"
 -- macOS posts this when the system appearance toggles between Light and Dark.
 local APPEARANCE_NOTE = "AppleInterfaceThemeChangedNotification"
+
+-- Input event types that mean "the user is present at the machine". Used by
+-- the presence watch as a backstop for missed screen-wake events (see
+-- obj:_startPresenceWatch).
+local PRESENCE_EVENTS = {
+  hs.eventtap.event.types.keyDown,
+  hs.eventtap.event.types.flagsChanged,
+  hs.eventtap.event.types.leftMouseDown,
+  hs.eventtap.event.types.rightMouseDown,
+  hs.eventtap.event.types.otherMouseDown,
+  hs.eventtap.event.types.scrollWheel,
+  hs.eventtap.event.types.mouseMoved,
+}
 
 local function matchesAny(name, prefs)
   if not name then return false end
@@ -196,17 +220,35 @@ function obj:_reevaluate()
   self:_updateIcon()
 end
 
+-- Debounced _reevaluate: collapses a burst of watcher events (e.g. the
+-- wake-time audio-route churn) into one evaluation once things settle.
+function obj:_scheduleReevaluate()
+  if self._state.reevalTimer then self._state.reevalTimer:stop() end
+  self._state.reevalTimer = hs.timer.doAfter(REEVAL_DEBOUNCE, function()
+    self._state.reevalTimer = nil
+    self:_reevaluate()
+  end)
+end
+
 function obj:_decide()
-  if not hs.spotify.isRunning() then return end
+  if not hs.spotify.isRunning() then
+    self.logger.d("_decide: Spotify not running - nothing to do")
+    return
+  end
 
   -- A pause-hours timer is armed: keep paused, don't resume.
   if self._state.pauseHours > 0 then
+    self.logger.d(("_decide: pause-hours armed (%dh) - keeping paused"):format(self._state.pauseHours))
     if hs.spotify.isPlaying() then hs.spotify.pause() end
     return
   end
 
   local preferredPresent = self:_preferredPresent()
   local playing = hs.spotify.isPlaying()
+  self.logger.d(("_decide: displayOn=%s preferredPresent=%s playing=%s autoPaused=%s respectManualPause=%s")
+    :format(tostring(self._state.displayOn), tostring(preferredPresent),
+            tostring(playing), tostring(self._state.autoPaused),
+            tostring(self.respectManualPause)))
 
   if not preferredPresent then
     if playing then
@@ -219,17 +261,63 @@ function obj:_decide()
 
   if self._state.displayOn then
     local mayResume = (not self.respectManualPause) or self._state.autoPaused
-    if (not playing) and mayResume then
+    if playing then
+      self.logger.d("_decide: screen on & already playing - nothing to do")
+    elseif mayResume then
       hs.spotify.play()
       self._state.autoPaused = false
       self:_say("play spotify")
+    else
+      self.logger.d("_decide: screen on but resume blocked by respectManualPause (autoPaused=false) - not resuming")
     end
   else
     if playing then
       hs.spotify.pause()
       self._state.autoPaused = true
       self:_say("pause spotify")
+    else
+      self.logger.d("_decide: screen off & already paused - nothing to do")
     end
+  end
+end
+
+-- The caffeinate watcher is the only source of truth for displayOn, and its
+-- screen-wake events can be dropped or reordered during rapid wake/sleep
+-- cycles (e.g. recurring background wakeups while idle). When the final
+-- screensDidWake is lost, displayOn stays false even though the user has
+-- returned, so _decide never resumes Spotify. As a backstop, while we believe
+-- the screen is off we watch for real user input; the first key/mouse event
+-- means the user is present and is treated as a wake. The tap lives only while
+-- displayOn is false, so it adds no overhead during normal use.
+function obj:_onPresence()
+  if not self._state.displayOn then
+    self.logger.d("_onPresence: user input while screen believed off - treating as wake")
+    self._state.displayOn = true
+    self:_scheduleReevaluate()
+  end
+  self:_stopPresenceWatch()
+  return false -- never consume the event
+end
+
+function obj:_startPresenceWatch()
+  if self._state.presenceTap then return end
+  self._state.presenceTap = hs.eventtap.new(PRESENCE_EVENTS, function()
+    return self:_onPresence()
+  end)
+  if self._state.presenceTap then
+    self._state.presenceTap:start()
+    self.logger.d(("_startPresenceWatch: input backstop started (enabled=%s)")
+      :format(tostring(self._state.presenceTap:isEnabled())))
+  else
+    self.logger.w("_startPresenceWatch: could not create eventtap - check Accessibility permission for Hammerspoon")
+  end
+end
+
+function obj:_stopPresenceWatch()
+  if self._state.presenceTap then
+    self._state.presenceTap:stop()
+    self._state.presenceTap = nil
+    self.logger.d("_stopPresenceWatch: input backstop stopped")
   end
 end
 
@@ -238,20 +326,27 @@ function obj:_onCaffeinate(event)
   if event == W.screensaverDidStart
      or event == W.screensDidSleep
      or event == W.systemWillSleep then
+    self.logger.d(("_onCaffeinate: screen-off event (%s) -> displayOn=false"):format(tostring(event)))
     self._state.displayOn = false
+    self:_startPresenceWatch()
   elseif event == W.screensaverDidStop
          or event == W.screensDidWake
          or event == W.systemDidWake then
+    self.logger.d(("_onCaffeinate: screen-on event (%s) -> displayOn=true"):format(tostring(event)))
     self._state.displayOn = true
+    self:_stopPresenceWatch()
   else
+    self.logger.d(("_onCaffeinate: ignored event (%s)"):format(tostring(event)))
     return
   end
-  self:_reevaluate()
+  self:_scheduleReevaluate()
 end
 
 function obj:_onAudioChange(_event)
+  local cur = hs.audiodevice.defaultOutputDevice()
+  self.logger.d(("_onAudioChange: default output=%s"):format(cur and cur:name() or "nil"))
   self:_switchToPreferred()
-  self:_reevaluate()
+  self:_scheduleReevaluate()
 end
 
 function obj:_onApp(_name, event, app)
@@ -400,6 +495,11 @@ function obj:stop()
   if self._state.spotifyStateWatcher then
     self._state.spotifyStateWatcher:stop()
     self._state.spotifyStateWatcher = nil
+  end
+  self:_stopPresenceWatch()
+  if self._state.reevalTimer then
+    self._state.reevalTimer:stop()
+    self._state.reevalTimer = nil
   end
   if self._state.pauseTimer then
     self._state.pauseTimer:stop()
