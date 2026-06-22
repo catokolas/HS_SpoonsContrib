@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "name": "SpotifyPlayPause",
   "version": "0.1",
-  "description": "Auto play/pause Spotify based on screen state and audio output device. Pauses when headphones disconnect or screen sleeps; resumes on wake. Includes a 'pause for N hours' menubar item.",
+  "description": "Auto play/pause Spotify based on screen state and audio output device. Pauses when headphones disconnect or screen sleeps; resumes on wake. Menubar item shows the current output device (with a submenu to switch it) and a 'pause for N hours' submenu.",
   "author": "Cato Kolås <cato.kolas@gmail.com>",
   "homepage": "https://github.com/catokolas/HS_SpoonsContrib",
   "license": "MIT",
@@ -38,8 +38,8 @@
     },
     {
       "key": "pauseHoursMenu",
-      "label": "Show menubar dropdown",
-      "description": "Show a menubar item with 'Pause Spotify for N hours' entries.",
+      "label": "Show menubar menu",
+      "description": "Show the menubar item: current output device (with a submenu to switch it) and a 'Pause' submenu with 'Pause Spotify for N hours' entries.",
       "type": "bool",
       "default": true
     },

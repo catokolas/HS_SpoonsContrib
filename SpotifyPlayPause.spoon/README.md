@@ -12,8 +12,12 @@ output device.
   regardless of screen state (don't play music to empty room speakers).
 - Optionally, the macOS default audio output is **auto-switched** to the
   first matching preferred device whenever the audio device list changes.
-- A menubar dropdown offers **"Pause Spotify for N hour(s)"** entries with
-  an automatic resume timer.
+- A menubar item shows the **current output device** with a submenu to
+  switch to any other available output (preferred devices are starred).
+  Picking a non-preferred device sticks — it suppresses the one
+  auto-switch that would otherwise revert it. A **"Pause Spotify"**
+  submenu offers **"Pause for N hour(s)"** entries with an automatic
+  resume timer.
 
 Fully event-driven via `hs.caffeinate.watcher`, `hs.audiodevice.watcher`, and
 `hs.application.watcher`.
@@ -60,7 +64,7 @@ used by `autoSwitchOutput`.
 | `SpotifyPlayPause.preferredDevices` | `{ "usb audio", "airpods", "Headphone", "plantronics", "jabra" }` | Substrings treated as "headphones" — gates play/pause + drives `autoSwitchOutput`. |
 | `SpotifyPlayPause.autoSwitchOutput` | `true` | Switch the default output to the first preferred device available when the device list changes. |
 | `SpotifyPlayPause.respectManualPause` | `true` | Only auto-resume on wake if **this spoon** paused Spotify. |
-| `SpotifyPlayPause.pauseHoursMenu` | `true` | Show the "Pause Spotify for N hour(s)" menubar dropdown. |
+| `SpotifyPlayPause.pauseHoursMenu` | `true` | Show the menubar item (output-device switcher + "Pause Spotify" submenu). |
 | `SpotifyPlayPause.pauseHoursOptions` | `4` | Number of hour entries in the dropdown — set to `n` to get 1..n hours. |
 | `SpotifyPlayPause.speak` | `false` | Spoken feedback via `hs.speech` on key transitions. |
 | `SpotifyPlayPause.logger` | `hs.logger.new("SpotifyPlayPause")` | Logger; set its level to control verbosity. |

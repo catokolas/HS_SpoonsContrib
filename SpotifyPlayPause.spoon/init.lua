@@ -13,8 +13,9 @@
 --- Optionally, the macOS default audio output is auto-switched to the
 --- first matching preferred device whenever the audio device list changes.
 ---
---- A menubar dropdown offers "Pause Spotify for N hour(s)" entries with
---- an automatic resume timer.
+--- A menubar dropdown shows the current audio output device (with a
+--- submenu to switch it) and a "Pause" submenu offering "Pause Spotify
+--- for N hour(s)" entries with an automatic resume timer.
 ---
 --- Fully event-driven.
 
@@ -104,6 +105,7 @@ obj._state = {
   reevalTimer         = nil, -- debounce timer coalescing bursts of watcher events
   speech              = nil,
   currentIcon         = nil, -- last path set on the menubar (avoids redundant setIcon)
+  suppressAutoSwitchOnce = false, -- skip the next _switchToPreferred (manual output pick)
 }
 
 local SPOTIFY_BUNDLE = "com.spotify.client"
@@ -136,6 +138,15 @@ end
 
 local function pluralHours(n)
   return ("%d hour%s"):format(n, n > 1 and "s" or "")
+end
+
+-- Compact "1h 5m" / "12m" string for an armed pause's remaining time.
+local function formatRemaining(secs)
+  if secs <= 0 then return "0m" end
+  local h = math.floor(secs / 3600)
+  local m = math.floor((secs % 3600) / 60)
+  if h > 0 then return ("%dh %dm"):format(h, m) end
+  return ("%dm"):format(m)
 end
 
 function obj:_say(msg)
@@ -200,6 +211,15 @@ end
 
 function obj:_switchToPreferred()
   if not self.autoSwitchOutput then return end
+  -- A manual output pick (via the menubar) suppresses exactly the one
+  -- auto-switch that the resulting default-output-changed event would
+  -- otherwise trigger — so a deliberate choice of a non-preferred device
+  -- isn't immediately reverted.
+  if self._state.suppressAutoSwitchOnce then
+    self._state.suppressAutoSwitchOnce = false
+    self.logger.d("_switchToPreferred: suppressed once (manual output pick)")
+    return
+  end
   local cur = hs.audiodevice.defaultOutputDevice()
   if cur and matchesAny(cur:name(), self.preferredDevices) then return end
   -- Preferred-list order wins; among devices, first hit in iteration order.
@@ -360,11 +380,48 @@ function obj:_onApp(_name, event, app)
   end
 end
 
-function obj:_buildMenu()
+-- Make `dev` the default output device. Used by the menubar output submenu.
+-- Suppresses the one auto-switch the resulting audio event would trigger, so
+-- a deliberate pick of a non-preferred device isn't immediately reverted.
+function obj:_setOutputDevice(dev)
+  if not dev then return end
+  local cur = hs.audiodevice.defaultOutputDevice()
+  if cur and cur:uid() == dev:uid() then return end -- already default
+  self._state.suppressAutoSwitchOnce = true
+  dev:setDefaultOutputDevice()
+  self.logger.d("manually switched default output to " .. (dev:name() or "?"))
+  self:_scheduleReevaluate()
+end
+
+-- Submenu listing every available output device. The current default is
+-- checked; preferred devices are marked with a star. Rebuilt on each open, so
+-- it always reflects the settled device list (e.g. after USB reconnect).
+function obj:_buildOutputItems()
+  local items = {}
+  local cur    = hs.audiodevice.defaultOutputDevice()
+  local curUID = cur and cur:uid()
+  for _, d in ipairs(hs.audiodevice.allOutputDevices()) do
+    local name      = d:name() or "?"
+    local preferred = matchesAny(name, self.preferredDevices)
+    items[#items + 1] = {
+      title   = preferred and (name .. " \226\152\133") or name, -- ★
+      checked = (curUID ~= nil and d:uid() == curUID),
+      fn      = function() self:_setOutputDevice(d) end,
+    }
+  end
+  if #items == 0 then
+    items[#items + 1] = { title = "No output devices", disabled = true }
+  end
+  return items
+end
+
+-- Submenu with the "Pause Spotify for N hour(s)" entries (and a cancel entry
+-- while a pause is armed).
+function obj:_buildPauseItems()
   local items = {}
   for n = 1, self.pauseHoursOptions do
     items[#items + 1] = {
-      title   = "Pause Spotify for " .. pluralHours(n),
+      title   = "Pause for " .. pluralHours(n),
       checked = (self._state.pauseHours == n),
       fn      = function() self:_togglePauseHours(n) end,
     }
@@ -376,6 +433,32 @@ function obj:_buildMenu()
       fn    = function() self:_cancelPauseHours() end,
     }
   end
+  return items
+end
+
+function obj:_buildMenu()
+  local items = {}
+
+  -- Current output device, with a submenu to switch it.
+  local cur = hs.audiodevice.defaultOutputDevice()
+  items[#items + 1] = {
+    title = "Output: " .. (cur and cur:name() or "\226\128\148"), -- em dash
+    menu  = self:_buildOutputItems(),
+  }
+
+  items[#items + 1] = { title = "-" }
+
+  -- Pause submenu; show the remaining time in the parent title when armed.
+  local pauseTitle = "Pause Spotify"
+  if self._state.pauseHours > 0 and self._state.pauseEndsAt then
+    pauseTitle = ("Pause Spotify (%s left)")
+      :format(formatRemaining(self._state.pauseEndsAt - os.time()))
+  end
+  items[#items + 1] = {
+    title = pauseTitle,
+    menu  = self:_buildPauseItems(),
+  }
+
   return items
 end
 

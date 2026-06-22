@@ -1,6 +1,6 @@
 {
-  "commit": "bc4ca78bfdd013abb8ec8ca0ee94e5d9f82abaa3",
-  "generatedAt": "2026-06-22T16:44:51Z",
+  "commit": "134a11e10424054d82b96bae5d828f6989723286",
+  "generatedAt": "2026-06-22T19:24:46Z",
   "overrides": {},
   "repo": "catokolas/HS_SpoonsContrib",
   "schemaVersion": 1,
@@ -634,9 +634,9 @@
         },
         {
           "default": true,
-          "description": "Show a menubar item with 'Pause Spotify for N hours' entries.",
+          "description": "Show the menubar item: current output device (with a submenu to switch it) and a 'Pause' submenu with 'Pause Spotify for N hours' entries.",
           "key": "pauseHoursMenu",
-          "label": "Show menubar dropdown",
+          "label": "Show menubar menu",
           "type": "bool"
         },
         {
@@ -668,7 +668,7 @@
           "unit": "s"
         }
       ],
-      "description": "Auto play/pause Spotify based on screen state and audio output device. Pauses when headphones disconnect or screen sleeps; resumes on wake. Includes a 'pause for N hours' menubar item.",
+      "description": "Auto play/pause Spotify based on screen state and audio output device. Pauses when headphones disconnect or screen sleeps; resumes on wake. Menubar item shows the current output device (with a submenu to switch it) and a 'pause for N hours' submenu.",
       "homepage": "https://github.com/catokolas/HS_SpoonsContrib",
       "hotkeys": [],
       "license": "MIT",
