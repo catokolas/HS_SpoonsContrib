@@ -1,6 +1,6 @@
 {
-  "commit": "42262b3d96ef4a9c805a45cb6f609dac9f0f5a19",
-  "generatedAt": "2026-06-22T14:06:45Z",
+  "commit": "4bf4b7c8744229f61961c5ae2a3c5ec43c59f0af",
+  "generatedAt": "2026-06-22T14:12:21Z",
   "overrides": {},
   "repo": "catokolas/HS_SpoonsContrib",
   "schemaVersion": 1,
@@ -655,6 +655,17 @@
           "key": "speak",
           "label": "Spoken feedback",
           "type": "bool"
+        },
+        {
+          "default": 1.5,
+          "description": "Seconds to wait after the last screen/audio event before re-evaluating play/pause. Coalesces the burst of events at wake (while headphones reconnect and the audio route settles) so playback resumes once, cleanly, instead of thrashing.",
+          "key": "reevalDebounce",
+          "label": "Re-evaluate debounce",
+          "max": 1e+01,
+          "min": 0,
+          "step": 0.1,
+          "type": "number",
+          "unit": "s"
         }
       ],
       "description": "Auto play/pause Spotify based on screen state and audio output device. Pauses when headphones disconnect or screen sleeps; resumes on wake. Includes a 'pause for N hours' menubar item.",
