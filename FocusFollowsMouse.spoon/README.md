@@ -136,10 +136,12 @@ Accessibility).
 ## Logging / debug output
 
 The Spoon exposes `FocusFollowsMouse.logger` (an `hs.logger` instance)
-for consistency with the other Spoons in this repo, but the current
-implementation **does not emit any log calls of its own** — every
-focus decision is a tight inline check with no diagnostic output.
-Setting `setLogLevel("debug")` produces nothing extra today.
+for consistency with the other Spoons in this repo. Most focus decisions
+are tight inline checks with no diagnostic output, so `setLogLevel("debug")`
+stays quiet during normal use. The one exception is the modal-secure-dialog
+guard (see below): when it suppresses a focus change it logs a single
+`debug` line naming the reason, which is handy for confirming a keychain /
+authorization prompt is being recognised.
 
 If you need to see *why* focus didn't shift to the window under the
 cursor, inspect the relevant predicates manually in the Console
@@ -187,6 +189,29 @@ Report the printed role(s) — they tell us what to add to the
 menu-detection list in `init.lua` (the `MENU_ROLES` table). Browsers
 in particular often use `AXList` / `AXListItem` or `AXPopover` for
 autofill suggestions rather than `AXMenu`.
+
+### Diagnosing focus stolen from a keychain / authorization dialog
+
+A keychain-access or admin-password prompt floats over the requesting
+app's window in its **own process** (`SecurityAgent` and friends). When
+the cursor rests on the window *behind* the dialog, the popup/menu
+probes don't fire (the dialog isn't under the cursor) and the sheet
+guard doesn't either (different process), so without a dedicated guard
+FFM focuses the window behind — de-focusing the secure prompt.
+
+FFM holds focus while any process in the `MODAL_AGENT_IDS` table
+(`init.lua`) is frontmost, plus a backstop for a frontmost focused
+window whose `AXSubrole` is `AXSystemDialog`. If your build presents the
+dialog from a different process, capture its bundle id while the prompt
+is up (no need to move the cursor):
+
+```lua
+print(hs.application.frontmostApplication():bundleID())
+```
+
+Add the printed id to `MODAL_AGENT_IDS`. With `setLogLevel("debug")` on,
+FFM logs `suppressing focus: modal secure agent frontmost (<id>)` each
+time the guard fires.
 
 Log calls may be added in a future version (e.g. tracing the
 excluded-app / menu / sheet branches at `debug` level); the variable

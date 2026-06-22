@@ -210,6 +210,21 @@ local function inPopupWindow(el)
   return false
 end
 
+-- System processes that present app-/system-modal *secure* dialogs:
+-- keychain-access prompts and authorization (admin-password) panels. They
+-- run in their own process and grab the front + secure input, floating over
+-- the requesting app's window. When the cursor rests on the window *behind*
+-- such a dialog none of the other guards catch it — the dialog isn't under
+-- the cursor (so inMenuChain/inPopupWindow miss it) and it lives in a
+-- different process from the window behind (so focusedIsSheetOf, which is
+-- same-pid, misses it). Focusing the window behind dismisses or de-focuses
+-- the secure prompt, so we hold focus while one of these is frontmost.
+local MODAL_AGENT_IDS = {
+  ["com.apple.SecurityAgent"] = true, -- keychain / authorization dialogs
+  ["com.apple.CoreAuthUI"]    = true, -- LocalAuthentication password fallback
+  ["com.apple.coreautha"]     = true, -- authorization agent (some macOS builds)
+}
+
 -- When the focused window is itself a modal sheet whose parent is the
 -- candidate window, focusing the candidate bounces off WindowServer
 -- back to the sheet — visible as a chrome flicker on each cursor
@@ -254,12 +269,25 @@ function obj:_maybeFocus()
   --      windows is a busy WKWebView dashboard.
   if findHsWindowAt(point) then return end
 
+  -- Hold focus while a system-modal secure dialog (keychain access /
+  -- authorization prompt) is frontmost, even when the cursor rests on the
+  -- window behind it. This needs no AX cost and works even if
+  -- hs.axuielement is unavailable.
+  local front = hs.application.frontmostApplication()
+  local fbid  = front and front:bundleID()
+  if fbid and MODAL_AGENT_IDS[fbid] then
+    self.logger.d("suppressing focus: modal secure agent frontmost (" .. fbid .. ")")
+    return
+  end
+
   -- Other apps' windows: the AX cascade is needed to skip focus shifts
   -- while an open menu / floating popup is involved (otherwise the
-  -- focus call dismisses them). Two probes:
+  -- focus call dismisses them). Probes:
   --   1. Element at cursor (catches most apps; menu may be a nested
   --      child so we walk the parent chain).
-  --   2. Frontmost app's AXFocusedUIElement (catches popups that
+  --   2. Frontmost app's focused window is a system dialog (catches a
+  --      modal secure panel presented by a process not in MODAL_AGENT_IDS).
+  --   3. Frontmost app's AXFocusedUIElement (catches popups that
   --      `systemElementAtPosition` doesn't return — e.g. Thunderbird,
   --      where the cursor's hit element is the window content behind
   --      while the menu is the app's focused UI element).
@@ -267,9 +295,13 @@ function obj:_maybeFocus()
   if axOk and ax then
     local el = ax.systemElementAtPosition(point.x, point.y)
     if el and (inMenuChain(el) or inPopupWindow(el)) then return end
-    local front = hs.application.frontmostApplication()
     if front then
       local appEl = ax.applicationElement(front)
+      local fwin  = appEl and appEl:attributeValue("AXFocusedWindow")
+      if fwin and fwin:attributeValue("AXSubrole") == "AXSystemDialog" then
+        self.logger.d("suppressing focus: frontmost focused window is AXSystemDialog")
+        return
+      end
       local focusedEl = appEl and appEl:attributeValue("AXFocusedUIElement")
       if focusedEl and inMenuChain(focusedEl) then return end
     end
