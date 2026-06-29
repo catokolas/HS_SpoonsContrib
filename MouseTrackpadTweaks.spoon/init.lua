@@ -36,7 +36,7 @@ obj.__index = obj
 
 -- Metadata
 obj.name     = "MouseTrackpadTweaks"
-obj.version  = "0.1"
+obj.version  = "0.2"
 obj.author   = "Cato Kolås <cato.kolas@gmail.com>"
 obj.credits  = ""
 obj.homepage = "https://github.com/catokolas/HS_SpoonsContrib"
@@ -67,13 +67,13 @@ obj.invertHorizontal = true
 ---   multiFinger = {
 ---     enabled     = true,
 ---     fingerCount = 3,            -- ≥ this many fingers fires middle-click
----     trigger     = "either",     -- "tap" | "click" | "either"
+---     trigger     = "tap",        -- "tap" | "click" | "either"
 ---   },
 ---
 ---   topCenter = {
 ---     enabled = true,
 ---     devices = { magicMouse = true, trackpad = true },
----     trigger = "either",         -- "tap" | "click" | "either"
+---     trigger = "tap",            -- "tap" | "click" | "either"
 ---     xMin = 0.30, xMax = 0.70,   -- normalized fractions of the
 ---     yMin = 0.00, yMax = 0.30,   -- device surface (0,0 = top-left)
 ---   },
@@ -90,7 +90,13 @@ obj.middleClick = {
   multiFinger = {
     enabled     = true,
     fingerCount = 3,
-    trigger     = "either",
+    -- "tap" by default (not "click"): with macOS "Secondary click" left
+    -- ON, the hardware already turns a physical press into a left/right
+    -- click by press side. Converting a *click* here would steal that
+    -- (a top-center left-click would become a middle-click), so the
+    -- Spoon only synthesises middle from a TAP — a touch-and-lift with
+    -- no button press — which never collides with a hardware click.
+    trigger     = "tap",
     -- Only count touches that BEGAN this recently before the click.
     -- Magic Mouse routinely reports 2-3 passive contacts (pointing
     -- finger + hand-rest + thumb) just from how the user grips it; a
@@ -102,7 +108,11 @@ obj.middleClick = {
   topCenter = {
     enabled = true,
     devices = { magicMouse = true, trackpad = true },
-    trigger = "either",
+    -- "tap" by default — see the multiFinger.trigger note above. To
+    -- middle-click: tap (touch and lift, no press) the top-center of the
+    -- surface. Physical left/right clicks in this region pass straight
+    -- through to the hardware untouched.
+    trigger = "tap",
     xMin = 0.30, xMax = 0.70,
     yMin = 0.00, yMax = 0.30,
     -- An in-region touch only counts as a deliberate middle-click

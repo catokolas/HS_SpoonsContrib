@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "name": "MouseTrackpadTweaks",
-  "version": "0.1",
+  "version": "0.2",
   "description": "Per-device input tweaks: Magic-Mouse-only scroll inversion, and middle-click synthesis from multi-finger or top-center touches on Magic Mouse / Trackpad.",
   "author": "Cato Kolås <cato.kolas@gmail.com>",
   "homepage": "https://github.com/catokolas/HS_SpoonsContrib",
@@ -50,7 +50,7 @@
             { "key": "enabled",     "label": "Enable",        "type": "bool", "default": true },
             { "key": "fingerCount", "label": "Finger count",  "type": "int",  "default": 3, "min": 2, "max": 5, "step": 1 },
             {
-              "key": "trigger", "label": "Trigger on", "type": "enum", "default": "either",
+              "key": "trigger", "label": "Trigger on", "type": "enum", "default": "tap",
               "enum": [
                 { "value": "tap",    "label": "Tap" },
                 { "value": "click",  "label": "Click" },
@@ -74,7 +74,7 @@
           "fields": [
             { "key": "enabled", "label": "Enable", "type": "bool", "default": true },
             {
-              "key": "trigger", "label": "Trigger on", "type": "enum", "default": "either",
+              "key": "trigger", "label": "Trigger on", "type": "enum", "default": "tap",
               "enum": [
                 { "value": "tap",    "label": "Tap" },
                 { "value": "click",  "label": "Click" },

@@ -13,6 +13,17 @@ that macOS doesn't expose itself:
    trigger mode can independently be set to fire on `"tap"`, `"click"`,
    or `"either"`.
 
+> **Recommended Magic Mouse setup (hybrid).** Leave macOS **"Secondary
+> click" ON** so the hardware reliably produces left- and right-clicks
+> by press side, and let this Spoon add **only middle-click**, via a
+> **tap** (touch-and-lift, no button press) in the top-center region.
+> That's why both triggers default to `"tap"`: a `"click"` trigger
+> would convert a physical press — stealing your hardware left-click —
+> whereas a tap never collides with a real click. (Trying to derive
+> left/middle/right purely from touch position doesn't work on the
+> Magic Mouse: grip/palm contacts are indistinguishable from the
+> clicking finger, so normal clicks get misclassified.)
+
 > **Note** — both features depend on the optional
 > [`hs._ckol.multitouch`](https://github.com/catokolas/HS_ModulesContrib-multitouch)
 > native helper, which wraps Apple's `MultitouchSupport.framework`.
@@ -55,14 +66,15 @@ spoon.MouseTrackpadTweaks:configure({
   middleClick = {
     enabled = true,
     multiFinger = {
-      fingerCount = 3,             -- 3-finger tap/click → middle-click
-      trigger     = "either",
+      fingerCount = 3,             -- 3-finger tap → middle-click
+      trigger     = "tap",
     },
     topCenter = {
       xMin = 0.30, xMax = 0.70,    -- middle 40% of the device, top 30%
       yMin = 0.00, yMax = 0.30,
-      trigger = "click",           -- only clicks in the region trigger
-                                   -- (taps in the region stay normal)
+      trigger = "tap",             -- tap (touch + lift, no press) the
+                                   -- region → middle; physical clicks
+                                   -- pass through to the hardware
     },
     tap = {
       maxDurationMs = 200,
@@ -87,7 +99,7 @@ Then reload Hammerspoon (menu bar → Reload Config).
 | Variable | Default | Purpose |
 |---|---|---|
 | `MouseTrackpadTweaks.invertVertical` | `true` | If true, flip Magic Mouse vertical scroll. Trackpad unaffected. |
-| `MouseTrackpadTweaks.invertHorizontal` | `false` | If true, flip Magic Mouse horizontal scroll. |
+| `MouseTrackpadTweaks.invertHorizontal` | `true` | If true, flip Magic Mouse horizontal scroll. |
 | `MouseTrackpadTweaks.middleClick` | _(table — see below)_ | Middle-click synthesis configuration. |
 | `MouseTrackpadTweaks.logger` | `hs.logger.new("MouseTrackpadTweaks")` | Logger; set its level to control verbosity. |
 
@@ -100,7 +112,7 @@ middleClick = {
   multiFinger = {
     enabled     = true,
     fingerCount = 3,                -- ≥ this many fingers triggers middle-click
-    trigger     = "either",         -- "tap" | "click" | "either"
+    trigger     = "tap",            -- "tap" | "click" | "either"
     maxAgeMs    = 1500,             -- a finger only counts toward fingerCount
                                     -- if it BEGAN this recently before the
                                     -- click; filters Magic Mouse passive
@@ -111,7 +123,7 @@ middleClick = {
   topCenter = {
     enabled = true,
     devices = { magicMouse = true, trackpad = true },
-    trigger = "either",             -- "tap" | "click" | "either"
+    trigger = "tap",                -- "tap" | "click" | "either"
     xMin = 0.30, xMax = 0.70,       -- normalized fractions of the
     yMin = 0.00, yMax = 0.30,       -- device surface (0,0 = top-left)
     maxAgeMs = 1500,                -- a touch only counts as a deliberate
@@ -137,9 +149,12 @@ middleClick = {
 
 `trigger` values:
 
-- `"tap"` — fire on touch-and-lift without a physical click.
+- `"tap"` — fire on touch-and-lift without a physical click. **The
+  default**, and the recommended mode on the Magic Mouse so the
+  Spoon never converts a hardware left/right click (see the hybrid
+  note at the top).
 - `"click"` — fire only when the device's physical click occurs.
-- `"either"` — fire on either, the default.
+- `"either"` — fire on either.
 
 Region coordinates are **fractions of the device surface**, not screen
 pixels. `(0, 0)` is the top-left of the device's touch surface;
