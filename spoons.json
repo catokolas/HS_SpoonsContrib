@@ -1,6 +1,6 @@
 {
-  "commit": "26d37bbb4511bcaa2b4d096d312c3cd5440e7702",
-  "generatedAt": "2026-06-22T19:30:51Z",
+  "commit": "5b3111ae22e3476c82961650a1eb8efc0daf788d",
+  "generatedAt": "2026-06-29T12:03:07Z",
   "overrides": {},
   "repo": "catokolas/HS_SpoonsContrib",
   "schemaVersion": 1,
@@ -311,7 +311,7 @@
                   "type": "int"
                 },
                 {
-                  "default": "either",
+                  "default": "tap",
                   "enum": [
                     {
                       "label": "Tap",
@@ -361,7 +361,7 @@
                   "type": "bool"
                 },
                 {
-                  "default": "either",
+                  "default": "tap",
                   "enum": [
                     {
                       "label": "Tap",
@@ -521,7 +521,7 @@
         }
       ],
       "schemaVersion": 1,
-      "version": "0.1"
+      "version": "0.2"
     },
     {
       "author": "Cato Kolås <cato.kolas@gmail.com>",
