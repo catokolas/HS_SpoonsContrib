@@ -175,6 +175,19 @@ local MENU_ROLES = {
   AXMenuButton  = true,
 }
 
+-- AX roles/subroles commonly used by transient popup surfaces that
+-- should not be dismissed by a focus shift to the window behind.
+local POPUP_ROLES = {
+  AXPopover = true,
+  AXSheet   = true,
+}
+
+local POPUP_SUBROLES = {
+  AXFloatingWindow = true,
+  AXSystemDialog   = true,
+  AXUnknown        = true,
+}
+
 -- Walk an AX element's parent chain looking for a menu-role ancestor.
 -- Mozilla apps (Thunderbird/Firefox) nest the element directly under
 -- the cursor several levels below the actual AXMenu container, so a
@@ -201,8 +214,14 @@ end
 local function inPopupWindow(el)
   local depth = 0
   while el and depth < 12 do
-    if el:attributeValue("AXRole") == "AXWindow" then
-      return el:attributeValue("AXSubrole") ~= "AXStandardWindow"
+    local role = el:attributeValue("AXRole")
+    if role and POPUP_ROLES[role] then return true end
+
+    local subrole = el:attributeValue("AXSubrole")
+    if subrole and POPUP_SUBROLES[subrole] then return true end
+
+    if role == "AXWindow" then
+      return subrole ~= "AXStandardWindow"
     end
     el = el:attributeValue("AXParent")
     depth = depth + 1
@@ -290,7 +309,7 @@ function obj:_maybeFocus()
   --   3. Frontmost app's AXFocusedUIElement (catches popups that
   --      `systemElementAtPosition` doesn't return — e.g. Thunderbird,
   --      where the cursor's hit element is the window content behind
-  --      while the menu is the app's focused UI element).
+  --      while the popup/menu is the app's focused UI element).
   local axOk, ax = pcall(require, "hs.axuielement")
   if axOk and ax then
     local el = ax.systemElementAtPosition(point.x, point.y)
@@ -303,7 +322,7 @@ function obj:_maybeFocus()
         return
       end
       local focusedEl = appEl and appEl:attributeValue("AXFocusedUIElement")
-      if focusedEl and inMenuChain(focusedEl) then return end
+      if focusedEl and (inMenuChain(focusedEl) or inPopupWindow(focusedEl)) then return end
     end
   end
   local win = self:windowUnderPoint(point)
