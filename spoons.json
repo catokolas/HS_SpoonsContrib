@@ -1,6 +1,6 @@
 {
-  "commit": "124eb35782608577c0222890be87c1722ae92bff",
-  "generatedAt": "2026-10-01T15:41:00Z",
+  "commit": "bd5505eff2bc5e4b357a6390c55734dfec1a4690",
+  "generatedAt": "2026-10-01T15:50:11Z",
   "overrides": {},
   "repo": "catokolas/HS_SpoonsContrib",
   "schemaVersion": 1,
@@ -57,7 +57,7 @@
         }
       ],
       "schemaVersion": 1,
-      "version": "0.1"
+      "version": "0.2"
     },
     {
       "activateHotkey": {
