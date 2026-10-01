@@ -217,10 +217,13 @@ local function inPopupWindow(el)
     local role = el:attributeValue("AXRole")
     if role and POPUP_ROLES[role] then return true end
 
-    local subrole = el:attributeValue("AXSubrole")
-    if subrole and POPUP_SUBROLES[subrole] then return true end
-
+    -- Some apps (notably Thunderbird) expose AXSubrole values like
+    -- AXUnknown on non-window content nodes; treating those as popup
+    -- signals causes over-suppression where focus never leaves/enters.
+    -- Only interpret subroles once we've reached the enclosing AXWindow.
     if role == "AXWindow" then
+      local subrole = el:attributeValue("AXSubrole")
+      if subrole and POPUP_SUBROLES[subrole] then return true end
       return subrole ~= "AXStandardWindow"
     end
     el = el:attributeValue("AXParent")
