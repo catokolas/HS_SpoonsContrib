@@ -24,7 +24,7 @@ obj.__index = obj
 
 -- Metadata
 obj.name = "FocusFollowsMouse"
-obj.version = "0.2"
+obj.version = "0.3"
 obj.author = "Cato Kolås <cato.kolas@gmail.com>"
 obj.credits = "Inspired by MouseFollowsFocus by Jason Felice <jason.m.felice@gmail.com>"
 obj.homepage = "https://github.com/Hammerspoon/Spoons"
@@ -185,7 +185,6 @@ local POPUP_ROLES = {
 local POPUP_SUBROLES = {
   AXFloatingWindow = true,
   AXSystemDialog   = true,
-  AXUnknown        = true,
 }
 
 -- Walk an AX element's parent chain looking for a menu-role ancestor.
@@ -207,7 +206,7 @@ end
 -- Walk to the enclosing AXWindow and report whether it's a popup-like
 -- surface (autocomplete dropdown, tooltip, HUD, floating panel). Real
 -- focusable windows expose AXSubrole == "AXStandardWindow"; popups
--- expose AXFloatingWindow / AXUnknown / etc. or no subrole at all.
+-- often expose AXFloatingWindow / AXSystemDialog / etc. or no subrole.
 -- Used in addition to the menu-role check because popups often expose
 -- generic content roles (AXCell, AXStaticText) that we can't add to
 -- MENU_ROLES without breaking focus over ordinary tables and labels.
@@ -218,9 +217,9 @@ local function inPopupWindow(el)
     if role and POPUP_ROLES[role] then return true end
 
     -- Some apps (notably Thunderbird) expose AXSubrole values like
-    -- AXUnknown on non-window content nodes; treating those as popup
-    -- signals causes over-suppression where focus never leaves/enters.
-    -- Only interpret subroles once we've reached the enclosing AXWindow.
+    -- AXUnknown on ordinary app windows/content nodes. Treating
+    -- AXUnknown as popup causes over-suppression where focus never
+    -- leaves/enters, so we only trust explicit popup subroles.
     if role == "AXWindow" then
       local subrole = el:attributeValue("AXSubrole")
       if subrole and POPUP_SUBROLES[subrole] then return true end
