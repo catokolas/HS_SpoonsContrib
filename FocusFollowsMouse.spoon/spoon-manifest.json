@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "name": "FocusFollowsMouse",
-  "version": "0.1",
+  "version": "0.2",
   "description": "Sloppy focus / X11-style focus-follows-mouse: when the pointer comes to rest over a window that isn't focused, that window is focused.",
   "author": "Cato Kolås <cato.kolas@gmail.com>",
   "homepage": "https://github.com/catokolas/HS_SpoonsContrib",

@@ -24,7 +24,7 @@ obj.__index = obj
 
 -- Metadata
 obj.name = "FocusFollowsMouse"
-obj.version = "0.1"
+obj.version = "0.2"
 obj.author = "Cato Kolås <cato.kolas@gmail.com>"
 obj.credits = "Inspired by MouseFollowsFocus by Jason Felice <jason.m.felice@gmail.com>"
 obj.homepage = "https://github.com/Hammerspoon/Spoons"
